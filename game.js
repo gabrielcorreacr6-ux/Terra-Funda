@@ -1504,6 +1504,8 @@
   (function loadArt() {
     const img = new Image();
     img.onload = () => { art = img; buildIconURLs(); invDirty = true; };
+    // se a pasta assets não foi enviada, tenta o arquivo solto na raiz do site
+    img.onerror = () => { if (!img.dataset.raiz) { img.dataset.raiz = 1; img.src = 'atlas.webp'; } };
     img.src = window.TERRA_ATLAS || 'assets/atlas.webp';
   })();
   function artRect(name) { return art && ATLAS[name]; }
@@ -1513,6 +1515,7 @@
   (function loadArt2() {
     const img = new Image();
     img.onload = () => { art2 = img; thumbCache.clear(); invDirty = true; };
+    img.onerror = () => { if (!img.dataset.raiz) { img.dataset.raiz = 1; img.src = 'estruturas.webp'; } };
     img.src = window.TERRA_ATLAS2 || 'assets/estruturas.webp';
   })();
   const thumbCache = new Map();
