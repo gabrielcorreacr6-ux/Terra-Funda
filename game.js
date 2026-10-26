@@ -3180,6 +3180,7 @@
     $('account-line').hidden = !on; $('btn-logout').hidden = !on;
     $('btn-staff').hidden = !(on && NET.isStaff);
     if (on) $('account-line').textContent = `Conectado como ${NET.profile ? NET.profile.username : NET.user.email}`
+      + (!NET.profile && NET.profileError ? ` · perfil não carregou (${NET.profileError})` : '')
       + (NET.profile && NET.profile.codigo ? ` · seu código: ${NET.profile.codigo}` : '');
     $('save-note').textContent = on ? 'O progresso fica salvo na sua conta e neste navegador.' : 'O progresso é salvo neste navegador a cada 15 segundos.';
   }

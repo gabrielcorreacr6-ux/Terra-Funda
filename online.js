@@ -24,8 +24,16 @@
 
   async function fetchProfile() {
     if (!T.user) { T.profile = null; return null; }
-    const { data } = await sb.from('profiles').select('*').eq('id', T.user.id).maybeSingle();
-    T.profile = data || null;
+    T.profileError = '';
+    // primeiro pela função do servidor (não depende das permissões da tabela); depois direto na tabela
+    let r = await sb.rpc('my_profile');
+    let row = !r.error && Array.isArray(r.data) ? r.data[0] : (!r.error && r.data && r.data.id ? r.data : null);
+    if (!row) {
+      const q = await sb.from('profiles').select('*').eq('id', T.user.id).maybeSingle();
+      row = q.data || null;
+      if (!row) T.profileError = (q.error && q.error.message) || (r.error && r.error.message) || 'perfil não encontrado';
+    }
+    T.profile = row;
     return T.profile;
   }
 
