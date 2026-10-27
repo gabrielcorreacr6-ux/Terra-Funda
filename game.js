@@ -135,7 +135,7 @@
     pedra: { tipo: 'casa', nome: 'Casa de pedra', w: 8, h: 4, porta: 0.57, preco: 1600, desc: 'Paredes grossas e telhado de ardósia.' },
     tribal: { tipo: 'casa', nome: 'Casa tribal', w: 8, h: 4, porta: 0.42, preco: 1800, desc: 'Casa comprida com totem e fogueiras.' },
     saloon: { tipo: 'casa', nome: 'Saloon do faroeste', w: 8, h: 4, porta: 0.55, preco: 2400, desc: 'Balcão, piano e mesas de jogo.' },
-    castelo: { tipo: 'casa', nome: 'Castelo', w: 8, h: 4, porta: 0.55, preco: 4500, desc: 'Torres nos cantos, lareira e armaduras.' },
+    castelo: { tipo: 'casa', nome: 'Castelo', w: 12, h: 6, porta: 0.55, preco: 4500, desc: 'Torres nos cantos, lareira e armaduras.' },
     domo: { tipo: 'casa', nome: 'Domo alienígena', w: 8, h: 4, porta: 0.43, preco: 6500, desc: 'Cápsulas de dormir e holograma.' },
     torre_madeira: { tipo: 'torre', nome: 'Torre de vigia', w: 2, h: 2, preco: 500, desc: 'Torre simples de madeira.' },
     torre_pedra: { tipo: 'torre', nome: 'Torre de pedra', w: 2, h: 2, preco: 1100, desc: 'Torre de pedra com besta.' },
@@ -4212,9 +4212,12 @@
   const PISOS = { madeira: ['#9a6a3e', '#8a5c34'], clara: ['#d8b98a', '#c9a874'], pedra: ['#8d9096', '#7d8086'], xadrez: ['#e8e2d6', '#2a2622'],
     verde: ['#5f9a4e', '#53893f'], azul: ['#4a74b8', '#3f67a8'], vermelho: ['#b8493f', '#a63f36'], rosa: ['#e08cb4', '#d07ca4'], roxo: ['#8a5cc0', '#7b4fb0'], preto: ['#2e2a30', '#26222a'] };
   const PAREDES = { creme: '#e6d8b8', madeira: '#7a5230', pedra: '#6f7278', branca: '#f0eee8', azul: '#5d7fb5', verde: '#6e9a5e', vinho: '#7a2f3a', preta: '#2a2628' };
-  const roomSize = b => (b.k === 'castelo' ? 90 : 30);   // 3× maiores
+  const roomSize = b => (b.k === 'castelo' ? 45 : 15);
   function roomOf(b) {
     if (!b.room) b.room = { piso: 'madeira', parede: 'creme', itens: [] };
+    const N = roomSize(b);   // cômodo diminuiu: o que ficou fora volta para "Suas construções"
+    b.room.itens = b.room.itens.filter(it => { const f = FOOT[it.k] || [1, 1], [fw, fh] = it.flip ? [f[1], f[0]] : f;
+      if (it.x + fw <= N && it.y + fh <= N) return true; S.kit[it.k] = (S.kit[it.k] || 0) + 1; return false; });
     return b.room;
   }
   const RP = { x: 5, y: 9, dir: 1 };
