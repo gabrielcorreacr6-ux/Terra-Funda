@@ -739,7 +739,7 @@
   function stoneLand(s2) {
     const x0 = Math.floor(s2.x), y0 = Math.floor(s2.y), R = s2.ferro ? 1 : 0;
     effects.push({ name: 'catapulta_impacto', x: s2.x, y: s2.y, z: 0, t0: performance.now(), dur: 500 });
-    sfx('quebra');
+    sfx('desaba');
     let got = {};
     for (let y = y0 - R; y <= y0 + R; y++) for (let x = x0 - R; x <= x0 + R; x++) {
       if (x < 2 || y < 2 || x >= W - 2 || y >= H - 2) continue;
@@ -780,6 +780,7 @@
         }
       }
       if (end && s2.area) {   // magia: explode em área
+        sfx('magia_acerto');
         for (const m of [...S.mobs]) if (m.z === s2.z && Math.hypot(m.x - s2.x, m.y - s2.y) < s2.area) damageMob(m, s2.dano, 'cetro', { burn: s2.burn });
         effects.push({ ring: s2.area, x: s2.x, y: s2.y, z: s2.z, t0: now, dur: 350, cor: WLV_COR[s2.lv] || '#c7b2ff' });
       }
@@ -789,12 +790,12 @@
           const a = S.animals[ai], sp = SPECIES[a.kind];
           end = true;
           if (s2.kind === 'magia') {
-            a.stun = now + 6000; sfx('atordoa');
+            a.stun = now + 6000; sfx('magia_acerto');
             toast(`${sp.nome} atordoado: use a rede, ela pega na certa`, 'leaf');
           } else if (sp.protegido) toast('Pintinhos não podem ser caçados', 'warn');
           else {
             S.animals.splice(ai, 1);
-            give('carne', sp.carne); sfx('acerto');
+            give('carne', sp.carne); sfx('flecha_acerto');
             toast(`+${sp.carne} Carne de caça (${sp.nome})`);
           }
         }
@@ -1082,7 +1083,7 @@
         }
         if (m.kind === 'bicho') {   // some debaixo da terra, corre e sai do seu lado
           if (!m.under && dist > 2.5 && now - (m.lastDive || 0) > 6000) { m.under = true; m.lastDive = now; m.rise = 0; }
-          if (m.under) { sp *= 1.8; if (dist < 1.3) { m.under = false; m.rise = now; m.atk = 0.3; shake(200, tp * 0.06); } }
+          if (m.under) { sp *= 1.8; if (dist < 1.3) { m.under = false; m.rise = now; m.atk = 0.3; shake(200, tp * 0.06); sfx('bicho_ruge'); } }
         }
       }
       else {
@@ -1132,12 +1133,13 @@
     if (opt.weak) m.weak = now + 8000;
     effects.push({ txt: String(n), x: m.x, y: m.y - 1.3, z: m.z, t0: now, dur: 650, cor: opt.burn ? '#ffb347' : '#ffffff' });
     addXp(arma, 4);
+    sfx(arma === 'espada' ? 'espada_acerto' : arma === 'arco' ? 'flecha_acerto' : arma === 'cetro' ? 'magia_acerto' : 'acerto');
     if (m.hp <= 0) killMob(m, idx, arma);
   }
   function killMob(m, idx, arma) {
     const def = MOB[m.kind];
     S.mobs.splice(idx, 1);
-    sfx('quebra');
+    sfx(m.kind === 'bicho' ? 'bicho_morre' : 'inimigo');
     if (arma) addXp(arma, def.xp);
     corpses.push({ kind: m.kind, x: m.x, y: m.y, z: m.z, flip: m.dir === 2, t0: performance.now() });
     if (m.kind === 'fugitivo') { pegouFugitivo(m); return; }
@@ -1206,7 +1208,7 @@
     hits3.livro++;
     if (lv >= 4) defBuffTil = performance.now() + 20000;
     if (lv >= 3 && hits3.livro % 3 === 0) toast(lv >= 4 ? 'Base fortificada: +20% de defesa por 20 s' : 'Construções por perto restauradas', 'leaf');
-    sfx('atordoa'); cooldown = 0.6; wear('livro');
+    sfx('livro'); cooldown = 0.6; wear('livro');
   }
   // explosão circular do cetro (Expert, a cada 3 magias): enfraquece inimigos; lendário também cura
   function staffNova(lv) {
@@ -1214,7 +1216,7 @@
     effects.push({ ring: 3, x: S.p.x, y: S.p.y, z: S.p.z, t0: now, dur: 500, cor: lv >= 5 ? '#ffcc33' : '#9b4dff', img: 'anel_explosao' });
     for (const m of [...S.mobs]) if (m.z === S.p.z && Math.hypot(m.x - S.p.x, m.y - S.p.y) < 3) damageMob(m, 10 * WLV_DANO[lv], 'cetro', { weak: true });
     if (lv >= 5) S.hp = Math.min(HP_MAX, S.hp + 15);
-    sfx('quebra');
+    sfx('magia_acerto');
   }
   function combatTick(dt, now) {
     S.playMs = (S.playMs || 0) + dt * 1000;
@@ -1660,7 +1662,7 @@
     wear('picareta'); sfx(t === T.DIRT ? 'cavar' : 'pedra');
     if (h < need) { hits.set(i, { h, need }); return false; }
     hits.delete(i);
-    S.tiles[i] = after; sfx('quebra');
+    S.tiles[i] = after; sfx(t === T.DIRT ? 'cavar' : 'pedra_quebra');
     if (m.drop) {
       give(m.drop, m.n);
       toast(`+${m.n} ${ITEMS[m.drop].nome}`, m.hard >= 2 ? 'gold' : '');
@@ -1713,7 +1715,7 @@
     const gate = t === T.GATE, w = S.wmat[i];
     if (mode === 'remover') {
       S.tiles[i] = z === 0 ? T.GRASS : T.AIR; S.wmat[i] = 0; hits.delete(i);
-      const back = wallCost(w & 15, gate); giveAll(back); sfx('quebra');
+      const back = wallCost(w & 15, gate); giveAll(back); sfx('desaba');
       toast(`Removido: ${costTxt(back)} de volta`);
     } else if (mode === 'mover') {
       S.tiles[i] = z === 0 ? T.GRASS : T.AIR; S.wmat[i] = 0; hits.delete(i);
@@ -2053,7 +2055,7 @@
         return;
       }
       case 'espada': {
-        sfx('golpe');
+        sfx('espada');
         if (swordStrike()) { wear('espada'); cooldown = 0.38; return; }
         if (z !== 0) return;
         const k = animalInFront(x, y);
@@ -2062,7 +2064,7 @@
           const sp = SPECIES[S.animals[k].kind];
           S.animals.splice(k, 1);
           const n = sp.carne + swordBonus();
-          give('carne', n); wear('espada'); sfx('acerto');
+          give('carne', n); wear('espada'); sfx('espada_acerto');
           toast(`+${n} Carne de caça (${sp.nome})`);
           if (sp.raridade !== 'Comum') hint('rede', 'Animais vivos valem bem mais. Compre a rede na loja para capturar.');
         }
@@ -2245,6 +2247,7 @@
     sfxBus = actx.createGain(); sfxBus.gain.value = AUDIO.sons ? 0.7 : 0; sfxBus.connect(master);
     noiseBuf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    carregarSons();
     musicStart();
   }
   ['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, audioInit, { passive: true }));
@@ -2265,12 +2268,43 @@
     f.type = type; f.Q.value = q; f.frequency.setValueAtTime(f0, t); if (f1) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
     env(g, t, 0.004, peak, dur); src.connect(f); f.connect(g); g.connect(sfxBus); src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05);
   }
+  // Sons gravados (pasta sons/). Enquanto não carregam, ou se faltar o arquivo, toca o som gerado.
+  const SOM_ARQ = {
+    espada: ['espada_golpe'], espada_acerto: ['espada_acerto'], arco: ['flecha_disparo'], flecha_acerto: ['flecha_acerto'],
+    magia: ['magia_lanca'], magia_acerto: ['magia_acerto'], livro: ['livro_cura'], moeda: ['moeda'], construir: ['construir'],
+    cavar: ['cavar_1', 'cavar_2', 'cavar_3'], pedra: ['pedra_1', 'pedra_2', 'pedra_3', 'pedra_4'], pedra_quebra: ['pedra_quebra'],
+    desaba: ['desaba'], corte: ['corte'], arvore: ['arvore'], inimigo: ['inimigo_1', 'inimigo_2'], bicho_ruge: ['bicho_ruge'], bicho_morre: ['bicho_morre'],
+  };
+  const SOM_SINT = { espada: 'golpe', espada_acerto: 'acerto', flecha_acerto: 'acerto', magia_acerto: 'atordoa', livro: 'atordoa',
+    desaba: 'quebra', pedra_quebra: 'quebra', inimigo: 'quebra', bicho_morre: 'quebra', bicho_ruge: 'quebra' };
+  const somBuf = {}, somUltimo = {};
+  function carregarSons() {
+    const todos = [...new Set(Object.values(SOM_ARQ).flat())];
+    for (const f of todos) {
+      const src = (window.TERRA_SONS && window.TERRA_SONS[f]) || 'sons/' + f + '.mp3';
+      fetch(src).then(r => (r.ok ? r.arrayBuffer() : null))
+        .then(b => b && new Promise((ok, no) => actx.decodeAudioData(b, ok, no)))
+        .then(buf => { if (buf) somBuf[f] = buf; }).catch(() => {});
+    }
+  }
   const lastSfx = {};
   function sfx(name) {
     if (!actx || !AUDIO.sons) return;
     const t = actx.currentTime, v = 0.9 + Math.random() * 0.2;
     if (lastSfx[name] && t - lastSfx[name] < 0.04) return;
     lastSfx[name] = t;
+    const arq = SOM_ARQ[name] && SOM_ARQ[name].filter(f => somBuf[f]);
+    if (arq && arq.length) {
+      // sorteia entre as variações, sem repetir a última quando há mais de uma
+      let f = arq[Math.floor(Math.random() * arq.length)];
+      if (arq.length > 1 && f === somUltimo[name]) f = arq[(arq.indexOf(f) + 1) % arq.length];
+      somUltimo[name] = f;
+      const src = actx.createBufferSource(), g = actx.createGain();
+      src.buffer = somBuf[f]; src.playbackRate.value = 0.96 + Math.random() * 0.08; g.gain.value = 0.85;
+      src.connect(g); g.connect(sfxBus); src.start(t);
+      return;
+    }
+    name = SOM_SINT[name] || name;
     switch (name) {
       case 'golpe': noise(t, 0.16, 0.35, 'bandpass', 2400 * v, 700, 2); break;                       // vulto do golpe
       case 'acerto': tone('sine', 160 * v, 60, t, 0.005, 0.6, 0.14); noise(t, 0.08, 0.3, 'lowpass', 1500, 400); break;
@@ -2287,11 +2321,11 @@
       case 'toque': noise(t, 0.06, 0.3, 'bandpass', 1800, 900, 2); break;
     }
   }
-  // Música: alaúde dedilhado em ré dórico sobre um bordão grave, frases sorteadas a cada compasso
+  // Música: flauta medieval em ré dórico, com bordão grave, alaúde e tamborim
   const SCALE = [0, 2, 3, 5, 7, 9, 10];   // ré dórico
   const BASE = 146.83;                      // ré3
   const CHORDS = [[0, 4], [3, 0], [6, 2], [4, 1], [0, 4], [5, 2], [3, 0], [4, 1]];   // grau do baixo, grau "cor"
-  let musicTimer = null, musicT = 0, bar = 0, mel = 7;
+  let musicTimer = null, musicT = 0;
   const freq = deg => { const o = Math.floor(deg / 7), n = ((deg % 7) + 7) % 7; return BASE * 2 ** (o + SCALE[n] / 12); };
   function pluck(f, t, vol, dec = 1.4) {
     const o = actx.createOscillator(), o2 = actx.createOscillator(), flt = actx.createBiquadFilter(), g = actx.createGain();
@@ -2302,35 +2336,73 @@
     o.connect(flt); o2.connect(g2); g2.connect(flt); flt.connect(g); g.connect(musicBus);
     o.start(t); o2.start(t); o.stop(t + dec + 0.1); o2.stop(t + dec + 0.1);
   }
+  // Flauta doce: seno com um pouco de 2º harmônico, sopro no começo da nota e vibrato que entra depois
   function flute(f, t, dur, vol) {
-    const o = actx.createOscillator(), lfo = actx.createOscillator(), lg = actx.createGain(), g = actx.createGain();
-    o.type = 'sine'; o.frequency.value = f; lfo.frequency.value = 5; lg.gain.value = f * 0.006;
-    lfo.connect(lg); lg.connect(o.frequency);
-    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.12); g.gain.setValueAtTime(vol, t + dur - 0.15); g.gain.linearRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(musicBus); o.start(t); lfo.start(t); o.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05);
-  }
-  function musicBar(t) {
-    const beat = 60 / 66, [root, col] = CHORDS[bar % CHORDS.length];
-    // baixo e bordão
-    pluck(freq(root - 7) , t, 0.22, beat * 3.5);
-    pluck(freq(root - 7 + 4), t + beat * 1.5, 0.12, beat * 2);
-    // dedilhado
-    const arp = [root, root + 2, root + 4, root + 7, root + 4, root + 2];
-    arp.forEach((d, k) => pluck(freq(d), t + k * beat * 2 / 3, 0.075 + (k === 0 ? 0.03 : 0), 1.2));
-    // melodia de flauta em metade dos compassos, andando por graus vizinhos
-    if (bar % 4 >= 2) {
-      let tt = t;
-      const rhythm = Math.random() < 0.5 ? [1.5, 0.5, 1, 1] : [1, 1, 2];
-      for (const r of rhythm) {
-        mel += [-2, -1, -1, 0, 1, 1, 2][Math.floor(Math.random() * 7)];
-        mel = clamp(mel, 5, 13);
-        if (Math.random() < 0.4) mel = col + 7 + (Math.random() < 0.5 ? 0 : 2);
-        flute(freq(mel), tt, r * beat * 0.95, 0.07);
-        tt += r * beat;
-      }
+    const o = actx.createOscillator(), o2 = actx.createOscillator(), g2 = actx.createGain(), lfo = actx.createOscillator(), lg = actx.createGain();
+    const flt = actx.createBiquadFilter(), g = actx.createGain();
+    o.type = 'sine'; o.frequency.value = f; o2.type = 'triangle'; o2.frequency.value = f * 2; g2.gain.value = 0.1;
+    lfo.frequency.value = 5.3; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * 0.007, t + Math.min(0.35, dur * 0.6));
+    lfo.connect(lg); lg.connect(o.frequency); lg.connect(o2.frequency);
+    flt.type = 'lowpass'; flt.frequency.value = f * 5;
+    const end = t + dur;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.05); g.gain.linearRampToValueAtTime(vol * 0.82, t + 0.2);
+    g.gain.setValueAtTime(vol * 0.82, Math.max(t + 0.2, end - 0.08)); g.gain.linearRampToValueAtTime(0.0001, end);
+    o.connect(flt); o2.connect(g2); g2.connect(flt); flt.connect(g); g.connect(musicBus);
+    // sopro: ruído filtrado bem curto no ataque
+    if (noiseBuf) {
+      const n = actx.createBufferSource(), nf = actx.createBiquadFilter(), ng = actx.createGain();
+      n.buffer = noiseBuf; nf.type = 'bandpass'; nf.frequency.value = f * 2.5; nf.Q.value = 1.2;
+      ng.gain.setValueAtTime(vol * 0.5, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+      n.connect(nf); nf.connect(ng); ng.connect(musicBus); n.start(t, Math.random() * 0.5); n.stop(t + 0.12);
     }
-    bar++;
-    return beat * 4;
+    for (const x of [o, o2, lfo]) { x.start(t); x.stop(end + 0.05); }
+  }
+  // bordão grave contínuo (como uma gaita de foles bem suave)
+  function drone(t, dur, vol) {
+    for (const [f, v] of [[BASE / 2, 1], [BASE * 0.75, 0.6]]) {
+      const o = actx.createOscillator(), flt = actx.createBiquadFilter(), g = actx.createGain();
+      o.type = 'sawtooth'; o.frequency.value = f; flt.type = 'lowpass'; flt.frequency.value = 380;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol * v, t + 0.6); g.gain.setValueAtTime(vol * v, t + dur - 0.6); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+      o.connect(flt); flt.connect(g); g.connect(musicBus); o.start(t); o.stop(t + dur + 0.05);
+    }
+  }
+  // tamborim de moldura: batida grave e toques leves
+  function tabor(t, vol, grave) {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(grave ? 110 : 190, t); o.frequency.exponentialRampToValueAtTime(grave ? 55 : 120, t + 0.12);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + (grave ? 0.25 : 0.1));
+    o.connect(g); g.connect(musicBus); o.start(t); o.stop(t + 0.3);
+  }
+  // Frases (grau da escala, tempos). 7 = ré da flauta; -1 = pausa. Cada frase tem 2 compassos de 4 tempos.
+  const FRASES = {
+    A1: { b: [0, -1], n: [[7, 1], [8, 0.5], [9, 0.5], [11, 1], [9, 1], [10, 0.5], [9, 0.5], [8, 1], [7, 2]] },
+    A2: { b: [0, 4], n: [[7, 1], [8, 0.5], [9, 0.5], [11, 1], [12, 1], [11, 0.5], [10, 0.5], [9, 1], [11, 2]] },
+    B1: { b: [3, 0], n: [[10, 1.5], [11, 0.5], [12, 1], [10, 1], [11, 0.5], [10, 0.5], [9, 1], [8, 2]] },
+    B2: { b: [-1, 0], n: [[9, 1], [10, 0.5], [9, 0.5], [8, 1], [6, 1], [7, 0.5], [8, 0.5], [6, 1], [7, 2]] },
+    C1: { b: [4, 3], n: [[11, 0.5], [12, 0.5], [13, 1], [11, 1], [9, 1], [10, 1], [9, 0.5], [8, 0.5], [9, 2]] },
+    D1: { b: [0, 0], n: [[4, 2], [5, 1], [6, 1], [7, 3], [-1, 1]] },
+  };
+  const FORMA = ['A1', 'A2', 'A1', 'B2', 'B1', 'B2', 'C1', 'D1'];
+  let frase = 0;
+  function musicBar(t) {
+    const beat = 60 / 84, F = FRASES[FORMA[frase % FORMA.length]], bars = 2, len = beat * 4 * bars;
+    if (frase % FORMA.length === 0 || frase % 4 === 0) drone(t, beat * 4 * 8 + 0.6, 0.03);   // bordão renovado a cada 4 frases
+    // alaúde suave no tempo forte de cada compasso
+    F.b.forEach((r, k) => { const tb = t + k * beat * 4; pluck(freq(r - 7), tb, 0.12, beat * 3); pluck(freq(r - 3), tb + beat * 2, 0.06, beat * 1.6); });
+    // tamborim: tum . tá tá | tum . tá .
+    for (let k = 0; k < bars; k++) { const tb = t + k * beat * 4; tabor(tb, 0.2, true); tabor(tb + beat * 2, 0.08); tabor(tb + beat * 2.5, 0.06); if (k === 0) tabor(tb + beat * 3, 0.07); }
+    // flauta: a frase com pequenas variações (enfeite antes de notas longas, às vezes uma oitava acima)
+    let tt = t;
+    const oit = Math.random() < 0.2 ? 7 : 0;
+    for (const [d, r] of F.n) {
+      if (d >= 0) {
+        if (r >= 1 && Math.random() < 0.25) { flute(freq(d + oit + 1), tt, beat * 0.18, 0.05); flute(freq(d + oit), tt + beat * 0.18, r * beat * 0.95 - beat * 0.18, 0.075); }
+        else flute(freq(d + oit), tt, r * beat * 0.95, 0.075);
+      }
+      tt += r * beat;
+    }
+    frase++;
+    return len;
   }
   function musicStart() {
     if (musicTimer) return;
@@ -3505,7 +3577,7 @@
   function baterChoupana(b) {
     b.hp = (b.hp || 60) - 15; sfx('corte'); shake(80, tp * 0.03);
     fxAnim(['fx_lascas'], S.p.x + DIRS[S.p.dir][0], S.p.y + DIRS[S.p.dir][1] - 0.5, 0, 1, 300);
-    if (b.hp <= 0) { S.builds.splice(S.builds.indexOf(b), 1); give('madeira', 4); sfx('quebra'); toast('Choupana derrubada: +4 madeira'); save(); }
+    if (b.hp <= 0) { S.builds.splice(S.builds.indexOf(b), 1); give('madeira', 4); sfx('desaba'); toast('Choupana derrubada: +4 madeira'); save(); }
     else toast(`Choupana: ${b.hp} de 60`);
   }
 
@@ -5743,7 +5815,7 @@
   $('btn-staff').addEventListener('click', () => { closeSheet(); openStaff(); });
 
   // ?teste na URL: expõe o estado para testes automáticos
-  if (/[?&]teste\b/.test(location.search)) window.TerraDebug = { get S() { return S; }, get RP() { return RP; }, roomFrontTile, get interior() { return interior; }, get fx() { return effects; }, get pushT() { return pushT; }, doorAction, catapultInFront, useTool, target, placeKit, pickUp, candidate, placeProblem, showSheet, botMine, save, get MUNDO() { return MUNDO; }, evNpcs, vilasTick, fugitivoTick, darPremio, renderAdmin, killMob, enterHouse };
+  if (/[?&]teste\b/.test(location.search)) window.TerraDebug = { get S() { return S; }, get RP() { return RP; }, roomFrontTile, get interior() { return interior; }, get fx() { return effects; }, get pushT() { return pushT; }, doorAction, catapultInFront, useTool, target, placeKit, pickUp, candidate, placeProblem, showSheet, botMine, save, get MUNDO() { return MUNDO; }, evNpcs, vilasTick, fugitivoTick, darPremio, renderAdmin, killMob, enterHouse, get sons() { return Object.keys(somBuf).length; } };
 
   async function boot() {
     buildSprites();
