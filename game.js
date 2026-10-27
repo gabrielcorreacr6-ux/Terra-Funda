@@ -153,6 +153,14 @@
     bau_ferro: { tipo: 'movel', nome: 'Baú de ferro', preco: 150 }, cofre: { tipo: 'movel', nome: 'Cofre', preco: 300 },
     cesto: { tipo: 'movel', nome: 'Cesto', preco: 25 }, fogao: { tipo: 'movel', nome: 'Fogão a lenha', preco: 120 },
     lareira: { tipo: 'movel', nome: 'Lareira', preco: 250 }, fogueira: { tipo: 'movel', nome: 'Fogueira com caldeirão', preco: 80 },
+    criado: { tipo: 'movel', nome: 'Criado-mudo com abajur', preco: 70 }, guarda_roupa: { tipo: 'movel', nome: 'Guarda-roupa', preco: 180 },
+    espelho: { tipo: 'movel', nome: 'Espelho de pé', preco: 90 }, sofa: { tipo: 'movel', nome: 'Sofá', preco: 220 },
+    poltrona: { tipo: 'movel', nome: 'Poltrona', preco: 120 }, mesinha: { tipo: 'movel', nome: 'Mesa de centro', preco: 110 },
+    estante: { tipo: 'movel', nome: 'Estante de livros', preco: 160 }, tapete: { tipo: 'movel', nome: 'Tapete', preco: 80 },
+    cadeira: { tipo: 'movel', nome: 'Cadeira', preco: 35 }, pia: { tipo: 'movel', nome: 'Bancada com pia', preco: 260 },
+    geladeira: { tipo: 'movel', nome: 'Geladeira', preco: 300 }, barril: { tipo: 'movel', nome: 'Barril', preco: 40 },
+    planta: { tipo: 'movel', nome: 'Planta em vaso', preco: 45 }, luminaria: { tipo: 'movel', nome: 'Luminária de pé', preco: 95 },
+    quadro: { tipo: 'movel', nome: 'Quadro', preco: 130 }, aquario: { tipo: 'movel', nome: 'Aquário', preco: 350 },
     cristal_roxo: { tipo: 'movel', nome: 'Cristal roxo', preco: 350, arte: 'cristal_roxo' },
     cristal_claro: { tipo: 'movel', nome: 'Cristal claro', preco: 350, arte: 'cristal_claro' },
     ajudante: { tipo: 'robo', bot: 'fazenda', nome: 'Ajudante de fazenda', preco: 2500, desc: 'Cuida da plantação em volta de onde você colocar (até 6 blocos): colhe o trigo maduro, guarda a colheita e replanta com as sementes que sobram.' },
@@ -163,6 +171,7 @@
     d.band = d.tipo === 'casa' ? 0.55 : 0.6;
     d.portaR = d.tipo === 'casa' ? 1.1 : 1.6;
     d.pad = d.tipo === 'casa' ? 0.15 : 0;
+    if (['criado', 'guarda_roupa', 'espelho', 'sofa', 'poltrona', 'mesinha', 'estante', 'tapete', 'cadeira', 'pia', 'geladeira', 'barril', 'planta', 'luminaria', 'quadro', 'aquario'].includes(k)) d.arte = 'iso_' + k;   // móveis novos só têm a arte do cômodo
     d.img = d.tipo === 'casa' ? 'casa_' + k : d.tipo === 'forte' ? 'forte_' + (d.arte || k) : d.tipo === 'movel' ? (d.arte || 'movel_' + k) : k;
   }
   BUILDS.catapulta.img = 'catapulta_0';
@@ -2523,7 +2532,7 @@
   })();
   function artRect(name) { return art && ATLAS[name]; }
   // Segundo atlas: muros, torres, casas, fortalezas e móveis (tools/build_structures.py)
-  const ATLAS2 = /*ATLAS2_MAP*/{"forte_muralha_chao":[0,0,760,651],"forte_muralha_fundo":[762,0,760,651],"forte_muralha_frente":[0,653,760,651],"forte_forte_cidade_fundo":[762,653,760,384],"forte_forte_cidade_frente":[0,1306,760,384],"forte_colonia_fundo":[762,1306,760,378],"forte_colonia_frente":[0,1692,760,378],"forte_forte_fundo":[762,1692,760,354],"forte_forte_frente":[0,2072,760,354],"forte_campo_fundo":[762,2072,760,341],"forte_campo_frente":[0,2428,760,341],"casa_cabana":[762,2428,340,310],"casa_cabana_chao":[1104,2428,340,310],"casa_saloon":[1446,2428,340,304],"casa_saloon_chao":[0,2771,340,304],"casa_pedra":[342,2771,340,302],"casa_pedra_chao":[684,2771,340,302],"casa_castelo":[1026,2771,340,295],"casa_castelo_chao":[1368,2771,340,295],"casa_tribal":[0,3077,340,289],"casa_tribal_chao":[342,3077,340,289],"casa_castelo_dentro":[684,3077,340,278],"casa_castelo_dentro_chao":[1026,3077,340,278],"casa_tribal_dentro":[1368,3077,340,275],"casa_tribal_dentro_chao":[0,3368,340,275],"casa_cabana_dentro":[342,3368,340,274],"casa_cabana_dentro_chao":[684,3368,340,274],"casa_saloon_dentro":[1026,3368,340,274],"casa_saloon_dentro_chao":[1368,3368,340,274],"casa_domo":[0,3645,340,268],"casa_domo_chao":[342,3645,340,268],"casa_domo_dentro":[684,3645,340,268],"casa_domo_dentro_chao":[1026,3645,340,268],"casa_pedra_dentro":[1368,3645,340,260],"casa_pedra_dentro_chao":[0,3915,340,260],"torre_madeira":[342,3915,119,203],"torre_cristal":[463,3915,114,203],"torre_pedra":[579,3915,117,198],"torre_balista_cristal":[698,3915,113,196],"torre_canhao":[813,3915,137,188],"torre_balista":[952,3915,131,185],"forte_muralha":[1085,3915,180,154],"catapulta_0":[1267,3915,150,135],"catapulta_1":[1419,3915,150,135],"catapulta_2":[1571,3915,150,135],"catapulta_3":[1723,3915,150,135],"movel_cama_dossel":[1875,3915,126,132],"cristal_claro":[0,4177,103,131],"cristal_roxo":[105,4177,103,129],"catapulta_ferro":[210,4177,161,124],"movel_lareira":[373,4177,63,117],"muro_madeira_v":[438,4177,31,112],"muro_tijolo_aberto":[471,4177,85,111],"movel_fogao":[558,4177,64,111],"movel_cama_casal":[624,4177,126,105],"espinhos":[752,4177,120,103],"muro_tijolo_v":[874,4177,30,100],"movel_capsula":[906,4177,112,100],"muro_pedra_v":[1020,4177,29,99],"movel_cama":[1051,4177,102,95],"muro_madeira_aberto":[1155,4177,88,93],"muro_pedra_aberto":[1245,4177,88,93],"forte_forte_cidade":[1335,4177,180,91],"forte_colonia":[1517,4177,180,90],"muro_tijolo_portao":[1699,4177,75,87],"muro_fortaleza_v":[1776,4177,31,87],"movel_fogueira":[1809,4177,68,85],"muro_fortaleza_aberto":[1879,4177,90,84],"forte_forte":[0,4310,180,84],"muro_madeira_h":[182,4310,96,82],"forte_campo":[280,4310,180,81],"movel_cofre":[462,4310,63,78],"muro_madeira_portao":[527,4310,76,77],"muro_fortaleza_portao":[605,4310,79,75],"movel_mesa":[686,4310,90,74],"muro_ferro_aberto":[778,4310,87,73],"movel_cesto":[867,4310,70,73],"movel_bau_ferro":[939,4310,66,72],"muro_pedra_portao":[1007,4310,80,71],"muro_ferro_v":[1089,4310,31,71],"movel_bau":[1122,4310,66,64],"catapulta_impacto":[1190,4310,86,63],"muro_pedra_h":[1278,4310,96,63],"muro_ferro_portao":[1376,4310,75,62],"movel_banco":[1453,4310,81,62],"movel_mesa_redonda":[1536,4310,72,58],"muro_tijolo_h":[1610,4310,96,56],"muro_fortaleza_h":[1708,4310,96,56],"muro_ferro_h":[1806,4310,96,55],"catapulta_pilha":[1904,4310,62,42],"catapulta_pedra":[1968,4310,30,29]}/*FIM_ATLAS2*/;
+  const ATLAS2 = /*ATLAS2_MAP*/{"forte_muralha_chao":[0,0,760,651],"forte_muralha_fundo":[762,0,760,651],"forte_muralha_frente":[0,653,760,651],"forte_forte_cidade_fundo":[762,653,760,384],"forte_forte_cidade_frente":[0,1306,760,384],"forte_colonia_fundo":[762,1306,760,378],"forte_colonia_frente":[0,1692,760,378],"forte_forte_fundo":[762,1692,760,354],"forte_forte_frente":[0,2072,760,354],"forte_campo_fundo":[762,2072,760,341],"forte_campo_frente":[0,2428,760,341],"casa_cabana":[762,2428,340,310],"casa_cabana_chao":[1104,2428,340,310],"casa_saloon":[1446,2428,340,304],"casa_saloon_chao":[0,2771,340,304],"casa_pedra":[342,2771,340,302],"casa_pedra_chao":[684,2771,340,302],"casa_castelo":[1026,2771,340,295],"casa_castelo_chao":[1368,2771,340,295],"casa_tribal":[0,3077,340,289],"casa_tribal_chao":[342,3077,340,289],"casa_castelo_dentro":[684,3077,340,278],"casa_castelo_dentro_chao":[1026,3077,340,278],"casa_tribal_dentro":[1368,3077,340,275],"casa_tribal_dentro_chao":[0,3368,340,275],"casa_cabana_dentro":[342,3368,340,274],"casa_cabana_dentro_chao":[684,3368,340,274],"casa_saloon_dentro":[1026,3368,340,274],"casa_saloon_dentro_chao":[1368,3368,340,274],"casa_domo":[0,3645,340,268],"casa_domo_chao":[342,3645,340,268],"casa_domo_dentro":[684,3645,340,268],"casa_domo_dentro_chao":[1026,3645,340,268],"casa_pedra_dentro":[1368,3645,340,260],"casa_pedra_dentro_chao":[0,3915,340,260],"torre_madeira":[342,3915,119,203],"torre_cristal":[463,3915,114,203],"torre_pedra":[579,3915,117,198],"torre_balista_cristal":[698,3915,113,196],"torre_canhao":[813,3915,137,188],"torre_balista":[952,3915,131,185],"iso_estante":[1085,3915,78,155],"iso_cama_dossel":[1165,3915,138,154],"forte_muralha":[1305,3915,180,154],"iso_guarda_roupa":[1487,3915,83,145],"iso_geladeira":[1572,3915,82,143],"iso_espelho":[1656,3915,70,137],"catapulta_0":[1728,3915,150,135],"catapulta_1":[1880,3915,150,135],"catapulta_2":[0,4177,150,135],"catapulta_3":[152,4177,150,135],"iso_luminaria":[304,4177,82,134],"iso_aquario":[388,4177,88,134],"movel_cama_dossel":[478,4177,126,132],"cristal_claro":[606,4177,103,131],"iso_cama_casal":[711,4177,150,130],"cristal_roxo":[863,4177,103,129],"iso_fogao":[968,4177,97,125],"catapulta_ferro":[1067,4177,161,124],"iso_lareira":[1230,4177,113,122],"iso_mesa":[1345,4177,144,119],"iso_cofre":[1491,4177,91,117],"movel_lareira":[1584,4177,63,117],"iso_sofa":[1649,4177,136,116],"muro_madeira_v":[1787,4177,31,112],"iso_pia":[1820,4177,153,111],"muro_tijolo_aberto":[0,4314,85,111],"movel_fogao":[87,4314,64,111],"iso_cama":[153,4314,125,110],"iso_cadeira":[280,4314,58,109],"iso_planta":[340,4314,64,106],"iso_poltrona":[406,4314,99,105],"movel_cama_casal":[507,4314,126,105],"iso_barril":[635,4314,71,104],"espinhos":[708,4314,120,103],"muro_tijolo_v":[830,4314,30,100],"movel_capsula":[862,4314,112,100],"muro_pedra_v":[976,4314,29,99],"iso_bau":[1007,4314,95,98],"movel_cama":[1104,4314,102,95],"iso_mesinha":[1208,4314,124,93],"muro_madeira_aberto":[1334,4314,88,93],"muro_pedra_aberto":[1424,4314,88,93],"iso_criado":[1514,4314,67,92],"forte_forte_cidade":[1583,4314,180,91],"forte_colonia":[1765,4314,180,90],"iso_quadro":[1947,4314,64,87],"muro_tijolo_portao":[0,4427,75,87],"muro_fortaleza_v":[77,4427,31,87],"movel_fogueira":[110,4427,68,85],"muro_fortaleza_aberto":[180,4427,90,84],"forte_forte":[272,4427,180,84],"muro_madeira_h":[454,4427,96,82],"forte_campo":[552,4427,180,81],"movel_cofre":[734,4427,63,78],"muro_madeira_portao":[799,4427,76,77],"muro_fortaleza_portao":[877,4427,79,75],"movel_mesa":[958,4427,90,74],"muro_ferro_aberto":[1050,4427,87,73],"movel_cesto":[1139,4427,70,73],"iso_tapete":[1211,4427,132,72],"movel_bau_ferro":[1345,4427,66,72],"muro_pedra_portao":[1413,4427,80,71],"muro_ferro_v":[1495,4427,31,71],"movel_bau":[1528,4427,66,64],"catapulta_impacto":[1596,4427,86,63],"muro_pedra_h":[1684,4427,96,63],"muro_ferro_portao":[1782,4427,75,62],"movel_banco":[1859,4427,81,62],"movel_mesa_redonda":[1942,4427,72,58],"muro_tijolo_h":[0,4516,96,56],"muro_fortaleza_h":[98,4516,96,56],"muro_ferro_h":[196,4516,96,55],"catapulta_pilha":[294,4516,62,42],"catapulta_pedra":[358,4516,30,29]}/*FIM_ATLAS2*/;
   let art2 = null;
   (function loadArt2() {
     const img = new Image();
@@ -2900,7 +2909,7 @@
         if (TAB_OF(d) !== shopTab) continue;
         const n = S.kit[k] || 0, can = S.coins >= d.preco;
         const sub = (d.desc || (d.tipo === 'movel' ? 'Para decorar dentro ou fora de casa.' : '')) + (n ? ` · você tem ${n} guardado${n > 1 ? 's' : ''}` : '');
-        html += `<div class="row skin-row">${d.tipo === 'robo' ? thumb1(d && d.bot === 'fazenda' ? 'faz_front_0' : 'robo_front_0') : thumb2(d.img)}<span class="name"><b>${d.nome}</b><small>${sub}</small></span><span></span>
+        html += `<div class="row skin-row">${d.tipo === 'robo' ? thumb1(d && d.bot === 'fazenda' ? 'faz_front_0' : 'robo_front_0') : thumb2(ATLAS2['iso_' + k] ? 'iso_' + k : d.img)}<span class="name"><b>${d.nome}</b><small>${sub}</small></span><span></span>
           <button type="button" class="btn ${can ? 'btn-gold' : ''}" data-buyk="${k}" ${can ? '' : 'disabled'}>${d.preco} moedas</button></div>`;
       }
       html += '</div><p class="muted small-text">O que você compra vai para Construir (ferramenta 5). Depois de colocar, dá para guardar e mudar de lugar quantas vezes quiser.</p>';
@@ -2957,7 +2966,7 @@
     if (!mine.length) html += '<div class="empty">Nada guardado. Casas, fortalezas, torres, móveis e o robô minerador estão na loja.</div>';
     for (const [k, n] of mine) {
       const d = BUILDS[k];
-      html += row(d.tipo === 'robo' ? thumb1(d && d.bot === 'fazenda' ? 'faz_front_0' : 'robo_front_0') : thumb2(d.img), `${d.nome}${n > 1 ? ' × ' + n : ''}`, d.desc || 'Móvel', pick('kit:' + k, cur('kit', 0, k)));
+      html += row(d.tipo === 'robo' ? thumb1(d && d.bot === 'fazenda' ? 'faz_front_0' : 'robo_front_0') : thumb2(ATLAS2['iso_' + k] ? 'iso_' + k : d.img), `${d.nome}${n > 1 ? ' × ' + n : ''}`, d.desc || 'Móvel', pick('kit:' + k, cur('kit', 0, k)));
     }
     html += '</div><div class="section-label">Mudar de lugar</div>';
     const tg = pickupTarget();
@@ -4206,7 +4215,12 @@
     if (!b.room) b.room = { piso: 'madeira', parede: 'creme', itens: [] };
     return b.room;
   }
-  const RP = { x: 5, y: 9, dir: 1 };   // posição no cômodo (em blocos do cômodo)
+  const RP = { x: 5, y: 9, dir: 1 };
+  // móveis do cômodo: blocos ocupados [ao longo de x, ao longo de y]; girar troca os dois. tapete não bloqueia.
+  const FOOT = { cama: [2, 1], cama_casal: [2, 2], cama_dossel: [2, 2], sofa: [2, 1], mesinha: [2, 1], mesa: [2, 1], pia: [2, 1], lareira: [2, 1], tapete: [2, 2] };
+  const ISO_REF = 83;   // pixels do atlas por largura de bloco (escala das folhas de móveis)
+  const foot = it => { const f = FOOT[it.k] || [1, 1]; return it.flip ? [f[1], f[0]] : f; };
+  const occupies = (it, x, y) => { const [fw, fh] = foot(it); return x >= it.x && x < it.x + fw && y >= it.y && y < it.y + fh; };   // posição no cômodo (em blocos do cômodo)
   function roomIso(x, y, ox, oy, tw) { return [ox + (x - y) * tw / 2, oy + (x + y) * tw / 4]; }
   // tamanho do losango: o cômodo pequeno cabe inteiro na tela; o castelo segue o jogador
   function roomTw(b) {
@@ -4216,7 +4230,7 @@
   function roomBlocked(b, x, y) {
     const N = roomSize(b);
     if (x < 0.25 || y < 0.25 || x > N - 0.25 || y > N - 0.25) return true;
-    return roomOf(b).itens.some(it => Math.floor(x) === it.x && Math.floor(y) === it.y);
+    return roomOf(b).itens.some(it => it.k !== 'tapete' && occupies(it, Math.floor(x), Math.floor(y)));
   }
   // direção da tela → direção no cômodo (a tela é girada 45°)
   const SCR = [[0, 1], [0, -1], [-1, 0], [1, 0]];
@@ -4228,7 +4242,9 @@
   }
   function roomItemFront(b) {
     const f = roomFrontTile(b);
-    return f ? roomOf(b).itens.find(it => it.x === f.x && it.y === f.y) || null : null;
+    if (!f) return null;
+    const its = roomOf(b).itens.filter(it => occupies(it, f.x, f.y));
+    return its.find(it => it.k !== 'tapete') || its[0] || null;
   }
   function roomMove(dt) {
     const b = interior;
@@ -4253,8 +4269,14 @@
     if (b.dono && b.dono !== 'eu' && b.dono !== myId()) { toast('Só o dono decora esta casa', 'warn'); return; }
     const k = S.sel.id, f = roomFrontTile(b);
     if (!(S.kit[k] > 0)) { toast(`Você não tem ${BUILDS[k].nome.toLowerCase()}. Compre na loja.`, 'warn'); return; }
-    if (!f || roomItemFront(b) || (Math.floor(RP.x) === f.x && Math.floor(RP.y) === f.y)) { toast('Escolha um lugar livre na sua frente', 'warn'); cooldown = 0.4; return; }
-    S.kit[k]--; roomOf(b).itens.push({ k, x: f.x, y: f.y, flip: !!S.sel.flip });
+    const novo = { k, x: f ? f.x : 0, y: f ? f.y : 0, flip: !!S.sel.flip }, [fw, fh] = foot(novo), N = roomSize(b), R0 = roomOf(b);
+    let livre = !!f && f.x + fw <= N && f.y + fh <= N;
+    for (let yy = novo.y; livre && yy < novo.y + fh; yy++) for (let xx = novo.x; livre && xx < novo.x + fw; xx++) {
+      if (Math.floor(RP.x) === xx && Math.floor(RP.y) === yy && k !== 'tapete') livre = false;
+      if (R0.itens.some(it => occupies(it, xx, yy) && (it.k === 'tapete') === (k === 'tapete'))) livre = false;
+    }
+    if (!livre) { toast('Não cabe aí: escolha um lugar livre na sua frente', 'warn'); cooldown = 0.4; return; }
+    S.kit[k]--; R0.itens.push(novo);
     sfx('construir'); cooldown = 0.3;
     if (!(S.kit[k] > 0)) S.sel = { k: 'nada' };
     invDirty = true; save();
@@ -4303,12 +4325,15 @@
     const f = TOOLS[S.tool].id === 'muro' && !openSheet ? roomFrontTile(b) : null;
     if (f) poly([P(f.x, f.y), P(f.x + 1, f.y), P(f.x + 1, f.y + 1), P(f.x, f.y + 1)], roomItemFront(b) ? 'rgba(240,180,60,0.35)' : 'rgba(140,230,120,0.3)', 'rgba(255,255,255,0.7)');
     // móveis e jogador por profundidade (x + y)
-    const ents = R.itens.map(it => ({ d: it.x + it.y + 1, f: () => {
-      const od = BUILDS[it.k], r = art2Rect(od.img); if (!r) return;
-      const [cx, cy] = P(it.x + 0.5, it.y + 0.5), w = tw * (od.nome.includes('Cama') || it.k === 'capsula' ? 1.35 : 1.0), h = w * r[3] / r[2];
-      ctx.save(); ctx.translate(cx, cy + th * 0.3); if (it.flip) ctx.scale(-1, 1);
-      ctx.drawImage(art2, r[0], r[1], r[2], r[3], -w / 2, -h, w, h); ctx.restore();
-    } }));
+    const drawItem = it => {
+      const od = BUILDS[it.k], iso = art2Rect('iso_' + it.k), r = iso || art2Rect(od.img); if (!r) return;
+      const [fw, fh] = foot(it), front = P(it.x + fw, it.y + fh), mid = P(it.x + fw / 2, it.y + fh / 2);
+      const w = iso ? r[2] * tw / ISO_REF : tw, h = w * r[3] / r[2];
+      ctx.save(); ctx.translate(mid[0], front[1] - (it.k === 'tapete' ? th * fh * 0.5 - h * 0.5 : 0)); if (it.flip) ctx.scale(-1, 1);
+      ctx.drawImage(art2, r[0], r[1], r[2], r[3], -w / 2, it.k === 'tapete' ? -h / 2 - th * 0.5 : -h, w, h); ctx.restore();
+    };
+    for (const it of R.itens) if (it.k === 'tapete') drawItem(it);   // tapetes ficam no chão, embaixo de tudo
+    const ents = R.itens.filter(it => it.k !== 'tapete').map(it => { const [fw, fh] = foot(it); return { d: it.x + it.y + fw + fh - 1, f: () => drawItem(it) }; });
     const base = tp; tp = tw * 0.8;   // personagem na escala do cômodo
     const [psx, psy] = P(RP.x, RP.y), u = tp / 16;
     ents.push({ d: RP.x + RP.y, f: () => drawPlayer(psx, psy - 6 * u, u, RP.dir, moving, walkPhase) });
@@ -4328,7 +4353,7 @@
     const moveis = Object.entries(S.kit).filter(([k, n]) => n > 0 && BUILDS[k] && BUILDS[k].tipo === 'movel');
     html += '<div class="section-label">Seus móveis</div><div class="list">';
     if (!moveis.length) html += '<div class="empty">Nenhum móvel guardado. Compre na loja, aba Móveis.</div>';
-    for (const [k, n] of moveis) html += `<div class="row skin-row">${thumb2(BUILDS[k].img)}<span class="name"><b>${BUILDS[k].nome}${n > 1 ? ' × ' + n : ''}</b><small>Escolha e use de frente para o lugar</small></span><span></span><button type="button" class="btn btn-gold" data-dec="movel:${k}">Colocar</button></div>`;
+    for (const [k, n] of moveis) html += `<div class="row skin-row">${thumb2(ATLAS2['iso_' + k] ? 'iso_' + k : BUILDS[k].img)}<span class="name"><b>${BUILDS[k].nome}${n > 1 ? ' × ' + n : ''}</b><small>Escolha e use de frente para o lugar</small></span><span></span><button type="button" class="btn btn-gold" data-dec="movel:${k}">Colocar</button></div>`;
     html += `</div><p class="muted small-text">Com Construir na mão, fique de frente para um móvel para mover, girar, guardar ou vender. ${R.itens.length} móveis no cômodo.</p>`;
     html += '<div class="list-actions"><button type="button" class="btn" data-tab-go="moveis">Comprar móveis</button></div>';
     $('decor-body').innerHTML = html;
