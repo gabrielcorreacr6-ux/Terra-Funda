@@ -4212,7 +4212,7 @@
   const PISOS = { madeira: ['#9a6a3e', '#8a5c34'], clara: ['#d8b98a', '#c9a874'], pedra: ['#8d9096', '#7d8086'], xadrez: ['#e8e2d6', '#2a2622'],
     verde: ['#5f9a4e', '#53893f'], azul: ['#4a74b8', '#3f67a8'], vermelho: ['#b8493f', '#a63f36'], rosa: ['#e08cb4', '#d07ca4'], roxo: ['#8a5cc0', '#7b4fb0'], preto: ['#2e2a30', '#26222a'] };
   const PAREDES = { creme: '#e6d8b8', madeira: '#7a5230', pedra: '#6f7278', branca: '#f0eee8', azul: '#5d7fb5', verde: '#6e9a5e', vinho: '#7a2f3a', preta: '#2a2628' };
-  const roomSize = b => (b.k === 'castelo' ? 30 : 10);
+  const roomSize = b => (b.k === 'castelo' ? 90 : 30);   // 3× maiores
   function roomOf(b) {
     if (!b.room) b.room = { piso: 'madeira', parede: 'creme', itens: [] };
     return b.room;
@@ -4227,7 +4227,7 @@
   // tamanho do losango: o cômodo pequeno cabe inteiro na tela; o castelo segue o jogador
   function roomTw(b) {
     const N = roomSize(b), W2 = canvas.width, H2 = canvas.height;
-    return N <= 10 ? Math.min(W2 * 0.94 / N, H2 * 0.62 / (N / 2 + 2.5)) : Math.min(tp * 1.3, W2 / 9);
+    return N <= 10 ? Math.min(W2 * 0.94 / N, H2 * 0.62 / (N / 2 + 2.5)) : Math.min(tp * 1.3, W2 / 8);
   }
   function roomBlocked(b, x, y) {
     const N = roomSize(b);
@@ -4317,6 +4317,8 @@
     poly([P(0, 0), P(N, 0), [P(N, 0)[0], P(N, 0)[1] - th * 0.25], [P(0, 0)[0], P(0, 0)[1] - th * 0.25]], shade(parede, 0.65));
     // chão em losangos
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const [qx, qy] = P(x + 0.5, y + 0.5);
+      if (qx < -tw || qx > W2 + tw || qy < -th || qy > H2 + th) continue;   // só os losangos que aparecem na tela
       const c = R.piso === 'xadrez' ? piso[(x + y) & 1] : piso[((x * 7 + y * 3) % 5 === 0) ? 1 : 0];
       poly([P(x, y), P(x + 1, y), P(x + 1, y + 1), P(x, y + 1)], c, 'rgba(0,0,0,0.12)');
     }
