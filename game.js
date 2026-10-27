@@ -499,7 +499,7 @@
       p: S.p, inv: S.inv, coins: S.coins, owned: S.owned, time: S.time, tool: S.tool, hints: S.hints, catalog: S.catalog,
       npcs: S.npcs.map(n => ({ id: n.id, x: n.x, y: n.y })),
       home: S.home, homeReadyAt: S.homeReadyAt, deposits: S.deposits, char: S.char, skins: S.skins, skin: S.skin,
-      wmat: toB64(rle(S.wmat)), builds: S.builds, kit: S.kit, sel: S.sel, dur: S.dur, broken: S.broken,
+      tirado: S.tirado, wmat: toB64(rle(S.wmat)), builds: S.builds, kit: S.kit, sel: S.sel, dur: S.dur, broken: S.broken,
       hp: S.hp, wxp: S.wxp, wbless: S.wbless, camps: S.camps, aura: S.aura, playMs: S.playMs, morte: S.morte, bichoMorto: S.bichoMorto,
       bots: S.bots.map(b => ({ x: b.x, y: b.y, hx: b.hx, hy: b.hy, store: b.store, t: b.t })),
     };
@@ -542,7 +542,7 @@
       if (['arco', 'cetro', 'livro'].includes(TOOLS[s.tool].id) && !s.owned[TOOLS[s.tool].id]) s.tool = 0;
       if (d.wmat) { const wm = unrle(fromB64(d.wmat), s.wmat.length); if (wm) s.wmat = wm; }
       s.builds = Array.isArray(d.builds) ? d.builds.filter(b => BUILDS[b.k]) : [];
-      s.kit = d.kit || {}; s.dur = d.dur || {}; s.broken = d.broken || {};
+      s.tirado = d.tirado || {}; s.kit = d.kit || {}; s.dur = d.dur || {}; s.broken = d.broken || {};
       if (d.sel && d.sel.carry) { const c = wallCost(d.sel.carry.w & 15, d.sel.carry.gate); for (const [k, n] of Object.entries(c)) s.inv[k] = (s.inv[k] || 0) + n; }   // salvou segurando um muro: devolve
       if (d.sel && (['muro', 'portao', 'girar', 'remover'].includes(d.sel.k) || (d.sel.k === 'kit' && BUILDS[d.sel.id]))) s.sel = d.sel;
       s.bots = Array.isArray(d.bots) ? d.bots.map(newBot) : [];
@@ -590,7 +590,8 @@
   }
   function doorPoint(b) {
     const d = BUILDS[b.k], a = d.w / 2, bb = d.h / 2, cx = b.x + a, cy = b.y + bb;
-    return d.porta !== undefined ? [cx - a + d.porta * a, cy + d.porta * bb] : [cx, cy + bb - 0.4];
+    if (d.porta === undefined) return [cx, cy + bb - 0.4];
+    return b.flip ? [cx + a - d.porta * a, cy + d.porta * bb] : [cx - a + d.porta * a, cy + d.porta * bb];   // girada: porta do outro lado
   }
   // bichos (estrito): a casa inteira é parede, ninguém entra a não ser o jogador
   function buildBlocks(px, py, estrito) {
@@ -927,7 +928,7 @@
     const now = performance.now();
     if (now < invulnTil || S.hp <= 0) return;
     let k = 1;
-    if (S.owned.capacete) k *= 0.9;
+    if (wearing('capacete')) k *= 0.9;
     if (now < defBuffTil) k *= 0.8;
     if (mob && mob.weak > now) k *= 0.7;
     S.hp = Math.max(0, S.hp - Math.round(n * k));
@@ -1313,6 +1314,7 @@
     S.broken[tool] = false; S.dur[tool] = b.dur;
     toast(`Fez: ${b.nome}`, 'leaf');
   }
+  const wearing = id => !!S.owned[id] && !(S.tirado || {})[id];
   const swordBonus = () => (S.owned.espada2 ? 2 : S.owned.espada1 ? 1 : 0);
 
   // Água: cada bloco aberto recebe o maior nível vizinho menos 1; fontes são fixas.
@@ -1668,7 +1670,7 @@
   }
   function addBuild(c) {
     const d = BUILDS[c.k];
-    const b = { k: d.tipo === 'forte' && d.arte ? d.arte : c.k, x: c.x, y: c.y, dono: myId() };
+    const b = { k: d.tipo === 'forte' && d.arte ? d.arte : c.k, x: c.x, y: c.y, dono: myId(), flip: !!c.flip };
     if (d.tipo === 'casa' || d.tipo === 'forte') b.acesso = 'so_eu';
     if (d.tipo === 'casa' || d.tipo === 'forte' || d.tipo === 'torre') {   // limpa o terreno embaixo
       for (let y = c.y; y < c.y + d.h; y++) for (let x = c.x; x < c.x + d.w; x++) {
@@ -1689,7 +1691,7 @@
       S.kit[k]--; S.bots.push(newBot({ x: tg.x + 0.5, y: tg.y + 0.5 }));
       toast('Robô ligado. Ele procura minério embaixo deste lugar.', 'leaf', 3500);
     } else {
-      const c = candidate(k), prob = placeProblem(c);
+      const c = candidate(k); c.flip = !!S.sel.flip; const prob = placeProblem(c);
       if (prob) { toast(prob, 'warn'); cooldown = 0.5; return; }
       S.kit[k]--;
       addBuild(c); sfx('construir');
@@ -1698,6 +1700,7 @@
       if (d.tipo === 'casa') hint('casa', 'Chegue perto da porta e toque em Entrar. Para mudar de lugar: Construir.');
     }
     if (!(S.kit[k] > 0)) S.sel = { k: 'muro', m: 0 };
+    else S.sel.flip = !!S.sel.flip;
     invDirty = true; save();
   }
   function pickupTarget() {
@@ -2657,6 +2660,7 @@
     lastBiome = here;
     if (openSheet && openSheet.id === 'sheet-admin') drawMinimap();
     updateDoorBtn();
+    updateEditBar();
     const p = S.p;
     const onLadder = p.z > 0 && tileAt(Math.floor(p.x), Math.floor(p.y), p.z - 1) === T.HOLE;
     $('btn-f').textContent = onLadder ? 'Subir' : 'Descer';
@@ -2722,7 +2726,7 @@
         const sub = brk ? `Quebrada · fazer outra: ${costTxt(BASIC[v].receita)}` : `${left} de ${max} usos` + (basic ? ` · fazer outra: ${costTxt(BASIC[v].receita)}` : ' · da loja');
         html += `<div class="row"><span></span><span class="name"><b>${basic ? BASIC[v].nome : shopName(v)}</b><small>${sub}</small></span><span></span>${btn}</div>`;
       }
-      if (S.owned.capacete) html += `<div class="row"><span></span><span class="name"><b>Capacete com lanterna</b><small>Bateria: ${Math.ceil((S.dur.capacete ?? DUR.capacete) / 60)} min de luz no escuro</small></span><span></span><span></span></div>`;
+      if (S.owned.capacete) html += `<div class="row"><span></span><span class="name"><b>Capacete com lanterna${wearing('capacete') ? '' : ' (guardado)'}</b><small>Bateria: ${Math.ceil((S.dur.capacete ?? DUR.capacete) / 60)} min de luz no escuro</small></span><span></span><button type="button" class="btn" data-equip="capacete">${wearing('capacete') ? 'Tirar' : 'Colocar'}</button></div>`;
       html += '</div>';
       if (total) html += `<p class="muted small-text">Tudo na mochila vale cerca de ${coinsTxt(total)}.</p>`;
     }
@@ -2738,7 +2742,7 @@
       html += `<div class="row">${itemThumb(k)}
         <span class="name"><b>${it.nome}</b><small>${info}</small></span>
         <span class="qty">${n}</span>
-        ${buys ? `<button type="button" class="btn" data-sell="${k}">Vender</button>` : '<span></span>'}</div>`;
+        ${buys ? `<button type="button" class="btn" data-sell="${k}">Vender</button>` : !m ? `<button type="button" class="btn btn-danger" data-trash="${k}">Jogar fora</button>` : '<span></span>'}</div>`;
     }
     html += '</div>';
     if (m) {
@@ -3318,6 +3322,14 @@
       if (sh.id === 'sheet-chars' && !S.char && e.target === sh) return;   // primeira vez: precisa escolher
       if (sh.id === 'sheet-auth' || sh.id === 'sheet-banned') return;   // login e suspensão não fecham
       if (e.target === sh || e.target.closest('[data-close]')) { closeSheet(); return; }
+      const eq = e.target.closest('[data-equip]');
+      if (eq) { S.tirado = S.tirado || {}; S.tirado[eq.dataset.equip] = wearing(eq.dataset.equip); toast(wearing(eq.dataset.equip) ? 'Capacete colocado' : 'Capacete guardado na mochila'); save(); renderShop(); return; }
+      const tr = e.target.closest('[data-trash]');
+      if (tr) {
+        const k = tr.dataset.trash;
+        if (!tr.dataset.armed) { tr.dataset.armed = 1; tr.textContent = 'Confirmar?'; setTimeout(() => { if (tr.isConnected) { delete tr.dataset.armed; tr.textContent = 'Jogar fora'; } }, 3500); return; }
+        const n = S.inv[k] || 0; S.inv[k] = 0; invDirty = true; toast(`Jogou fora ${n} ${ITEMS[k].nome.toLowerCase()}`); save(); renderShop(); return;
+      }
       const sellBtn = e.target.closest('[data-sell]');
       if (sellBtn) { sell(sellBtn.dataset.sell); renderShop(); return; }
       if (e.target.closest('[data-sellall]')) { sellAll(); renderShop(); return; }
@@ -3666,7 +3678,7 @@
       if (grip && dir !== 1 && !drawFistArt(grip, u) && dir === 0) drawHandOver(name, sx, sy + 6 * u, ph, flip);
       if (drawn) {
         if (acting && !toolDrawn) drawSwing(tool, sx, sy, u, dir);
-        if (S.owned.capacete && !drawHelmet(name, sx, sy + 6 * u, ph, flip, dir)) {   // sem arte do capacete: versão simples
+        if (wearing('capacete') && !drawHelmet(name, sx, sy + 6 * u, ph, flip, dir)) {   // sem arte do capacete: versão simples
           ctx.fillStyle = '#e3b23c'; ctx.fillRect(sx - 3.6 * u, sy - 17.6 * u - bob, 7.2 * u, 2.4 * u);
           ctx.fillStyle = '#fff6c8'; ctx.fillRect(sx - 1 * u, sy - 17.2 * u - bob, 2 * u, 1.4 * u);
         }
@@ -3684,9 +3696,9 @@
     ctx.fillStyle = '#c85a3c'; ctx.fillRect(x0, y0 + 6 * u, 8 * u, 6.5 * u);
     ctx.fillStyle = '#a8462d'; ctx.fillRect(x0, y0 + 11 * u, 8 * u, 1.5 * u);
     ctx.fillStyle = '#e8b48a'; ctx.fillRect(x0 + 1 * u, y0 + 0.5 * u, 6 * u, 6 * u);
-    ctx.fillStyle = S.owned.capacete ? '#e3b23c' : '#4a2e1c';
+    ctx.fillStyle = wearing('capacete') ? '#e3b23c' : '#4a2e1c';
     ctx.fillRect(x0 + 0.5 * u, y0, 7 * u, (dir === 1 ? 6 : 2.2) * u);
-    if (S.owned.capacete && dir !== 1) { ctx.fillStyle = '#fff6c8'; ctx.fillRect(x0 + 3 * u, y0 + 0.4 * u, 2 * u, 1.2 * u); }
+    if (wearing('capacete') && dir !== 1) { ctx.fillStyle = '#fff6c8'; ctx.fillRect(x0 + 3 * u, y0 + 0.4 * u, 2 * u, 1.2 * u); }
     ctx.fillStyle = '#1c1410';
     if (dir === 0) { ctx.fillRect(x0 + 2.4 * u, y0 + 3.5 * u, 1 * u, 1.2 * u); ctx.fillRect(x0 + 4.6 * u, y0 + 3.5 * u, 1 * u, 1.2 * u); }
     else if (dir === 2) ctx.fillRect(x0 + 1.8 * u, y0 + 3.5 * u, 1 * u, 1.2 * u);
@@ -3746,7 +3758,8 @@
     if (alpha !== 1) ctx.globalAlpha = alpha;
     if (r) {
       const [x, y, w, h] = buildRect(b, name, camX, camY);
-      ctx.drawImage(art2, r[0], r[1], r[2], r[3], x, y, w, h);
+      if (b.flip) { ctx.save(); ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(art2, r[0], r[1], r[2], r[3], 0, 0, w, h); ctx.restore(); }
+      else ctx.drawImage(art2, r[0], r[1], r[2], r[3], x, y, w, h);
     } else {   // sem a arte: só a forma, para continuar jogável
       const x0 = b.x * tp - camX, y0 = b.y * tp - camY, w = d.w * tp, h = d.h * tp;
       ctx.fillStyle = d.tipo === 'forte' ? 'rgba(110,90,70,0.35)' : '#8a5a32';
@@ -3813,7 +3826,7 @@
     const d = BUILDS[S.sel.id];
     if (d.tipo === 'robo') return;
     const c = candidate(S.sel.id), bad = placeProblem(c);
-    const show = { k: d.tipo === 'forte' && d.arte ? d.arte : c.k, x: c.x, y: c.y };
+    const show = { k: d.tipo === 'forte' && d.arte ? d.arte : c.k, x: c.x, y: c.y, flip: !!S.sel.flip };
     if (d.tipo === 'forte') { drawBuild(show, d.img + '_fundo', camX, camY, 0.5); drawBuild(show, d.img + '_frente', camX, camY, 0.5); }
     else drawBuild(show, d.img, camX, camY, 0.5);
     for (const [jk, ox, oy] of d.junto || []) drawBuild({ k: jk, x: c.x + ox, y: c.y + oy }, BUILDS[jk].img, camX, camY, 0.5);
@@ -3957,6 +3970,68 @@
   doorBtn.type = 'button'; doorBtn.className = 'btn btn-gold door-btn'; doorBtn.hidden = true;
   doorBtn.addEventListener('click', () => { if (interior) leaveHouse(); else { const b = houseNear(); if (b) enterHouse(b); } });
   document.getElementById('app').append(doorBtn);
+  const editBar = document.createElement('div');
+  editBar.className = 'edit-bar'; editBar.hidden = true;
+  document.getElementById('app').append(editBar);
+  let editSig = '';
+  function frontThing() {   // o que está na sua frente: construção, robô ou muro
+    if (S.p.z !== 0 && !interior) return null;
+    const r = pickupTarget();
+    if (r) return r;
+    const tg = target(), t = tileAt(tg.x, tg.y, tg.z);
+    return isWallT(t) ? { wall: tg } : null;
+  }
+  function updateEditBar() {
+    if (!S || openSheet || TOOLS[S.tool].id !== 'muro') { if (!editBar.hidden) editBar.hidden = true; editSig = ''; return; }
+    let sig, html;
+    if (S.sel.k === 'kit' && S.kit[S.sel.id] > 0) {
+      sig = 'kit' + S.sel.id;
+      html = `<span>${BUILDS[S.sel.id].nome}</span><button type="button" class="btn" data-ed="girarkit">Girar</button><button type="button" class="btn" data-ed="cancelar">Cancelar</button>`;
+    } else if (S.sel.k === 'mover' && S.sel.carry) {
+      sig = 'carry'; html = '<span>Segurando um muro</span><button type="button" class="btn" data-ed="soltar">Devolver</button>';
+    } else {
+      const f = frontThing();
+      if (!f) { sig = 'none'; html = ''; }
+      else if (f.wall) {
+        sig = 'wall' + f.wall.x + ',' + f.wall.y;
+        html = '<span>Muro</span><button type="button" class="btn" data-ed="wmover">Mover</button><button type="button" class="btn" data-ed="wgirar">Girar</button><button type="button" class="btn btn-danger" data-ed="wremover">Remover</button>';
+      } else {
+        const nome = f.bot ? 'Robô minerador' : BUILDS[f.b.k].nome;
+        sig = 'b' + (f.bot ? 'bot' : S.builds.indexOf(f.b));
+        html = `<span>${nome}</span><button type="button" class="btn" data-ed="mover">Mover</button>${f.bot ? '' : '<button type="button" class="btn" data-ed="girar">Girar</button>'}<button type="button" class="btn" data-ed="guardar">Guardar</button><button type="button" class="btn btn-danger" data-ed="vender">Vender</button>`;
+      }
+    }
+    if (sig !== editSig) { editSig = sig; editBar.innerHTML = html; }
+    editBar.hidden = !html;
+  }
+  editBar.addEventListener('click', e => {
+    const bt = e.target.closest('[data-ed]');
+    if (!bt) return;
+    const a = bt.dataset.ed;
+    if (a === 'girarkit') { S.sel.flip = !S.sel.flip; sfx('toque'); }
+    else if (a === 'cancelar') { S.sel = { k: 'muro', m: 0 }; toast('Guardado em Construir → Suas construções'); }
+    else if (a === 'soltar') { dropCarry(); S.sel = { k: 'muro', m: 0 }; }
+    else if (a.startsWith('w')) {
+      const tg = target(), i = I(tg.x, tg.y, tg.z), keep = S.sel;
+      S.sel = { k: a.slice(1) };
+      wallEdit(tg.x, tg.y, tg.z, S.tiles[i], i);
+      if (a !== 'wmover') S.sel = keep;
+    } else {
+      const f = frontThing();
+      if (!f || f.wall) return;
+      if (f.bot) {
+        const idx = S.bots.indexOf(f.bot); collectBot(f.bot, true); S.bots.splice(idx, 1);
+        if (a === 'vender') { S.coins += Math.floor(BUILDS.robo.preco / 2); sfx('moeda'); toast(`Robô vendido: +${Math.floor(BUILDS.robo.preco / 2)} moedas`, 'gold'); }
+        else { S.kit.robo = (S.kit.robo || 0) + 1; if (a === 'mover') { S.sel = { k: 'kit', id: 'robo' }; toast('Escolha o novo lugar e use para colocar', 'leaf'); } else toast('Robô guardado', 'leaf'); }
+      } else if (a === 'girar') { f.b.flip = !f.b.flip; sfx('toque'); }
+      else {
+        const k = f.b.k, flip = f.b.flip, muralha = k === 'muralha';
+        removeBuild(f.b, a === 'vender');
+        if (a === 'mover') { S.sel = { k: 'kit', id: muralha && !S.kit.muralha ? 'muralha_vila' : k, flip }; toast('Escolha o novo lugar e use para colocar', 'leaf'); }
+      }
+    }
+    invDirty = true; save(); editSig = ''; updateEditBar();
+  });
   function updateDoorBtn() {
     if (!S) return;
     const b = interior || houseNear();
@@ -4200,7 +4275,7 @@
         lctx.fillStyle = g;
         lctx.fillRect(gx - rad, gy - rad, rad * 2, rad * 2);
       };
-      const rad = (S.owned.capacete ? (z === 0 ? 7 : 6) : (z === 0 ? 4.2 : 3.2)) * tp;
+      const rad = (wearing('capacete') ? (z === 0 ? 7 : 6) : (z === 0 ? 4.2 : 3.2)) * tp;
       glow(p.x * tp - camX, p.y * tp - camY - 4 * u, rad, 1);
       if (S.owned.cetro && TOOLS[S.tool].id === 'cetro') glow(p.x * tp - camX, p.y * tp - camY - 10 * u, 6 * tp, 0.9);   // luz do mago
       for (const s2 of shots) if (s2.kind === 'magia' && s2.z === z) glow(s2.x * tp - camX, s2.y * tp - camY, 2.2 * tp, 0.9);
@@ -4298,7 +4373,7 @@
     auraTick(dt);
     shotsTick(dt, now);
     if ((TOOLS[S.tool].id === 'cetro' || TOOLS[S.tool].id === 'livro') && Math.floor(mana) !== lastMana) { lastMana = Math.floor(mana); invDirty = true; }
-    if (S.owned.capacete && (p.z > 0 || !isDay())) {     // a bateria do capacete gasta no escuro
+    if (wearing('capacete') && (p.z > 0 || !isDay())) {     // a bateria do capacete gasta no escuro
       S.dur.capacete = (S.dur.capacete ?? DUR.capacete) - dt;
       if (S.dur.capacete <= 0) { delete S.owned.capacete; delete S.dur.capacete; toast('A bateria do capacete acabou. Compre outro na loja.', 'warn', 4000); invDirty = true; }
     }

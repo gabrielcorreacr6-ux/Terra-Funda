@@ -316,3 +316,10 @@ kbd {
 .door-btn { white-space: nowrap; position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 5; font-size: 1.05em; padding: 10px 18px; box-shadow: 0 4px 14px rgba(0,0,0,.45); }
 .door-btn[hidden] { display: none; }
 @media (pointer: coarse) { .door-btn { bottom: calc(300px + env(safe-area-inset-bottom, 0px)); } }
+.edit-bar { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(205px + env(safe-area-inset-bottom, 0px)); z-index: 6;
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; max-width: calc(100% - 24px);
+  background: rgba(20,17,15,.88); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; box-shadow: 0 4px 14px rgba(0,0,0,.45); }
+.edit-bar[hidden] { display: none; }
+.edit-bar > span { font-weight: 600; margin-right: 4px; white-space: nowrap; }
+.edit-bar .btn { padding: 6px 10px; font-size: .9em; }
+@media (pointer: coarse) { .edit-bar { bottom: calc(360px + env(safe-area-inset-bottom, 0px)); } }
