@@ -189,10 +189,11 @@
   };
   T.pegarPresente = (evento, limite) => rpc('pegar_presente', { evento, limite });
   T.pegarFugitivo = evento => rpc('pegar_fugitivo', { evento });
-  // anúncio no chat geral (eventos)
-  T.anunciar = function (texto) {
+  // Aviso da moderação: o texto fica na tabela "mundo" (só o admin escreve lá); pelo chat vai só um sinal
+  // para todos buscarem o aviso no servidor. Assim ninguém consegue falsificar um aviso roxo.
+  T.anunciar = function (chave) {
     if (!chat.geral) return Promise.resolve();
-    return chat.geral.send({ type: 'broadcast', event: 'msg', payload: { de: '', nome: 'Anúncio', texto: String(texto).slice(0, 200), tipo: 'todos', t: Date.now(), sistema: true } });
+    return chat.geral.send({ type: 'broadcast', event: 'msg', payload: { sistema: true, chave: String(chave).slice(0, 20), t: Date.now() } });
   };
 
   window.TerraOnline = T;

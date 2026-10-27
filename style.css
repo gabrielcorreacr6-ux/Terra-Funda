@@ -87,7 +87,7 @@ html, body {
 /* Avisos */
 #toasts {
   position: absolute; left: 50%; transform: translateX(-50%);
-  top: calc(70px + env(safe-area-inset-top, 0px));
+  top: calc(116px + env(safe-area-inset-top, 0px));
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   pointer-events: none;
   width: max-content; max-width: calc(100% - 32px);
@@ -361,3 +361,12 @@ kbd {
 .ev-form select, .ev-form input { background: #1d1814; color: inherit; border: 1px solid #5a4a3c; border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 14px; max-width: 100%; }
 .ev-form input[type=number] { width: 70px; }
 .ev-form label { display: flex; gap: 6px; align-items: center; font-size: 14px; }
+/* avisos da moderação: roxo para chamar atenção */
+.chat-msg.aviso { color: #e6d4ff; background: rgba(124, 58, 237, 0.22); border-left: 3px solid #a66bff; padding: 5px 8px; border-radius: 4px; margin: 3px 0; }
+.chat-msg.aviso b { color: #c9a2ff; }
+.chat-bar.aviso { border-color: #a66bff; }
+.chat-bar.aviso #chat-last { color: #d4b8ff; }
+.toast.roxo { border-color: #a66bff; color: #ead9ff; background: rgba(60, 28, 110, 0.94); }
+.btn.btn-roxo { background: #5b2aa8; border-color: #a66bff; color: #fff; }
+.aviso-form input, .aviso-form textarea { flex: 1 1 100%; }
+.ev-form textarea { background: #1d1814; color: inherit; border: 1px solid #5a4a3c; border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 14px; resize: vertical; }

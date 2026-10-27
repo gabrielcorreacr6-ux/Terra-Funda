@@ -3250,7 +3250,7 @@
   // Com contas ligadas fica no servidor (tabela "mundo") e vale para todos; sem contas fica no próprio save.
   const MUNDO_PADRAO = () => ({
     zonas: [{ id: 1, nome: 'Praça do começo', x: SPAWN.x, y: SPAWN.y, r: 18, ativo: true }],
-    eventos: [], fugitivo: null, vilas: [], construtores: { premio: 'moedas:100', chance: 0.1 },
+    eventos: [], fugitivo: null, vilas: [], construtores: { premio: 'moedas:100', chance: 0.1 }, aviso: null,
   });
   let MUNDO = MUNDO_PADRAO();
   const online = () => NET.enabled && NET.user;
@@ -3259,7 +3259,8 @@
       try {
         const o = await NET.mundoGet();
         const base = MUNDO_PADRAO();
-        MUNDO = { zonas: o.zonas || base.zonas, eventos: o.eventos || [], fugitivo: o.fugitivo || null, vilas: o.vilas || [], construtores: o.construtores || base.construtores };
+        MUNDO = { zonas: o.zonas || base.zonas, eventos: o.eventos || [], fugitivo: o.fugitivo || null, vilas: o.vilas || [], construtores: o.construtores || base.construtores, aviso: o.aviso || null };
+        mostrarAviso(MUNDO.aviso); avisoFugitivo();
       } catch (e) { /* sem rede: fica com o que já tinha */ }
     } else MUNDO = S.mundo ? Object.assign(MUNDO_PADRAO(), S.mundo) : MUNDO_PADRAO();
     avisarFugitivo();
@@ -3269,6 +3270,35 @@
     if (online() && NET.isAdmin) NET.mundoSet(chave, MUNDO[chave]).catch(e => toast('Não salvou no servidor: ' + e.message, 'warn'));
   }
   setInterval(() => { if (S && online() && !bootPending) mundoCarregar(); }, 120000);   // os jogadores recebem as mudanças do admin
+
+  // ---- avisos da moderação: roxos, sem o nome de quem mandou
+  const avisosVistos = new Set();
+  function avisoNoChat(titulo, texto, t) {
+    chatPush({ de: '', nome: 'Moderação', titulo, texto, tipo: 'todos', sistema: true, t: t || Date.now() }, false);
+    toast(`Moderação${titulo ? ' · ' + titulo : ''}: ${texto}`, 'roxo', 9000);
+  }
+  function mostrarAviso(a) {
+    if (!a || !a.id || avisosVistos.has(a.id)) return;
+    avisosVistos.add(a.id);
+    if (Date.now() - (a.t || 0) > 20 * 60000) return;   // aviso velho não aparece para quem entra depois
+    avisoNoChat(a.titulo, a.texto, a.t);
+  }
+  function avisoFugitivo() {
+    const f = MUNDO.fugitivo;
+    if (!f || !f.ganhador || avisosVistos.has('fug:' + f.id)) return;
+    avisosVistos.add('fug:' + f.id);
+    if ((S.fugPegos || {})[f.id] && NET.profile && f.ganhador === NET.profile.username) return;   // quem ganhou já viu
+    avisoNoChat('Fugitivo', `${f.ganhador} pegou o fugitivo e ganhou ${premioNome(f.premio)}!`);
+  }
+  function enviarAviso(titulo, texto) {
+    titulo = String(titulo || '').trim().slice(0, 40); texto = String(texto || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (!texto) { toast('Escreva o aviso', 'warn'); return false; }
+    MUNDO.aviso = { id: 'a' + Date.now(), titulo, texto, t: Date.now() };
+    mundoSalvar('aviso');
+    if (online()) setTimeout(() => NET.anunciar('aviso'), 600);   // dá tempo de gravar antes do sinal
+    mostrarAviso(MUNDO.aviso);
+    return true;
+  }
 
   // ---- prêmios: moedas, itens da loja, skins e construções
   function premioOpcoes() {
@@ -3361,8 +3391,9 @@
       if (!ok) { toast('Alguém pegou o fugitivo antes de você', 'warn', 4000); return; }
       darPremio(f.premio);
       const nome = NET.profile ? NET.profile.username : 'Você';
-      if (online()) NET.anunciar(`${nome} pegou o fugitivo e ganhou ${premioNome(f.premio)}!`);
-      if (!online()) f.ganhador = nome;
+      f.ganhador = nome; avisosVistos.add('fug:' + f.id);
+      if (online()) NET.anunciar('fugitivo');
+      avisoNoChat('Fugitivo', `${nome} pegou o fugitivo e ganhou ${premioNome(f.premio)}!`);
     } catch (e) { toast(e.message, 'warn'); }
   }
 
@@ -3435,10 +3466,7 @@
           MUNDO.fugitivo = { id: 'f' + Date.now(), x: Math.round(p.x), y: Math.round(p.y), premio: val('#fug-premio'), ativo: true, ganhador: null };
           S.fugVisto = S.fugVisto || {}; S.fugVisto[MUNDO.fugitivo.id] = 1;
           mundoSalvar('fugitivo');
-          const txt = `Um fugitivo foi visto em ${BIOMES[regionOf(p.x, p.y)].nome}! Quem pegar ganha ${premioNome(MUNDO.fugitivo.premio)}.`;
-          if (online()) NET.anunciar(txt);
-          chatPush({ de: '', nome: 'Anúncio', texto: txt, tipo: 'todos', t: Date.now() }, false);
-          toast('Fugitivo solto onde você está', 'gold');
+          enviarAviso('Fugitivo à solta', `Um fugitivo foi visto em ${BIOMES[regionOf(p.x, p.y)].nome}! Quem pegar ganha ${premioNome(MUNDO.fugitivo.premio)}.`);
         } else if (a === 'fug-parar') { if (MUNDO.fugitivo) MUNDO.fugitivo.ativo = false; mundoSalvar('fugitivo'); }
         else if (a === 'vila-nova') { const p = S.p; MUNDO.vilas.push({ id: 'v' + Date.now(), nome: 'Vila', x: Math.round(p.x), y: Math.round(p.y), n: 3, ativo: true }); mundoSalvar('vilas'); toast('Vila criada onde você está'); }
         else if (a.startsWith('vila-')) {
@@ -3450,6 +3478,9 @@
           if (a === 'vila-ir') { S.p.x = v.x + 0.5; S.p.y = v.y + 4.5; S.p.z = 0; interior = null; closeSheet(); return; }
           if (a === 'vila-del') MUNDO.vilas.splice(MUNDO.vilas.indexOf(v), 1);
           mundoSalvar('vilas');
+        } else if (a === 'aviso') {
+          if (enviarAviso(val('#aviso-titulo'), val('#aviso-texto'))) { box.querySelector('#aviso-texto').value = ''; toast('Aviso enviado para todos', 'roxo'); }
+          return;
         } else if (a === 'cons-salvar') {
           MUNDO.construtores = { premio: val('#cons-premio'), chance: Math.min(1, Math.max(0, (+val('#cons-chance') || 0) / 100)) };
           mundoSalvar('construtores'); toast('Prêmio dos construtores salvo');
@@ -3458,7 +3489,14 @@
       });
     }
     const zonasOp = MUNDO.zonas.map(z => `<option value="${z.id}">${escapeHtml(z.nome)}</option>`).join('');
-    let html = '<div class="section-label">Eventos com data (Natal, Páscoa…)</div><div class="list">';
+    const evNoAr = MUNDO.eventos.filter(eventoNoAr).map(e => e.nome);
+    let html = `<div class="section-label">Aviso da moderação</div>
+      <p class="muted small-text">Sai em roxo no chat de todos, assinado só como "Moderação" (seu nome fica oculto).</p>
+      <div class="ev-form aviso-form"><input id="aviso-titulo" type="text" maxlength="40" list="aviso-sugestoes" placeholder="Título (opcional)" value="${evNoAr.length ? 'Eventos em vigência: ' + escapeHtml(evNoAr[0]) : ''}">
+      <datalist id="aviso-sugestoes"><option value="Eventos em vigência">${MUNDO.eventos.map(e => `<option value="Eventos em vigência: ${escapeHtml(e.nome)}">`).join('')}<option value="Manutenção"><option value="Regras"></datalist>
+      <textarea id="aviso-texto" maxlength="200" rows="2" placeholder="Escreva o aviso…"></textarea>
+      <button type="button" class="btn btn-roxo" data-ev="aviso">Enviar aviso</button></div>
+      <div class="section-label">Eventos com data (Natal, Páscoa…)</div><div class="list">`;
     if (!MUNDO.eventos.length) html += '<div class="empty">Nenhum evento. Crie abaixo.</div>';
     for (const ev of MUNDO.eventos) {
       const zn = MUNDO.zonas.find(z => z.id === ev.zona);
@@ -5170,14 +5208,16 @@
   function chatPush(m, minha) {
     CHAT.log.push(Object.assign({ minha }, m));
     if (CHAT.log.length > 150) CHAT.log.shift();
-    const quem = minha ? 'Você' : m.nome, pre = m.tipo === 'privado' ? '(privado) ' : m.tipo === 'amigos' ? '(amigos) ' : '';
+    const quem = minha ? 'Você' : m.nome, pre = m.tipo === 'privado' ? '(privado) ' : m.tipo === 'amigos' ? '(amigos) ' : m.titulo ? m.titulo + ': ' : '';
     $('chat-last').textContent = `${quem}: ${pre}${m.texto}`;
     $('chat-bar').classList.toggle('amigos', m.tipo === 'amigos');
+    $('chat-bar').classList.toggle('aviso', !!m.sistema);
     if (!minha && !(openSheet && openSheet.id === 'sheet-chat')) { CHAT.unread++; $('chat-badge').hidden = false; $('chat-badge').textContent = CHAT.unread; }
     if (openSheet && openSheet.id === 'sheet-chat') renderChatLog();
     if (minha) CHAT.bolha = { texto: m.texto, ate: performance.now() + 5000, amarelo: m.tipo === 'amigos' };
   }
   function chatOnMsg(m) {
+    if (m && m.sistema) { if (online()) mundoCarregar(); return; }   // sinal de aviso: busca o texto verdadeiro no servidor
     if (!m || typeof m.texto !== 'string') return;
     if (m.tipo === 'amigos' && !CHAT.amigos.some(a => a.mutuo && a.codigo === m.de)) return;   // só amigos de verdade
     chatPush({ de: m.de, nome: String(m.nome || '?').slice(0, 20), texto: m.texto.slice(0, 200), tipo: ['todos', 'privado', 'amigos'].includes(m.tipo) ? m.tipo : 'todos', t: m.t }, false);
@@ -5187,6 +5227,7 @@
     const msgs = CHAT.log.filter(m => tab === 'todos' ? true : m.tipo === tab);
     box.innerHTML = msgs.length ? msgs.map(m => {
       const hora = new Date(m.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      if (m.sistema) return `<div class="chat-msg aviso"><span class="chat-hora">${hora}</span> <b>Moderação</b>${m.titulo ? ` · <i>${chatEsc(m.titulo)}</i>` : ''}: ${chatEsc(m.texto)}</div>`;
       const quem = m.minha ? 'Você' + (m.tipo === 'privado' && m.para ? ' → ' + m.para.join(', ') : '') : m.nome;
       const responder = !m.minha && m.de && m.tipo !== 'amigos' ? ` <button type="button" class="linkbtn" data-reply="${chatEsc(m.de)}">responder</button>` : '';
       return `<div class="chat-msg ${m.tipo}${m.minha ? ' minha' : ''}"><span class="chat-hora">${hora}</span> <b>${chatEsc(quem)}</b>${m.tipo !== 'todos' ? ` <small>(${m.tipo})</small>` : ''}: ${chatEsc(m.texto)}${responder}</div>`;
