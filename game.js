@@ -137,13 +137,6 @@
     saloon: { tipo: 'casa', nome: 'Saloon do faroeste', w: 8, h: 4, porta: 0.55, preco: 2400, desc: 'Balcão, piano e mesas de jogo.' },
     castelo: { tipo: 'casa', nome: 'Castelo', w: 8, h: 4, porta: 0.55, preco: 4500, desc: 'Torres nos cantos, lareira e armaduras.' },
     domo: { tipo: 'casa', nome: 'Domo alienígena', w: 8, h: 4, porta: 0.43, preco: 6500, desc: 'Cápsulas de dormir e holograma.' },
-    muralha: { tipo: 'forte', nome: 'Muralha de castelo', w: 24, h: 12, porta: 0.5, preco: 4000, desc: 'Muralha com torres e portão. Cabem casas dentro.' },
-    muralha_vila: { tipo: 'forte', arte: 'muralha', nome: 'Muralha com casas de camponeses', w: 24, h: 12, preco: 5200,
-      desc: 'A muralha já vem com duas casas de camponês dentro (dá para mover).', junto: [['cabana', 4, 3], ['cabana', 12, 5]] },
-    forte: { tipo: 'forte', nome: 'Forte do faroeste', w: 26, h: 13, preco: 3000, desc: 'Cerca de troncos com porteira.' },
-    forte_cidade: { tipo: 'forte', nome: 'Cidade do faroeste', w: 26, h: 13, preco: 6000, desc: 'Forte com saloon, armazém e xerife.' },
-    campo: { tipo: 'forte', nome: 'Campo de força', w: 26, h: 13, preco: 5500, desc: 'Parede de energia com portão alienígena.' },
-    colonia: { tipo: 'forte', nome: 'Colônia alienígena', w: 26, h: 13, preco: 9000, desc: 'Campo de força com domos e antenas.' },
     torre_madeira: { tipo: 'torre', nome: 'Torre de vigia', w: 2, h: 2, preco: 500, desc: 'Torre simples de madeira.' },
     torre_pedra: { tipo: 'torre', nome: 'Torre de pedra', w: 2, h: 2, preco: 1100, desc: 'Torre de pedra com besta.' },
     torre_balista: { tipo: 'torre', nome: 'Torre com balista', w: 2, h: 2, preco: 1600, desc: 'Atira longe.' },
@@ -173,7 +166,9 @@
     d.img = d.tipo === 'casa' ? 'casa_' + k : d.tipo === 'forte' ? 'forte_' + (d.arte || k) : d.tipo === 'movel' ? (d.arte || 'movel_' + k) : k;
   }
   BUILDS.catapulta.img = 'catapulta_0';
-  const SHOP_TABS = [['ferramentas', 'Ferramentas'], ['casas', 'Casas e fortalezas'], ['defesa', 'Defesa'], ['moveis', 'Móveis'], ['ajudantes', 'Ajudantes'], ['skins', 'Skins']];
+  // fortalezas descontinuadas: quem tinha recebe o valor de volta ao abrir o jogo
+  const DESCONTINUADAS = { muralha: 4000, muralha_vila: 5200, forte: 3000, forte_cidade: 6000, campo: 5500, colonia: 9000, cabana_vila: 0 };
+  const SHOP_TABS = [['ferramentas', 'Ferramentas'], ['casas', 'Casas'], ['defesa', 'Defesa'], ['moveis', 'Móveis'], ['ajudantes', 'Ajudantes'], ['skins', 'Skins']];
   const TAB_OF = d => d.tipo === 'casa' || d.tipo === 'forte' ? 'casas' : d.tipo === 'torre' || d.tipo === 'armadilha' ? 'defesa' : d.tipo === 'movel' ? 'moveis' : 'ajudantes';
   const ROBO_CAP = 30, ROBO_EVERY = 30, ROBO_R = 6;
 
@@ -542,7 +537,11 @@
       s.skins = Array.isArray(d.skins) ? d.skins : []; s.skin = d.skin || null;
       if (['arco', 'cetro', 'livro'].includes(TOOLS[s.tool].id) && !s.owned[TOOLS[s.tool].id]) s.tool = 0;
       if (d.wmat) { const wm = unrle(fromB64(d.wmat), s.wmat.length); if (wm) s.wmat = wm; }
+      let devolve = 0;
+      for (const b of Array.isArray(d.builds) ? d.builds : []) if (DESCONTINUADAS[b.k] !== undefined) devolve += DESCONTINUADAS[b.k];
+      for (const [k, n] of Object.entries(d.kit || {})) if (DESCONTINUADAS[k] !== undefined && n > 0) { devolve += DESCONTINUADAS[k] * n; d.kit[k] = 0; }
       s.builds = Array.isArray(d.builds) ? d.builds.filter(b => BUILDS[b.k]) : [];
+      if (devolve) { s.coins += devolve; s.devolvido = devolve; }
       s.tirado = d.tirado || {}; s.kit = d.kit || {}; s.dur = d.dur || {}; s.broken = d.broken || {};
       if (d.sel && d.sel.carry) { const c = wallCost(d.sel.carry.w & 15, d.sel.carry.gate); for (const [k, n] of Object.entries(c)) s.inv[k] = (s.inv[k] || 0) + n; }   // salvou segurando um muro: devolve
       if (d.sel && (['nada', 'muro', 'portao', 'girar', 'remover'].includes(d.sel.k) || (d.sel.k === 'kit' && BUILDS[d.sel.id]))) s.sel = d.sel;
@@ -566,7 +565,6 @@
   }
   function canStand(px, py, z, r, quem) {
     const pts = [[px - r, py - r], [px + r, py - r], [px - r, py + r], [px + r, py + r]];
-    if (quem === 'jogador' && interior) { for (const [x, y] of pts) if (insideOf(x, y, 'casa') !== interior || shapeHit(interior, x, y, true) === 'solid') return false; return true; }
     for (const [x, y] of pts) if (!walkable(tileAt(Math.floor(x), Math.floor(y), z), z)) return false;
     if (z === 0 && S.builds.length) for (const [x, y] of pts) if (buildBlocks(x, y, quem !== 'jogador')) return false;
     return true;
@@ -1751,7 +1749,7 @@
       addBuild(c); sfx('construir');
       for (const [jk, ox, oy] of d.junto || []) addBuild({ k: jk, x: c.x + ox, y: c.y + oy });
       toast(`${d.nome}: pronto`, 'gold');
-      if (d.tipo === 'casa') hint('casa', 'Chegue perto da porta e toque em Entrar. Para mudar de lugar: Construir.');
+      if (d.tipo === 'casa') hint('casa', 'Chegue perto da porta e toque em Entrar. Lá dentro, toque em Decorar.');
     }
     if (!(S.kit[k] > 0)) S.sel = { k: 'nada' };
     else S.sel.flip = !!S.sel.flip;
@@ -1910,6 +1908,7 @@
 
   function useTool() {
     const tool = TOOLS[S.tool].id;
+    if (interior) { roomUse(tool); return; }
     const { x, y, z } = target();
     const npc = npcInFront(x, y);
     if (npc) { actHeld = false; showSheet('sheet-shop', npc); return; }
@@ -4079,15 +4078,11 @@
   function enterHouse(b) {
     const d = BUILDS[b.k];
     if (!canEnter(b)) { toast(`${d.nome} trancada: só entra quem o dono convidar`, 'warn'); return; }
-    const [qx, qy] = doorPoint(b), cx = b.x + d.w / 2, cy = b.y + d.h / 2;
-    for (const f of [0.75, 0.6, 0.5, 0.4, 0.3, 0.2, 0]) {   // da porta em direção ao centro, o primeiro lugar livre
-      const nx = qx + (cx - qx) * f, ny = qy + (cy - qy) * f;
-      if (insideOf(nx, ny, 'casa') === b && canStand(nx, ny, 0, 0.3, 'jogador')) {
-        S.p.x = nx; S.p.y = ny; S.p.dir = 1; interior = b; homing = null;
-        sfx('construir'); updateDoorBtn(); return;
-      }
-    }
-    toast('Não há espaço livre dentro da casa', 'warn');
+    interior = b; homing = null; roomOf(b);
+    RP.x = 0.6; RP.y = roomSize(b) - 1.5; RP.dir = 3;   // entra pela porta, no canto da frente
+    for (let k = 0; k < 20 && roomBlocked(b, RP.x, RP.y); k++) RP.x += 0.5;
+    sfx('construir'); updateDoorBtn();
+    hint('decorar', 'Toque em Decorar para mudar a cor do chão e das paredes e colocar seus móveis.');
   }
   function leaveHouse() {
     const b = interior; if (!b) return;
@@ -4130,6 +4125,14 @@
   function updateEditBar() {
     if (!S || openSheet || TOOLS[S.tool].id !== 'muro') { if (!editBar.hidden) editBar.hidden = true; editSig = ''; return; }
     let sig, html;
+    if (interior) {
+      const it = roomItemFront(interior);
+      if (S.sel.k === 'kit' && S.kit[S.sel.id] > 0) { sig = 'rk' + S.sel.id; html = `<span>${BUILDS[S.sel.id].nome}</span><button type="button" class="btn" data-ed="girarkit">Girar</button><button type="button" class="btn" data-ed="cancelar">Cancelar</button>`; }
+      else if (it) { sig = 'ri' + it.x + ',' + it.y; html = `<span>${BUILDS[it.k].nome}</span><button type="button" class="btn" data-ed="rmover">Mover</button><button type="button" class="btn" data-ed="rgirar">Girar</button><button type="button" class="btn" data-ed="rguardar">Guardar</button><button type="button" class="btn btn-danger" data-ed="rvender">Vender</button>`; }
+      else { sig = 'rnone'; html = ''; }
+      if (sig !== editSig) { editSig = sig; editBar.innerHTML = html; }
+      editBar.hidden = !html; return;
+    }
     if (S.sel.k === 'kit' && S.kit[S.sel.id] > 0) {
       sig = 'kit' + S.sel.id;
       html = `<span>${BUILDS[S.sel.id].nome}</span><button type="button" class="btn" data-ed="girarkit">Girar</button><button type="button" class="btn" data-ed="cancelar">Cancelar</button>`;
@@ -4154,6 +4157,7 @@
     const bt = e.target.closest('[data-ed]');
     if (!bt) return;
     const a = bt.dataset.ed;
+    if (a[0] === 'r' && interior && a !== 'remover') { roomEdit(a.slice(1)); editSig = ''; updateEditBar(); return; }
     if (a === 'girarkit') { S.sel.flip = !S.sel.flip; sfx('toque'); }
     else if (a === 'cancelar') { S.sel = { k: 'nada' }; toast('Guardado em Construir → Suas construções'); }
     else if (a === 'soltar') { dropCarry(); S.sel = { k: 'nada' }; }
@@ -4179,47 +4183,165 @@
     }
     invDirty = true; save(); editSig = ''; updateEditBar();
   });
+  const decorBtn = document.createElement('button');
+  decorBtn.type = 'button'; decorBtn.className = 'btn decor-btn'; decorBtn.hidden = true; decorBtn.textContent = 'Decorar';
+  decorBtn.addEventListener('click', () => { if (interior) { showSheet('sheet-decor'); renderDecor(); } });
+  document.getElementById('app').append(decorBtn);
   function updateDoorBtn() {
     if (!S) return;
+    decorBtn.hidden = !interior || !!openSheet;
     const b = interior || houseNear();
     const txt = interior ? `Sair · ${BUILDS[interior.k].nome}` : b ? `Entrar · ${BUILDS[b.k].nome}` : '';
     doorBtn.hidden = !txt || !!openSheet;
     if (txt && doorBtn.textContent !== txt) doorBtn.textContent = txt;
   }
-  function renderInterior(now) {
-    const b = interior, d = BUILDS[b.k], base = tp, W2 = canvas.width, H2 = canvas.height;
-    const r = ATLAS2[d.img + '_dentro'];
-    const hTiles = r ? d.w * r[3] / r[2] : d.h * 1.6;
-    const Z = Math.max(1, Math.min(W2 * 0.86 / (d.w * base), H2 * 0.42 / (hTiles * base)));
-    tp = base * Z;
-    const u = tp / 16, p = S.p;
+  // ================= Cômodo da casa (estilo Habbo) =================
+  // Cada casa tem um cômodo próprio em losangos: 10 × 10 na casa comum, 30 × 30 no castelo.
+  // O dono escolhe a cor do chão e das paredes e coloca os móveis onde quiser (b.room).
+  const PISOS = { madeira: ['#9a6a3e', '#8a5c34'], clara: ['#d8b98a', '#c9a874'], pedra: ['#8d9096', '#7d8086'], xadrez: ['#e8e2d6', '#2a2622'],
+    verde: ['#5f9a4e', '#53893f'], azul: ['#4a74b8', '#3f67a8'], vermelho: ['#b8493f', '#a63f36'], rosa: ['#e08cb4', '#d07ca4'], roxo: ['#8a5cc0', '#7b4fb0'], preto: ['#2e2a30', '#26222a'] };
+  const PAREDES = { creme: '#e6d8b8', madeira: '#7a5230', pedra: '#6f7278', branca: '#f0eee8', azul: '#5d7fb5', verde: '#6e9a5e', vinho: '#7a2f3a', preta: '#2a2628' };
+  const roomSize = b => (b.k === 'castelo' ? 30 : 10);
+  function roomOf(b) {
+    if (!b.room) b.room = { piso: 'madeira', parede: 'creme', itens: [] };
+    return b.room;
+  }
+  const RP = { x: 5, y: 9, dir: 1 };   // posição no cômodo (em blocos do cômodo)
+  function roomIso(x, y, ox, oy, tw) { return [ox + (x - y) * tw / 2, oy + (x + y) * tw / 4]; }
+  // tamanho do losango: o cômodo pequeno cabe inteiro na tela; o castelo segue o jogador
+  function roomTw(b) {
+    const N = roomSize(b), W2 = canvas.width, H2 = canvas.height;
+    return N <= 10 ? Math.min(W2 * 0.94 / N, H2 * 0.62 / (N / 2 + 2.5)) : Math.min(tp * 1.3, W2 / 9);
+  }
+  function roomBlocked(b, x, y) {
+    const N = roomSize(b);
+    if (x < 0.25 || y < 0.25 || x > N - 0.25 || y > N - 0.25) return true;
+    return roomOf(b).itens.some(it => Math.floor(x) === it.x && Math.floor(y) === it.y);
+  }
+  // direção da tela → direção no cômodo (a tela é girada 45°)
+  const SCR = [[0, 1], [0, -1], [-1, 0], [1, 0]];
+  function scrToRoom(sx, sy) { return [sx + sy, sy - sx]; }
+  function roomFrontTile(b) {
+    const [dx, dy] = scrToRoom(...SCR[RP.dir]), L = Math.hypot(dx, dy) || 1;
+    const fx = Math.floor(RP.x) + Math.sign(dx), fy = Math.floor(RP.y) + Math.sign(dy), N = roomSize(b);   // bloco vizinho na diagonal da tela
+    return fx < 0 || fy < 0 || fx >= N || fy >= N ? null : { x: fx, y: fy };
+  }
+  function roomItemFront(b) {
+    const f = roomFrontTile(b);
+    return f ? roomOf(b).itens.find(it => it.x === f.x && it.y === f.y) || null : null;
+  }
+  function roomMove(dt) {
+    const b = interior;
+    let vx = (held.right ? 1 : 0) - (held.left ? 1 : 0), vy = (held.down ? 1 : 0) - (held.up ? 1 : 0);
+    moving = !!(vx || vy) && !openSheet;
+    if (!moving) return;
+    if (lastDir && held[lastDir]) RP.dir = { down: 0, up: 1, left: 2, right: 3 }[lastDir];
+    else RP.dir = vy > 0 ? 0 : vy < 0 ? 1 : vx < 0 ? 2 : 3;
+    const L = Math.hypot(vx, vy), sp = SPEED * 0.75 * dt;
+    let [dx, dy] = scrToRoom(vx / L, vy / L); const L2 = Math.hypot(dx, dy) || 1; dx = dx / L2 * sp; dy = dy / L2 * sp;
+    if (!roomBlocked(b, RP.x + dx, RP.y)) RP.x += dx;
+    if (!roomBlocked(b, RP.x, RP.y + dy)) RP.y += dy;
+    walkPhase += dt * 12;
+  }
+  // Construir dentro de casa: coloca, tira e gira móveis
+  function roomUse(tool) {
+    const b = interior;
+    if (tool !== 'muro') { actHeld = false; return; }
+    if (S.sel.k !== 'kit' || !BUILDS[S.sel.id] || BUILDS[S.sel.id].tipo !== 'movel') {
+      actHeld = false; toast('Dentro de casa: escolha um móvel em Construir (ou abra Decorar)'); showSheet('sheet-build'); return;
+    }
+    if (b.dono && b.dono !== 'eu' && b.dono !== myId()) { toast('Só o dono decora esta casa', 'warn'); return; }
+    const k = S.sel.id, f = roomFrontTile(b);
+    if (!(S.kit[k] > 0)) { toast(`Você não tem ${BUILDS[k].nome.toLowerCase()}. Compre na loja.`, 'warn'); return; }
+    if (!f || roomItemFront(b) || (Math.floor(RP.x) === f.x && Math.floor(RP.y) === f.y)) { toast('Escolha um lugar livre na sua frente', 'warn'); cooldown = 0.4; return; }
+    S.kit[k]--; roomOf(b).itens.push({ k, x: f.x, y: f.y, flip: !!S.sel.flip });
+    sfx('construir'); cooldown = 0.3;
+    if (!(S.kit[k] > 0)) S.sel = { k: 'nada' };
+    invDirty = true; save();
+  }
+  function roomEdit(a) {
+    const b = interior, it = roomItemFront(b);
+    if (!it) return;
+    const R = roomOf(b);
+    if (a === 'girar') it.flip = !it.flip;
+    else {
+      R.itens.splice(R.itens.indexOf(it), 1);
+      if (a === 'vender') { const v = Math.floor(BUILDS[it.k].preco / 2); S.coins += v; sfx('moeda'); toast(`${BUILDS[it.k].nome} vendido: +${v} moedas`, 'gold'); }
+      else { S.kit[it.k] = (S.kit[it.k] || 0) + 1; if (a === 'mover') { S.sel = { k: 'kit', id: it.k, flip: it.flip }; S.tool = TOOLS.findIndex(t => t.id === 'muro'); toast('Fique de frente para o novo lugar e use', 'leaf'); } }
+    }
+    sfx('toque'); invDirty = true; save();
+  }
+  function renderRoom(now) {
+    const b = interior, N = roomSize(b), R = roomOf(b), W2 = canvas.width, H2 = canvas.height, tw = roomTw(b), th = tw / 2;
+    const piso = PISOS[R.piso] || PISOS.madeira, parede = PAREDES[R.parede] || PAREDES.creme, wallH = th * 5;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#0e0a08'; ctx.fillRect(0, 0, W2, H2);
-    const camX = Math.round((b.x + d.w / 2) * tp - W2 / 2);
-    const camY = Math.round((b.y + d.h + d.pad) * tp - hTiles * tp / 2 - H2 * 0.36);
-    // sombra suave em volta do cômodo
-    const g = ctx.createRadialGradient(W2 / 2, H2 * 0.44, tp, W2 / 2, H2 * 0.44, Math.max(W2, H2) * 0.7);
-    g.addColorStop(0, 'rgba(60,40,25,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2);
-    drawBuild(b, d.img + '_dentro', camX, camY);
-    const ents = [];
-    for (const o of S.builds) {   // móveis colocados dentro desta casa
-      const od = BUILDS[o.k];
-      if (o === b || od.tipo === 'casa' || od.tipo === 'forte' || insideOf(o.x + od.w / 2, o.y + od.h / 2, 'casa') !== b) continue;
-      ents.push({ y: (o.y + od.h) * tp - camY, f: () => drawBuild(o, od.img, camX, camY) });
+    // câmera segue o jogador; cômodo pequeno fica centralizado
+    const [px0, py0] = roomIso(RP.x, RP.y, 0, 0, tw);
+    let ox = Math.round(W2 / 2 - px0), oy = Math.round(H2 * 0.5 - py0);
+    if (N <= 10) { const [cx, cy] = roomIso(N / 2, N / 2, 0, 0, tw); ox = Math.round(W2 / 2 - cx); oy = Math.round(H2 * 0.47 - cy + wallH * 0.35); }
+    const P = (x, y) => roomIso(x, y, ox, oy, tw);
+    const poly = (pts, fill, stroke) => { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (const q of pts.slice(1)) ctx.lineTo(q[0], q[1]); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); } };
+    const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), r = Math.round(((n >> 16) & 255) * k), g = Math.round(((n >> 8) & 255) * k), bl = Math.round((n & 255) * k); return `rgb(${Math.min(255, r)},${Math.min(255, g)},${Math.min(255, bl)})`; };
+    // paredes do fundo (esquerda e direita)
+    const up = q => [q[0], q[1] - wallH];
+    poly([P(0, 0), P(0, N), up(P(0, N)), up(P(0, 0))], shade(parede, 0.82));
+    poly([P(0, 0), P(N, 0), up(P(N, 0)), up(P(0, 0))], parede);
+    ctx.fillStyle = shade(parede, 0.6); ctx.fillRect(P(0, 0)[0] - 1, P(0, 0)[1] - wallH, 2, wallH);   // quina
+    // rodapé
+    poly([P(0, 0), P(0, N), [P(0, N)[0], P(0, N)[1] - th * 0.25], [P(0, 0)[0], P(0, 0)[1] - th * 0.25]], shade(parede, 0.55));
+    poly([P(0, 0), P(N, 0), [P(N, 0)[0], P(N, 0)[1] - th * 0.25], [P(0, 0)[0], P(0, 0)[1] - th * 0.25]], shade(parede, 0.65));
+    // chão em losangos
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const c = R.piso === 'xadrez' ? piso[(x + y) & 1] : piso[((x * 7 + y * 3) % 5 === 0) ? 1 : 0];
+      poly([P(x, y), P(x + 1, y), P(x + 1, y + 1), P(x, y + 1)], c, 'rgba(0,0,0,0.12)');
     }
-    const psx = p.x * tp - camX, psy = p.y * tp - camY;
-    ents.push({ y: psy + 6 * u, f: () => drawPlayer(psx, psy, u, p.dir, moving, walkPhase) });
-    ents.sort((a, c) => a.y - c.y);
+    // porta (canto da frente à esquerda)
+    const d0 = P(0, N - 2), d1 = P(0, N - 1);
+    poly([d0, d1, [d1[0], d1[1] - th * 3.2], [d0[0], d0[1] - th * 3.2]], '#4a2e1c', '#2a1a10');
+    // alvo na frente do jogador quando estiver construindo
+    const f = TOOLS[S.tool].id === 'muro' && !openSheet ? roomFrontTile(b) : null;
+    if (f) poly([P(f.x, f.y), P(f.x + 1, f.y), P(f.x + 1, f.y + 1), P(f.x, f.y + 1)], roomItemFront(b) ? 'rgba(240,180,60,0.35)' : 'rgba(140,230,120,0.3)', 'rgba(255,255,255,0.7)');
+    // móveis e jogador por profundidade (x + y)
+    const ents = R.itens.map(it => ({ d: it.x + it.y + 1, f: () => {
+      const od = BUILDS[it.k], r = art2Rect(od.img); if (!r) return;
+      const [cx, cy] = P(it.x + 0.5, it.y + 0.5), w = tw * (od.nome.includes('Cama') || it.k === 'capsula' ? 1.35 : 1.0), h = w * r[3] / r[2];
+      ctx.save(); ctx.translate(cx, cy + th * 0.3); if (it.flip) ctx.scale(-1, 1);
+      ctx.drawImage(art2, r[0], r[1], r[2], r[3], -w / 2, -h, w, h); ctx.restore();
+    } }));
+    const base = tp; tp = tw * 0.8;   // personagem na escala do cômodo
+    const [psx, psy] = P(RP.x, RP.y), u = tp / 16;
+    ents.push({ d: RP.x + RP.y, f: () => drawPlayer(psx, psy - 6 * u, u, RP.dir, moving, walkPhase) });
+    ents.sort((a, c) => a.d - c.d);
     for (const e of ents) e.f();
-    drawSmoke(camX, camY, now);
-    drawCombatFx(camX, camY, now);
-    drawBubble(psx, psy - 1.55 * tp, CHAT.bolha);
-    drawGhost(camX, camY);
+    drawBubble(psx, psy - 6 * u - 1.55 * tp, CHAT.bolha);
     tp = base;
   }
+  // painel Decorar: cor do chão, das paredes e móveis
+  function renderDecor() {
+    const b = interior; if (!b) return;
+    const R = roomOf(b), dono = !b.dono || b.dono === 'eu' || b.dono === myId();
+    const sw = (grupo, id, cor, atual) => `<button type="button" class="swatch${atual ? ' on' : ''}" data-dec="${grupo}:${id}" title="${id}" style="background:${cor}" aria-label="${id}"></button>`;
+    let html = `<p class="muted small-text">${BUILDS[b.k].nome} · cômodo de ${roomSize(b)} × ${roomSize(b)} blocos${dono ? '' : ' · só o dono pode decorar'}</p>`;
+    html += '<div class="section-label">Cor do chão</div><div class="swatches">' + Object.entries(PISOS).map(([id, c]) => sw('piso', id, id === 'xadrez' ? `repeating-conic-gradient(${c[0]} 0 25%, ${c[1]} 0 50%) 0 0/12px 12px` : c[0], R.piso === id)).join('') + '</div>';
+    html += '<div class="section-label">Cor das paredes</div><div class="swatches">' + Object.entries(PAREDES).map(([id, c]) => sw('parede', id, c, R.parede === id)).join('') + '</div>';
+    const moveis = Object.entries(S.kit).filter(([k, n]) => n > 0 && BUILDS[k] && BUILDS[k].tipo === 'movel');
+    html += '<div class="section-label">Seus móveis</div><div class="list">';
+    if (!moveis.length) html += '<div class="empty">Nenhum móvel guardado. Compre na loja, aba Móveis.</div>';
+    for (const [k, n] of moveis) html += `<div class="row skin-row">${thumb2(BUILDS[k].img)}<span class="name"><b>${BUILDS[k].nome}${n > 1 ? ' × ' + n : ''}</b><small>Escolha e use de frente para o lugar</small></span><span></span><button type="button" class="btn btn-gold" data-dec="movel:${k}">Colocar</button></div>`;
+    html += `</div><p class="muted small-text">Com Construir na mão, fique de frente para um móvel para mover, girar, guardar ou vender. ${R.itens.length} móveis no cômodo.</p>`;
+    html += '<div class="list-actions"><button type="button" class="btn" data-tab-go="moveis">Comprar móveis</button></div>';
+    $('decor-body').innerHTML = html;
+  }
+  $('decor-body').addEventListener('click', e => {
+    const bt = e.target.closest('[data-dec]'); if (!bt || !interior) return;
+    const b = interior, [g, v] = bt.dataset.dec.split(':');
+    if (b.dono && b.dono !== 'eu' && b.dono !== myId()) { toast('Só o dono decora esta casa', 'warn'); return; }
+    if (g === 'movel') { S.sel = { k: 'kit', id: v }; S.tool = TOOLS.findIndex(t => t.id === 'muro'); invDirty = true; closeSheet(); toast('Fique de frente para o lugar e use para colocar', 'leaf'); return; }
+    roomOf(b)[g] = v; save(); renderDecor();
+  });
   function render(now) {
-    if (interior) { renderInterior(now); return; }
+    if (interior) { renderRoom(now); return; }
     const p = S.p, z = p.z, u = tp / 16;
     const W2 = canvas.width, H2 = canvas.height;
     ctx.imageSmoothingEnabled = !!art;
@@ -4496,7 +4618,8 @@
     let vx = (held.right ? 1 : 0) - (held.left ? 1 : 0);
     let vy = (held.down ? 1 : 0) - (held.up ? 1 : 0);
     moving = !!(vx || vy) && !openSheet;
-    if (moving) {
+    if (interior) { roomMove(dt); vx = vy = 0; }
+    else if (moving) {
       if (lastDir && held[lastDir]) p.dir = { down: 0, up: 1, left: 2, right: 3 }[lastDir];
       else p.dir = vy > 0 ? 0 : vy < 0 ? 1 : vx < 0 ? 2 : 3;
       const len = Math.hypot(vx, vy);
@@ -4561,7 +4684,8 @@
     placeNpcs();
     homing = null;
     lastBiome = null;
-    interior = S.p.z === 0 ? insideOf(S.p.x, S.p.y, 'casa') : null;
+    interior = null;
+    if (S.devolvido) { toast(`As fortalezas saíram do jogo: ${S.devolvido} moedas devolvidas`, 'gold', 6000); delete S.devolvido; }
     for (const b of S.builds) clearUnderHouse(b);   // casas antigas: limpa o chão embaixo
     hits.clear();
     invDirty = true;
@@ -4771,7 +4895,7 @@
   $('btn-staff').addEventListener('click', () => { closeSheet(); openStaff(); });
 
   // ?teste na URL: expõe o estado para testes automáticos
-  if (/[?&]teste\b/.test(location.search)) window.TerraDebug = { get S() { return S; }, get fx() { return effects; }, get pushT() { return pushT; }, doorAction, catapultInFront, useTool, target, placeKit, pickUp, candidate, placeProblem, showSheet, botMine, save };
+  if (/[?&]teste\b/.test(location.search)) window.TerraDebug = { get S() { return S; }, get RP() { return RP; }, roomFrontTile, get interior() { return interior; }, get fx() { return effects; }, get pushT() { return pushT; }, doorAction, catapultInFront, useTool, target, placeKit, pickUp, candidate, placeProblem, showSheet, botMine, save };
 
   async function boot() {
     buildSprites();

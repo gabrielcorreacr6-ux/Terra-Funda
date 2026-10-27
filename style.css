@@ -347,3 +347,9 @@ kbd {
 .chat-hora { opacity: .5; font-size: .82em; }
 .chat-form { display: flex; gap: 6px; }
 .chat-form input { flex: 1; font: inherit; padding: 9px; border-radius: 8px; border: 1px solid var(--line); background: #2a2420; color: inherit; }
+.decor-btn { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(205px + env(safe-area-inset-bottom, 0px)); z-index: 5; }
+.decor-btn[hidden] { display: none; }
+@media (pointer: coarse) { .decor-btn { bottom: calc(360px + env(safe-area-inset-bottom, 0px)); } }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+.swatch { width: 36px; height: 36px; border-radius: 8px; border: 2px solid rgba(255,255,255,.25); cursor: pointer; padding: 0; }
+.swatch.on { border-color: #ffd24a; box-shadow: 0 0 0 2px #ffd24a; }
