@@ -565,6 +565,7 @@
   }
   function canStand(px, py, z, r, quem) {
     const pts = [[px - r, py - r], [px + r, py - r], [px - r, py + r], [px + r, py + r]];
+    if (quem === 'jogador' && interior) { for (const [x, y] of pts) if (insideOf(x, y, 'casa') !== interior || shapeHit(interior, x, y, true) === 'solid') return false; return true; }
     for (const [x, y] of pts) if (!walkable(tileAt(Math.floor(x), Math.floor(y), z), z)) return false;
     if (z === 0 && S.builds.length) for (const [x, y] of pts) if (buildBlocks(x, y, quem !== 'jogador')) return false;
     return true;
@@ -653,13 +654,13 @@
     let best = null;
     for (const b of S.builds) {
       const d = BUILDS[b.k];
-      if (d.tipo !== 'casa' && d.tipo !== 'forte') continue;
+      if (d.tipo !== 'forte') continue;   // casas: botão Entrar
       if (shapeHit(b, px, py) !== 'solid' && shapeHit(b, p.x + DIRS[p.dir][0] * 0.45, p.y + DIRS[p.dir][1] * 0.45) !== 'solid') continue;
       if (!best || d.w < BUILDS[best.k].w) best = b;   // casa dentro do forte: vale a casa
     }
     if (!best) for (const b of S.builds) {   // parado na própria porta, empurrando: também vale
       const d = BUILDS[b.k];
-      if (d.tipo !== 'casa' && d.tipo !== 'forte') continue;
+      if (d.tipo !== 'forte') continue;
       const [qx, qy] = doorPoint(b);
       if (Math.hypot(qx - p.x, qy - p.y) < 1.6 && (!best || d.w < BUILDS[best.k].w)) best = b;
     }
@@ -949,7 +950,7 @@
     for (const m of S.mobs) m.aggro = false;
     p.x = S.home.x; p.y = S.home.y; p.z = 0;
     if (!walkable(tileAt(Math.floor(p.x), Math.floor(p.y), 0), 0)) { p.x = SPAWN.x + 0.5; p.y = SPAWN.y + 0.5; }
-    S.hp = HP_MAX; invulnTil = performance.now() + 4000; homing = null;
+    S.hp = HP_MAX; invulnTil = performance.now() + 4000; homing = null; interior = null;
     for (let k = 0; k < 20; k++) waterTick();
     invDirty = true; toast(msg, 'warn', 5500); save();
   }
@@ -1008,7 +1009,7 @@
       if (m.burn > now) { m.hp -= m.burnDps * dt; if (m.hp <= 0) { killMob(m, k); continue; } }
       if (Math.hypot(m.x - p.x, m.y - p.y) > 90) { S.mobs.splice(k, 1); continue; }   // longe demais: some (volta quando chegar perto)
       const dist = Math.hypot(m.x - p.x, m.y - p.y), same = m.z === p.z && S.hp > 0 && now > invulnTil;
-      const inHouse = !!insideOf(p.x, p.y, 'casa');
+      const inHouse = !!interior || !!insideOf(p.x, p.y, 'casa');
       const fromHome = Math.hypot(m.x - m.hx, m.y - m.hy);
       if (!m.aggro && same && !inHouse && dist < def.ve) { m.aggro = true; if (m.kind !== 'bicho') sfx('golpe'); }
       if (m.aggro && (!same || inHouse || fromHome > def.segue || dist > def.segue + 3)) m.aggro = false;
@@ -1027,8 +1028,7 @@
         m.moving = false;
         if (m.atk <= 0) {
           m.atk = def.cad; m.swing = now; hurt(def.dano, m);
-          if (m.kind === 'saqueador') fxAnim(['fx_corte_1', 'fx_corte_2'], (m.x + S.p.x) / 2, (m.y + S.p.y) / 2 - 0.3, m.z, 0.9, 200, Math.atan2(S.p.y - m.y, S.p.x - m.x) - Math.PI / 4);
-          else { fxAnim(['fx_impacto'], S.p.x, S.p.y + 0.2, m.z, 1.4, 380); shake(220, tp * 0.08); }
+          if (m.kind !== 'saqueador') { fxAnim(['fx_impacto'], S.p.x, S.p.y + 0.2, m.z, 1.4, 380); shake(220, tp * 0.08); }
         }
       } else if (L > 0.1) {
         const st = Math.min(L, sp * dt), nx = m.x + dx / L * st, ny = m.y + dy / L * st;
@@ -1047,7 +1047,7 @@
     m.hp -= n; m.flash = now + 120; m.hitT = now; m.aggro = true;
     if (opt.burn) { m.burn = now + 4000; m.burnDps = 4; }
     const hitFx = arma === 'cetro' ? ['fx_magia_hit_0', 'fx_magia_hit_1', 'fx_magia_hit_2'] : arma === 'arco' ? ['fx_lascas'] : ['fx_faisca_0', 'fx_faisca_1', 'fx_faisca_2'];
-    fxAnim(hitFx, m.x, m.y - 0.6, m.z, arma === 'cetro' ? 1.2 : 0.9, 330);
+    if (arma !== 'espada') fxAnim(hitFx, m.x, m.y - 0.6, m.z, arma === 'cetro' ? 1.2 : 0.9, 330);
     if (m.kind !== 'bicho' || arma !== 'cetro') {   // empurrão de meio bloco para longe de você
       const dx = m.x - S.p.x, dy = m.y - S.p.y, L = Math.hypot(dx, dy) || 1, k = m.kind === 'chefe' || m.kind === 'bicho' ? 0.25 : 0.5;
       const nx = m.x + dx / L * k, ny = m.y + dy / L * k;
@@ -1108,8 +1108,6 @@
       if (near) { damageMob(mm, dano, 'espada'); acertou = true; }
     }
     // corte em meia-lua na direção do golpe, na cor do nível
-    const corte = lv === 0 ? ['fx_corte_0', 'fx_corte_1', 'fx_corte_2'] : [['', 'fx_corte_laranja', 'fx_corte_roxo', 'fx_corte_dourado', 'fx_corte_dourado'][lv]];
-    fxAnim(corte, fx, fy - 0.2, S.p.z, (lv >= 3 ? 1.6 : lv >= 2 ? 1.35 : 1.1), 300, DIR_ANG[S.p.dir] - Math.PI / 4, S.p.dir === 2);
     if (lv >= 2) effects.push({ ring: raio, x: fx, y: fy, z: S.p.z, t0: performance.now(), dur: 260, cor: WLV_COR[lv] });
     return acertou || !!m;
   }
@@ -1697,7 +1695,7 @@
       addBuild(c); sfx('construir');
       for (const [jk, ox, oy] of d.junto || []) addBuild({ k: jk, x: c.x + ox, y: c.y + oy });
       toast(`${d.nome}: pronto`, 'gold');
-      if (d.tipo === 'casa') hint('casa', 'Para entrar ou sair, é só andar contra a parede. Para mudar de lugar: Construir.');
+      if (d.tipo === 'casa') hint('casa', 'Chegue perto da porta e toque em Entrar. Para mudar de lugar: Construir.');
     }
     if (!(S.kit[k] > 0)) S.sel = { k: 'muro', m: 0 };
     invDirty = true; save();
@@ -1822,7 +1820,11 @@
     const { x, y, z } = target();
     const npc = npcInFront(x, y);
     if (npc) { actHeld = false; showSheet('sheet-shop', npc); return; }
-    const door = tool !== 'muro' && doorAction();
+    if (tool !== 'muro' && !interior && z === 0) {   // Usar de frente para a casa: entra
+      const hb = houseNear();
+      if (hb && shapeHit(hb, x + 0.5, y + 0.5)) { actHeld = false; enterHouse(hb); return; }
+    }
+    const door = tool !== 'muro' && !interior && doorAction();
     if (door) { actHeld = false; door(); return; }
     const chest = tool !== 'muro' && campChest(x, y);
     if (chest) {
@@ -1975,6 +1977,7 @@
   function layerName(z) { return z === 0 ? 'Superfície' : `Camada ${z}${z >= 4 ? ' · mina profunda' : ''}`; }
 
   function upDown() {
+    if (interior) { toast('Saia da casa para cavar', 'warn'); return; }
     const p = S.p, x = Math.floor(p.x), y = Math.floor(p.y), z = p.z;
     if (z > 0 && tileAt(x, y, z - 1) === T.HOLE) {
       p.z--; centerPlayer(); toast(layerName(p.z)); return;
@@ -2034,7 +2037,7 @@
       homing = null;
       let { x, y } = S.home;
       if (!walkable(tileAt(Math.floor(x), Math.floor(y), 0), 0)) { x = SPAWN.x + 0.5; y = SPAWN.y + 0.5; }
-      p.x = x; p.y = y; p.z = 0;
+      p.x = x; p.y = y; p.z = 0; interior = null;
       S.homeReadyAt = S.time + HOME_COOLDOWN;
       for (let k = 0; k < 20; k++) waterTick();   // enche a água em volta da casa
       toast('Em casa', 'leaf');
@@ -2427,7 +2430,7 @@
   })();
   function artRect(name) { return art && ATLAS[name]; }
   // Segundo atlas: muros, torres, casas, fortalezas e móveis (tools/build_structures.py)
-  const ATLAS2 = /*ATLAS2_MAP*/{"forte_muralha_chao":[0,0,760,651],"forte_muralha_fundo":[762,0,760,651],"forte_muralha_frente":[0,653,760,651],"forte_forte_cidade_fundo":[762,653,760,384],"forte_forte_cidade_frente":[0,1306,760,384],"forte_colonia_fundo":[762,1306,760,378],"forte_colonia_frente":[0,1692,760,378],"forte_forte_fundo":[762,1692,760,354],"forte_forte_frente":[0,2072,760,354],"forte_campo_fundo":[762,2072,760,341],"forte_campo_frente":[0,2428,760,341],"casa_cabana":[762,2428,340,310],"casa_cabana_chao":[1104,2428,340,310],"casa_saloon":[1446,2428,340,304],"casa_saloon_chao":[0,2771,340,304],"casa_pedra":[342,2771,340,302],"casa_pedra_chao":[684,2771,340,302],"casa_castelo":[1026,2771,340,295],"casa_castelo_chao":[1368,2771,340,295],"casa_tribal":[0,3077,340,289],"casa_tribal_chao":[342,3077,340,289],"casa_castelo_dentro":[684,3077,340,278],"casa_castelo_dentro_chao":[1026,3077,340,278],"casa_tribal_dentro":[1368,3077,340,275],"casa_tribal_dentro_chao":[0,3368,340,275],"casa_cabana_dentro":[342,3368,340,274],"casa_saloon_dentro":[684,3368,340,274],"casa_saloon_dentro_chao":[1026,3368,340,274],"casa_domo":[1368,3368,340,268],"casa_domo_chao":[0,3645,340,268],"casa_domo_dentro":[342,3645,340,268],"casa_domo_dentro_chao":[684,3645,340,268],"casa_pedra_dentro":[1026,3645,340,260],"casa_pedra_dentro_chao":[1368,3645,340,260],"torre_madeira":[1710,3645,119,203],"torre_cristal":[1831,3645,114,203],"torre_pedra":[0,3915,117,198],"torre_balista_cristal":[119,3915,113,196],"torre_canhao":[234,3915,137,188],"torre_balista":[373,3915,131,185],"forte_muralha":[506,3915,180,154],"catapulta_0":[688,3915,150,135],"catapulta_1":[840,3915,150,135],"catapulta_2":[992,3915,150,135],"catapulta_3":[1144,3915,150,135],"movel_cama_dossel":[1296,3915,126,132],"cristal_claro":[1424,3915,103,131],"cristal_roxo":[1529,3915,103,129],"catapulta_ferro":[1634,3915,161,124],"movel_lareira":[1797,3915,63,117],"muro_madeira_v":[1862,3915,31,112],"muro_tijolo_aberto":[1895,3915,85,111],"movel_fogao":[1982,3915,64,111],"movel_cama_casal":[0,4115,126,105],"espinhos":[128,4115,120,103],"muro_tijolo_v":[250,4115,30,100],"movel_capsula":[282,4115,112,100],"muro_pedra_v":[396,4115,29,99],"movel_cama":[427,4115,102,95],"muro_madeira_aberto":[531,4115,88,93],"muro_pedra_aberto":[621,4115,88,93],"forte_forte_cidade":[711,4115,180,91],"forte_colonia":[893,4115,180,90],"muro_tijolo_portao":[1075,4115,75,87],"muro_fortaleza_v":[1152,4115,31,87],"movel_fogueira":[1185,4115,68,85],"muro_fortaleza_aberto":[1255,4115,90,84],"forte_forte":[1347,4115,180,84],"muro_madeira_h":[1529,4115,96,82],"forte_campo":[1627,4115,180,81],"movel_cofre":[1809,4115,63,78],"muro_madeira_portao":[1874,4115,76,77],"muro_fortaleza_portao":[1952,4115,79,75],"movel_mesa":[0,4222,90,74],"muro_ferro_aberto":[92,4222,87,73],"movel_cesto":[181,4222,70,73],"movel_bau_ferro":[253,4222,66,72],"muro_pedra_portao":[321,4222,80,71],"muro_ferro_v":[403,4222,31,71],"movel_bau":[436,4222,66,64],"catapulta_impacto":[504,4222,86,63],"muro_pedra_h":[592,4222,96,63],"muro_ferro_portao":[690,4222,75,62],"movel_banco":[767,4222,81,62],"movel_mesa_redonda":[850,4222,72,58],"muro_tijolo_h":[924,4222,96,56],"muro_fortaleza_h":[1022,4222,96,56],"muro_ferro_h":[1120,4222,96,55],"catapulta_pilha":[1218,4222,62,42],"catapulta_pedra":[1282,4222,30,29]}/*FIM_ATLAS2*/;
+  const ATLAS2 = /*ATLAS2_MAP*/{"forte_muralha_chao":[0,0,760,651],"forte_muralha_fundo":[762,0,760,651],"forte_muralha_frente":[0,653,760,651],"forte_forte_cidade_fundo":[762,653,760,384],"forte_forte_cidade_frente":[0,1306,760,384],"forte_colonia_fundo":[762,1306,760,378],"forte_colonia_frente":[0,1692,760,378],"forte_forte_fundo":[762,1692,760,354],"forte_forte_frente":[0,2072,760,354],"forte_campo_fundo":[762,2072,760,341],"forte_campo_frente":[0,2428,760,341],"casa_cabana":[762,2428,340,310],"casa_cabana_chao":[1104,2428,340,310],"casa_saloon":[1446,2428,340,304],"casa_saloon_chao":[0,2771,340,304],"casa_pedra":[342,2771,340,302],"casa_pedra_chao":[684,2771,340,302],"casa_castelo":[1026,2771,340,295],"casa_castelo_chao":[1368,2771,340,295],"casa_tribal":[0,3077,340,289],"casa_tribal_chao":[342,3077,340,289],"casa_castelo_dentro":[684,3077,340,278],"casa_castelo_dentro_chao":[1026,3077,340,278],"casa_tribal_dentro":[1368,3077,340,275],"casa_tribal_dentro_chao":[0,3368,340,275],"casa_cabana_dentro":[342,3368,340,274],"casa_cabana_dentro_chao":[684,3368,340,274],"casa_saloon_dentro":[1026,3368,340,274],"casa_saloon_dentro_chao":[1368,3368,340,274],"casa_domo":[0,3645,340,268],"casa_domo_chao":[342,3645,340,268],"casa_domo_dentro":[684,3645,340,268],"casa_domo_dentro_chao":[1026,3645,340,268],"casa_pedra_dentro":[1368,3645,340,260],"casa_pedra_dentro_chao":[0,3915,340,260],"torre_madeira":[342,3915,119,203],"torre_cristal":[463,3915,114,203],"torre_pedra":[579,3915,117,198],"torre_balista_cristal":[698,3915,113,196],"torre_canhao":[813,3915,137,188],"torre_balista":[952,3915,131,185],"forte_muralha":[1085,3915,180,154],"catapulta_0":[1267,3915,150,135],"catapulta_1":[1419,3915,150,135],"catapulta_2":[1571,3915,150,135],"catapulta_3":[1723,3915,150,135],"movel_cama_dossel":[1875,3915,126,132],"cristal_claro":[0,4177,103,131],"cristal_roxo":[105,4177,103,129],"catapulta_ferro":[210,4177,161,124],"movel_lareira":[373,4177,63,117],"muro_madeira_v":[438,4177,31,112],"muro_tijolo_aberto":[471,4177,85,111],"movel_fogao":[558,4177,64,111],"movel_cama_casal":[624,4177,126,105],"espinhos":[752,4177,120,103],"muro_tijolo_v":[874,4177,30,100],"movel_capsula":[906,4177,112,100],"muro_pedra_v":[1020,4177,29,99],"movel_cama":[1051,4177,102,95],"muro_madeira_aberto":[1155,4177,88,93],"muro_pedra_aberto":[1245,4177,88,93],"forte_forte_cidade":[1335,4177,180,91],"forte_colonia":[1517,4177,180,90],"muro_tijolo_portao":[1699,4177,75,87],"muro_fortaleza_v":[1776,4177,31,87],"movel_fogueira":[1809,4177,68,85],"muro_fortaleza_aberto":[1879,4177,90,84],"forte_forte":[0,4310,180,84],"muro_madeira_h":[182,4310,96,82],"forte_campo":[280,4310,180,81],"movel_cofre":[462,4310,63,78],"muro_madeira_portao":[527,4310,76,77],"muro_fortaleza_portao":[605,4310,79,75],"movel_mesa":[686,4310,90,74],"muro_ferro_aberto":[778,4310,87,73],"movel_cesto":[867,4310,70,73],"movel_bau_ferro":[939,4310,66,72],"muro_pedra_portao":[1007,4310,80,71],"muro_ferro_v":[1089,4310,31,71],"movel_bau":[1122,4310,66,64],"catapulta_impacto":[1190,4310,86,63],"muro_pedra_h":[1278,4310,96,63],"muro_ferro_portao":[1376,4310,75,62],"movel_banco":[1453,4310,81,62],"movel_mesa_redonda":[1536,4310,72,58],"muro_tijolo_h":[1610,4310,96,56],"muro_fortaleza_h":[1708,4310,96,56],"muro_ferro_h":[1806,4310,96,55],"catapulta_pilha":[1904,4310,62,42],"catapulta_pedra":[1968,4310,30,29]}/*FIM_ATLAS2*/;
   let art2 = null;
   (function loadArt2() {
     const img = new Image();
@@ -2653,6 +2656,7 @@
     if (lastBiome && lastBiome !== here && S.p.z === 0) toast(`Entrando: ${here.nome}`, 'leaf');
     lastBiome = here;
     if (openSheet && openSheet.id === 'sheet-admin') drawMinimap();
+    updateDoorBtn();
     const p = S.p;
     const onLadder = p.z > 0 && tileAt(Math.floor(p.x), Math.floor(p.y), p.z - 1) === T.HOLE;
     $('btn-f').textContent = onLadder ? 'Subir' : 'Descer';
@@ -3187,7 +3191,7 @@
       adminMove = null;
       const pos = grassNear(clamp(x, 3, W - 4), clamp(y, 3, H - 4), 0, 10);
       if (!pos) { toast('Não achei chão livre ali', 'warn'); return; }
-      S.p.x = pos[0]; S.p.y = pos[1]; S.p.z = 0; homing = null;
+      S.p.x = pos[0]; S.p.y = pos[1]; S.p.z = 0; homing = null; interior = null;
       for (let k = 0; k < 20; k++) waterTick();
       closeSheet(); toast(`Teletransportado: ${BIOMES[regionOf(S.p.x, S.p.y)].nome}`, 'leaf'); sfx('magia');
       return;
@@ -3764,13 +3768,6 @@
       const rr = ATLAS2[d.tipo === 'forte' ? d.img + '_fundo' : d.img];
       const topY = rr ? b.y + d.h + d.pad - d.w * rr[3] / rr[2] : b.y;
       if (d.tipo === 'casa') {
-        const carpet = d.img + (b === home ? '_dentro' : '') + '_chao';
-        if (ATLAS2[carpet]) ents.push({ y: -1e9, f: () => drawBuild(b, carpet, camX, camY) });   // terra da entrada: tapete no chão
-        if (b === home) {
-          ents.push({ y: y0 - 2, f: () => drawBuild(b, d.img + '_dentro', camX, camY) });
-          backs.push({ b, d, key: y0 - 2 });
-          continue;
-        }
         // jogador atrás da casa: a casa fica meio transparente para ele não sumir
         const a = d.w / 2, ox = Math.abs(p.x - b.x - a);
         const behind = ox < a + 0.3 && p.y < b.y + d.h / 2 + (d.h / 2) * Math.max(0, 1 - ox / a) && p.y > topY + 0.4;
@@ -3780,7 +3777,6 @@
         // muros altos: dentro do forte a frente fica transparente; atrás dele, o fundo
         const a = d.w / 2, ox = Math.abs(p.x - b.x - a);
         const behind = b !== fort && ox < a && p.y < b.y + d.h / 2 - (d.h / 2) * Math.max(0, 1 - ox / a) && p.y > topY + 0.4;
-        if (ATLAS2[d.img + '_chao']) ents.push({ y: -1e9, f: () => drawBuild(b, d.img + '_chao', camX, camY) });   // terra na frente do portão: chão
         ents.push({ y: y0 - 3, f: () => drawBuild(b, d.img + '_fundo', camX, camY, behind ? 0.5 : 1) });
         ents.push({ y: key, f: () => drawBuild(b, d.img + '_frente', camX, camY, b === fort ? 0.42 : 1) });
         fronts.push({ b, d, key });
@@ -3919,7 +3915,88 @@
   let moving = false, walkPhase = 0;
 
   const curCam = [0, 0];
+  // ---- Dentro de casa: cena própria, com o interior ampliado (como descer para o subsolo)
+  let interior = null;
+  function enterHouse(b) {
+    const d = BUILDS[b.k];
+    if (!canEnter(b)) { toast(`${d.nome} trancada: só entra quem o dono convidar`, 'warn'); return; }
+    const [qx, qy] = doorPoint(b), cx = b.x + d.w / 2, cy = b.y + d.h / 2;
+    for (const f of [0.75, 0.6, 0.5, 0.4, 0.3, 0.2, 0]) {   // da porta em direção ao centro, o primeiro lugar livre
+      const nx = qx + (cx - qx) * f, ny = qy + (cy - qy) * f;
+      if (insideOf(nx, ny, 'casa') === b && canStand(nx, ny, 0, 0.3, 'jogador')) {
+        S.p.x = nx; S.p.y = ny; S.p.dir = 1; interior = b; homing = null;
+        sfx('construir'); updateDoorBtn(); return;
+      }
+    }
+    toast('Não há espaço livre dentro da casa', 'warn');
+  }
+  function leaveHouse() {
+    const b = interior; if (!b) return;
+    const d = BUILDS[b.k], [qx, qy] = doorPoint(b), cx = b.x + d.w / 2, cy = b.y + d.h / 2;
+    let ux = qx - cx, uy = qy - cy; const L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
+    interior = null;
+    for (const dist of [1.2, 1.6, 2.2, 3, 4]) for (const side of [0, 0.5, -0.5, 1, -1]) {
+      const nx = qx + ux * dist - uy * side, ny = qy + uy * dist + ux * side;
+      if (canStand(nx, ny, 0, 0.3, 'jogador') && !insideOf(nx, ny, 'casa')) { S.p.x = nx; S.p.y = ny; S.p.dir = 0; sfx('construir'); updateDoorBtn(); return; }
+    }
+    S.p.x = S.home.x; S.p.y = S.home.y; updateDoorBtn();
+  }
+  function houseNear() {
+    if (interior || S.p.z !== 0) return null;
+    const tg = target();
+    let best = null, bd = 2.4;
+    for (const b of S.builds) {
+      if (BUILDS[b.k].tipo !== 'casa') continue;
+      const [qx, qy] = doorPoint(b), dd = Math.hypot(qx - S.p.x, qy - S.p.y);
+      const touch = shapeHit(b, tg.x + 0.5, tg.y + 0.5) || shapeHit(b, S.p.x, S.p.y - 0.6);
+      if ((touch || dd < bd) && (!best || dd < bd)) { best = b; bd = Math.min(bd, dd); }
+    }
+    return best;
+  }
+  const doorBtn = document.createElement('button');
+  doorBtn.type = 'button'; doorBtn.className = 'btn btn-gold door-btn'; doorBtn.hidden = true;
+  doorBtn.addEventListener('click', () => { if (interior) leaveHouse(); else { const b = houseNear(); if (b) enterHouse(b); } });
+  document.getElementById('app').append(doorBtn);
+  function updateDoorBtn() {
+    if (!S) return;
+    const b = interior || houseNear();
+    const txt = interior ? `Sair · ${BUILDS[interior.k].nome}` : b ? `Entrar · ${BUILDS[b.k].nome}` : '';
+    doorBtn.hidden = !txt || !!openSheet;
+    if (txt && doorBtn.textContent !== txt) doorBtn.textContent = txt;
+  }
+  function renderInterior(now) {
+    const b = interior, d = BUILDS[b.k], base = tp, W2 = canvas.width, H2 = canvas.height;
+    const r = ATLAS2[d.img + '_dentro'];
+    const hTiles = r ? d.w * r[3] / r[2] : d.h * 1.6;
+    const Z = Math.max(1, Math.min(W2 * 0.86 / (d.w * base), H2 * 0.42 / (hTiles * base)));
+    tp = base * Z;
+    const u = tp / 16, p = S.p;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#0e0a08'; ctx.fillRect(0, 0, W2, H2);
+    const camX = Math.round((b.x + d.w / 2) * tp - W2 / 2);
+    const camY = Math.round((b.y + d.h + d.pad) * tp - hTiles * tp / 2 - H2 * 0.36);
+    // sombra suave em volta do cômodo
+    const g = ctx.createRadialGradient(W2 / 2, H2 * 0.44, tp, W2 / 2, H2 * 0.44, Math.max(W2, H2) * 0.7);
+    g.addColorStop(0, 'rgba(60,40,25,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2);
+    drawBuild(b, d.img + '_dentro', camX, camY);
+    const ents = [];
+    for (const o of S.builds) {   // móveis colocados dentro desta casa
+      const od = BUILDS[o.k];
+      if (o === b || od.tipo === 'casa' || od.tipo === 'forte' || insideOf(o.x + od.w / 2, o.y + od.h / 2, 'casa') !== b) continue;
+      ents.push({ y: (o.y + od.h) * tp - camY, f: () => drawBuild(o, od.img, camX, camY) });
+    }
+    const psx = p.x * tp - camX, psy = p.y * tp - camY;
+    ents.push({ y: psy + 6 * u, f: () => drawPlayer(psx, psy, u, p.dir, moving, walkPhase) });
+    ents.sort((a, c) => a.y - c.y);
+    for (const e of ents) e.f();
+    drawSmoke(camX, camY, now);
+    drawCombatFx(camX, camY, now);
+    drawGhost(camX, camY);
+    tp = base;
+  }
   function render(now) {
+    if (interior) { renderInterior(now); return; }
     const p = S.p, z = p.z, u = tp / 16;
     const W2 = canvas.width, H2 = canvas.height;
     ctx.imageSmoothingEnabled = !!art;
@@ -4150,7 +4227,7 @@
       }
       for (const b of S.builds) {   // "Usar para entrar" perto das paredes
         const d = BUILDS[b.k];
-        if (d.tipo !== 'casa' && d.tipo !== 'forte') continue;
+        if (d.tipo !== 'forte') continue;
         const [qx, qy] = doorPoint(b);
         if (Math.hypot(qx - p.x, qy - p.y) > 2.2) continue;
         const inside = insideOf(p.x, p.y, d.tipo) === b;
@@ -4200,7 +4277,7 @@
       // andando contra a parede de uma casa ou fortaleza: entra (ou sai) sozinho depois de um instante
       if (Math.hypot(p.x - ox, p.y - oy) < Math.hypot(vx, vy) * 0.3 && p.z === 0 && S.builds.length) {
         pushT += dt;
-        if (pushT > 0.22) { pushT = -0.5; const door = doorAction(); if (door) door(); }   // -0.5: espera antes de repetir
+        if (pushT > 0.22 && !interior) { pushT = -0.5; const door = doorAction(); if (door) door(); }   // -0.5: espera antes de repetir
       } else pushT = Math.min(0, pushT + dt);
       walkPhase += dt * 12;
     } else pushT = Math.min(0, pushT + dt);
@@ -4253,6 +4330,7 @@
     placeNpcs();
     homing = null;
     lastBiome = null;
+    interior = S.p.z === 0 ? insideOf(S.p.x, S.p.y, 'casa') : null;
     hits.clear();
     invDirty = true;
     updateHud();
