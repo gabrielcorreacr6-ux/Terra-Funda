@@ -575,10 +575,15 @@
   // torres e móveis: retângulo sólido; armadilha: dá para pisar.
   function shapeHit(b, px, py, move) {
     const d = BUILDS[b.k];
-    if (px < b.x - 0.3 || py < b.y - 0.3 || px > b.x + d.w + 0.3 || py > b.y + d.h + 0.3) return null;
+    if (px < b.x - 0.6 || py < b.y - 0.6 || px > b.x + d.w + 0.6 || py > b.y + d.h + 0.6) return null;
     if (d.tipo === 'casa' || d.tipo === 'forte') {
       const a = d.w / 2, bb = d.h / 2, cx = b.x + a, cy = b.y + bb;
       const dd = Math.abs(px - cx) / a + Math.abs(py - cy) / bb;
+      if (d.tipo === 'casa') {
+        // casa: entra pelo botão, então não há passagem na porta; a parede vale um pouco além do desenho
+        if (dd > 1) return Math.abs(px - cx) / (a + 0.45) + Math.abs(py - cy) / (bb + 0.3) <= 1 ? 'solid' : null;
+        return (1 - dd) * a * bb / Math.hypot(a, bb) > d.band ? 'inside' : 'solid';
+      }
       if (dd > 1) return null;
       if ((1 - dd) * a * bb / Math.hypot(a, bb) > d.band) return 'inside';
       const [qx, qy] = doorPoint(b);
