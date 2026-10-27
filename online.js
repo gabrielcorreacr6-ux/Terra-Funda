@@ -176,5 +176,24 @@
   T.removeFriend = alvo => rpc('remover_amigo', { alvo });
   T.friends = () => rpc('meus_amigos', {});
 
+
+  // ---- Configuração do mundo feita pelo administrador (áreas seguras, eventos, fugitivo, vilas)
+  T.mundoGet = async function () {
+    const { data, error } = await sb.from('mundo').select('chave, valor');
+    if (error) throw new Error(msg(error));
+    const o = {}; for (const r of data || []) o[r.chave] = r.valor; return o;
+  };
+  T.mundoSet = async function (chave, valor) {
+    const { error } = await sb.from('mundo').upsert({ chave, valor, atualizado: new Date().toISOString() });
+    if (error) throw new Error(msg(error));
+  };
+  T.pegarPresente = (evento, limite) => rpc('pegar_presente', { evento, limite });
+  T.pegarFugitivo = evento => rpc('pegar_fugitivo', { evento });
+  // anúncio no chat geral (eventos)
+  T.anunciar = function (texto) {
+    if (!chat.geral) return Promise.resolve();
+    return chat.geral.send({ type: 'broadcast', event: 'msg', payload: { de: '', nome: 'Anúncio', texto: String(texto).slice(0, 200), tipo: 'todos', t: Date.now(), sistema: true } });
+  };
+
   window.TerraOnline = T;
 })();

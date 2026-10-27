@@ -356,3 +356,8 @@ kbd {
 /* Decorar fica pequeno no canto, para não cobrir o cômodo */
 .decor-btn { left: auto; right: max(12px, env(safe-area-inset-right, 0px)); transform: none; top: calc(64px + env(safe-area-inset-top, 0px)); bottom: auto; padding: 6px 12px; font-size: .9em; }
 @media (pointer: coarse) { .decor-btn { bottom: auto; } }
+.zona-nome { font: inherit; font-weight: 600; background: transparent; color: inherit; border: 1px dashed var(--line); border-radius: 6px; padding: 2px 6px; width: 100%; max-width: 220px; }
+.ev-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 14px; }
+.ev-form select, .ev-form input { background: #1d1814; color: inherit; border: 1px solid #5a4a3c; border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 14px; max-width: 100%; }
+.ev-form input[type=number] { width: 70px; }
+.ev-form label { display: flex; gap: 6px; align-items: center; font-size: 14px; }

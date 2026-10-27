@@ -131,6 +131,7 @@
   // Prontas da loja. casa e forte ocupam um losango w × h (h = w / 2); porta = ponto da borda de baixo
   // à esquerda (0 = canto esquerdo, 1 = canto de baixo). band = grossura das paredes, em blocos.
   const BUILDS = {
+    choupana: { tipo: 'casa', nome: 'Choupana', w: 6, h: 3, porta: 0.5, preco: 300, desc: 'A casa mais barata: pequena, de palha e fácil de derrubar.' },
     cabana: { tipo: 'casa', nome: 'Casa de camponês', w: 8, h: 4, porta: 0.5, preco: 800, desc: 'Cabana de toras, com fogão e cama.' },
     pedra: { tipo: 'casa', nome: 'Casa de pedra', w: 8, h: 4, porta: 0.57, preco: 1600, desc: 'Paredes grossas e telhado de ardósia.' },
     tribal: { tipo: 'casa', nome: 'Casa tribal', w: 8, h: 4, porta: 0.42, preco: 1800, desc: 'Casa comprida com totem e fogueiras.' },
@@ -505,7 +506,7 @@
       npcs: S.npcs.map(n => ({ id: n.id, x: n.x, y: n.y })),
       home: S.home, homeReadyAt: S.homeReadyAt, deposits: S.deposits, char: S.char, skins: S.skins, skin: S.skin,
       tirado: S.tirado, wmat: toB64(rle(S.wmat)), builds: S.builds, kit: S.kit, sel: S.sel, dur: S.dur, broken: S.broken,
-      hp: S.hp, wxp: S.wxp, wbless: S.wbless, camps: S.camps, aura: S.aura, playMs: S.playMs, morte: S.morte, bichoMorto: S.bichoMorto,
+      hp: S.hp, wxp: S.wxp, wbless: S.wbless, camps: S.camps, mundo: NET.enabled ? undefined : MUNDO, presentes: S.presentes, fugPegos: S.fugPegos, fugVisto: S.fugVisto, vilaEstado: S.vilaEstado, aura: S.aura, playMs: S.playMs, morte: S.morte, bichoMorto: S.bichoMorto,
       bots: S.bots.map(b => ({ x: b.x, y: b.y, hx: b.hx, hy: b.hy, store: b.store, t: b.t, tipo: b.tipo })),
     };
   }
@@ -556,7 +557,7 @@
       if (d.sel && (['nada', 'muro', 'portao', 'girar', 'remover'].includes(d.sel.k) || (d.sel.k === 'kit' && BUILDS[d.sel.id]))) s.sel = d.sel;
       s.bots = Array.isArray(d.bots) ? d.bots.map(newBot) : [];
       s.hp = typeof d.hp === 'number' && d.hp > 0 ? d.hp : 150; s.wxp = d.wxp || {}; s.wbless = d.wbless || {};
-      s.camps = Array.isArray(d.camps) ? d.camps : []; s.aura = d.aura || null; s.playMs = d.playMs || 0; s.morte = d.morte || null; s.bichoMorto = d.bichoMorto || {};
+      s.camps = Array.isArray(d.camps) ? d.camps : []; s.mundo = d.mundo || null; s.presentes = d.presentes || {}; s.fugPegos = d.fugPegos || {}; s.fugVisto = d.fugVisto || {}; s.vilaEstado = d.vilaEstado || {}; s.aura = d.aura || null; s.playMs = d.playMs || 0; s.morte = d.morte || null; s.bichoMorto = d.bichoMorto || {};
       return s;
     } catch (e) { return null; }
   }
@@ -618,7 +619,7 @@
   const myId = () => (NET.user ? NET.user.id : 'eu');
   const ACESSO = { so_eu: 'Só eu', aliados: 'Clã e aliados', todos: 'Aberta a todos' };
   function canEnter(b) {
-    if (!b.dono || b.dono === 'eu' || b.dono === myId()) return true;
+    if (!b.dono || b.dono === 'eu' || b.dono === myId() || b.dono === 'vila') return true;
     if (b.acesso === 'todos') return true;
     if (b.acesso === 'aliados') return false;   // clãs e alianças ainda não existem
     return false;
@@ -918,6 +919,8 @@
   const MOB = {
     saqueador: { nome: 'Saqueador', hp: 90, dano: 9, cad: 1.1, vel: 3.8, ve: 5, segue: 12, volta: 8 * 60000, xp: 30 },
     chefe: { nome: 'Chefe dos saqueadores', hp: 260, dano: 17, cad: 1.6, vel: 3.2, ve: 5, segue: 12, volta: 8 * 60000, xp: 70 },
+    fugitivo: { nome: 'Fugitivo', hp: 140, dano: 0, cad: 9, vel: 4.3, ve: 9, segue: 0, volta: 0, xp: 40 },
+    construtor: { nome: 'Construtor', hp: 50, dano: 0, cad: 9, vel: 2.2, ve: 3, segue: 0, volta: 0, xp: 10 },
     bicho: { nome: 'Bicho do petróleo', hp: 300, dano: 20, cad: 1.4, vel: 3.2, ve: 3, segue: 10, volta: 7 * 60000, xp: 60, moedas: 100 },
   };
   const LENDA_MS = 10000 * 3600 * 1000;
@@ -939,6 +942,7 @@
   let hurtAt = -1e9, invulnTil = 0, hits3 = { cetro: 0, livro: 0 }, defBuffTil = 0;
   function hurt(n, mob) {
     const now = performance.now();
+    if (S.p.z === 0 && !interior && zonaEm(S.p.x, S.p.y)) return;
     if (now < invulnTil || S.hp <= 0) return;
     let k = 1;
     if (wearing('capacete')) k *= 0.9;
@@ -969,6 +973,14 @@
     invDirty = true; toast(msg, 'warn', 5500); save();
   }
   // ---- Acampamentos de saqueadores (o administrador move e liga/desliga) e o bicho do petróleo
+  // ---- Áreas seguras: ninguém apanha lá dentro; monstros não entram nem atacam. O admin cria para eventos.
+  function zonaEm(x, y) { return MUNDO.zonas.find(zn => zn.ativo && Math.hypot(x - zn.x, y - zn.y) < zn.r) || null; }
+  let zonaAtual = null;
+  function zonaTick() {
+    if (S.p.z !== 0 || interior) return;
+    const zn = zonaEm(S.p.x, S.p.y);
+    if (zn !== zonaAtual) { if (zn) toast(`Área segura: ${zn.nome}`, 'leaf', 3000); else if (zonaAtual) toast('Você saiu da área segura', 'warn'); zonaAtual = zn; }
+  }
   function makeCamps() {
     const rnd = mulberry32(S.seed + 99);
     S.camps = [];
@@ -1023,8 +1035,18 @@
       if (m.burn > now) { m.hp -= m.burnDps * dt; if (m.hp <= 0) { killMob(m, k); continue; } }
       if (Math.hypot(m.x - p.x, m.y - p.y) > 90) { S.mobs.splice(k, 1); continue; }   // longe demais: some (volta quando chegar perto)
       const dist = Math.hypot(m.x - p.x, m.y - p.y), same = m.z === p.z && S.hp > 0 && now > invulnTil;
-      const inHouse = !!interior || !!insideOf(p.x, p.y, 'casa');
+      const inHouse = !!interior || !!insideOf(p.x, p.y, 'casa') || (p.z === 0 && !!zonaEm(p.x, p.y));   // área segura conta como casa
       const fromHome = Math.hypot(m.x - m.hx, m.y - m.hy);
+      if (m.kind === 'fugitivo' || m.kind === 'construtor') {   // não atacam: fogem de quem chega perto
+        let tx, ty, sp = def.vel;
+        if (same && dist < def.ve) { const L0 = dist || 1; tx = m.x + (m.x - p.x) / L0 * 4; ty = m.y + (m.y - p.y) / L0 * 4; if (m.kind === 'construtor') sp *= 1.3; }
+        else { if (Math.hypot(m.tx - m.x, m.ty - m.y) < 0.3 && Math.random() < dt * 0.5) { const a = Math.random() * 6.28, r = Math.random() * (m.kind === 'fugitivo' ? 22 : 7); m.tx = m.hx + Math.cos(a) * r; m.ty = m.hy + Math.sin(a) * r; } tx = m.tx; ty = m.ty; sp *= 0.55; }
+        const dx2 = tx - m.x, dy2 = ty - m.y, L2 = Math.hypot(dx2, dy2);
+        if (L2 > 0.1) { const st = Math.min(L2, sp * dt), nx = m.x + dx2 / L2 * st, ny = m.y + dy2 / L2 * st;
+          if (canStand(nx, ny, 0, 0.28)) { m.x = nx; m.y = ny; m.moving = true; m.phase += dt * 10; } else { m.moving = false; m.tx = m.x + (Math.random() - 0.5) * 6; m.ty = m.y + (Math.random() - 0.5) * 6; }
+          m.dir = Math.abs(dx2) > Math.abs(dy2) ? (dx2 < 0 ? 2 : 3) : (dy2 < 0 ? 1 : 0); } else m.moving = false;
+        continue;
+      }
       if (!m.aggro && same && !inHouse && dist < def.ve) {
         m.aggro = true; if (m.kind !== 'bicho') sfx('golpe');
         if (m.camp !== undefined) for (const o of S.mobs) if (o.camp === m.camp && o.z === m.z) o.aggro = true;   // um avisa o bando inteiro
@@ -1070,7 +1092,7 @@
       } else if (L > 0.1) {
         const st = Math.min(L, sp * dt), nx = m.x + dx / L * st, ny = m.y + dy / L * st;
         const ok = m.kind === 'bicho' ? (tileAt(Math.floor(nx), Math.floor(ny), m.z) !== 255)   // cava por dentro da pedra
-          : canStand(nx, ny, 0, 0.28);
+          : canStand(nx, ny, 0, 0.28) && !zonaEm(nx, ny);   // monstro não entra em área segura
         if (ok) { m.x = nx; m.y = ny; m.moving = true; m.phase += dt * 10; }
         else { m.moving = false; m.tx = m.x; m.ty = m.y; }
         m.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 2 : 3) : (dy < 0 ? 1 : 0);
@@ -1102,6 +1124,13 @@
     sfx('quebra');
     if (arma) addXp(arma, def.xp);
     corpses.push({ kind: m.kind, x: m.x, y: m.y, z: m.z, flip: m.dir === 2, t0: performance.now() });
+    if (m.kind === 'fugitivo') { pegouFugitivo(m); return; }
+    if (m.kind === 'construtor') {
+      const st = (S.vilaEstado || {})[m.vila]; if (st) st.mortos.push(S.time + CONSTRUTOR_VOLTA);
+      S.coins += 50; invDirty = true; toast('Construtor derrubado: +50 moedas', 'gold');
+      if (Math.random() < (MUNDO.construtores.chance || 0)) darPremio(MUNDO.construtores.premio);
+      return;
+    }
     if (m.kind === 'saqueador' || m.kind === 'chefe') {
       const c = S.camps.find(q => q.id === m.camp);
       if (c) { c.mortos.push(S.time + def.volta); if (m.kind === 'chefe') c.chefeVolta = S.time + def.volta; }
@@ -1202,8 +1231,12 @@
         else if (m.burn > now) ctx.filter = 'sepia(1) saturate(3) hue-rotate(-20deg)';
         const view2 = m.dir === 1 ? 'back' : m.dir === 0 ? 'front' : 'side';
         const hitNow = m.hitT && now - m.hitT < 180, atkNow = m.swing && now - m.swing < 300;
-        if (m.kind !== 'bicho') {
-          const pre = m.kind === 'chefe' ? 'chefe' : 'saq';
+        if (m.kind === 'construtor' || (m.kind === 'fugitivo' && !ATLAS.fugitivo_front_0)) {
+          if (m.kind === 'construtor' && ATLAS.construtor_front_0) { const nf = framesOf('construtor', view2); drawObj(`construtor_${view2}_${m.moving && nf ? Math.floor(m.phase / 1.4) % nf : 0}`, sx, sy + 6 * u, 1.35 * tp, flip); }
+          else if (m.kind === 'construtor') { ctx.filter = (ctx.filter === 'none' ? '' : ctx.filter) + ' hue-rotate(-70deg) saturate(0.8)'; const nf = framesOf('faz', view2); drawObj(`faz_${view2}_${m.moving && nf ? Math.floor(m.phase) % nf : 0}`, sx, sy + 6 * u, 1.25 * tp, flip); }
+          else { ctx.filter = (ctx.filter === 'none' ? '' : ctx.filter) + ' grayscale(1) brightness(1.3)'; const nf = framesOf('saq', view2); drawObj(`saq_${view2}_${m.moving && nf ? Math.floor(m.phase / 1.2) % nf : 0}`, sx, sy + 6 * u, 1.45 * tp, flip); }
+        } else if (m.kind !== 'bicho') {
+          const pre = m.kind === 'chefe' ? 'chefe' : m.kind === 'fugitivo' ? 'fugitivo' : 'saq';
           shadow(sx, sy + 5.6 * u, (m.kind === 'chefe' ? 5.2 : 4.4) * u, 1.5 * u);
           let name;
           if (hitNow) name = `${pre}_hit`;
@@ -1233,7 +1266,7 @@
         // barra de vida
         const k = clamp(m.hp / m.max, 0, 1), bw = 14 * u;
         ctx.fillStyle = 'rgba(20,17,15,0.8)'; ctx.fillRect(sx - bw / 2, sy - 22 * u, bw, 2.2 * u);
-        ctx.fillStyle = m.kind === 'bicho' ? '#b05cff' : m.kind === 'chefe' ? '#ffb347' : '#e0573f'; ctx.fillRect(sx - bw / 2, sy - 22 * u, bw * k, 2.2 * u);
+        ctx.fillStyle = m.kind === 'bicho' ? '#b05cff' : m.kind === 'chefe' ? '#ffb347' : m.kind === 'fugitivo' ? '#ffd24a' : m.kind === 'construtor' ? '#7fd16a' : '#e0573f'; ctx.fillRect(sx - bw / 2, sy - 22 * u, bw * k, 2.2 * u);
       } });
     }
     for (let k = corpses.length - 1; k >= 0; k--) {   // corpo caído some aos poucos
@@ -1698,9 +1731,9 @@
     const o = BUILDS[outer.k].tipo, n = BUILDS[inner.k].tipo;
     return (o === 'forte' && n !== 'forte') || (o === 'casa' && (n === 'movel' || n === 'armadilha'));
   };
-  function placeProblem(c) {
+  function placeProblem(c, vila) {
     const d = BUILDS[c.k];
-    if (S.p.z !== 0) return 'Construções ficam na superfície';
+    if (S.p.z !== 0 && !vila) return 'Construções ficam na superfície';
     if (c.x < 2 || c.y < 2 || c.x + d.w > W - 2 || c.y + d.h > H - 2) return 'Fora do mapa';
     const small = d.w * d.h <= 4;
     for (let y = c.y; y < c.y + d.h; y++) for (let x = c.x; x < c.x + d.w; x++) {
@@ -1772,6 +1805,7 @@
     let best = null, area = Infinity;
     for (const b of S.builds) {
       const d = BUILDS[b.k];
+      if (b.vila) continue;   // choupanas dos construtores não são suas
       if (pts.some(([x, y]) => shapeHit(b, x, y)) && d.w * d.h < area) { best = b; area = d.w * d.h; }
     }
     return best ? { b: best } : null;
@@ -1921,12 +1955,16 @@
     const { x, y, z } = target();
     const npc = npcInFront(x, y);
     if (npc) { actHeld = false; showSheet('sheet-shop', npc); return; }
+    const chou = (tool === 'espada' || tool === 'machado') && choupanaNaFrente(x, y);   // choupana dos construtores: espada ou machado derrubam
+    if (chou) { cooldown = 0.4; swing = SWING_TIME; baterChoupana(chou); return; }
     if (tool !== 'muro' && !interior && z === 0) {   // Usar de frente para a casa: entra
       const hb = houseNear();
       if (hb && shapeHit(hb, x + 0.5, y + 0.5)) { actHeld = false; enterHouse(hb); return; }
     }
     const door = tool !== 'muro' && !interior && doorAction();
     if (door) { actHeld = false; door(); return; }
+    const evn = eventoPerto(x, y);
+    if (evn) { actHeld = false; pedirPresente(evn); return; }
     const chest = tool !== 'muro' && campChest(x, y);
     if (chest) {
       actHeld = false;
@@ -2534,6 +2572,7 @@
   // Segundo atlas: muros, torres, casas, fortalezas e móveis (tools/build_structures.py)
   const ATLAS2 = /*ATLAS2_MAP*/{"forte_muralha_chao":[0,0,760,651],"forte_muralha_fundo":[762,0,760,651],"forte_muralha_frente":[0,653,760,651],"forte_forte_cidade_fundo":[762,653,760,384],"forte_forte_cidade_frente":[0,1306,760,384],"forte_colonia_fundo":[762,1306,760,378],"forte_colonia_frente":[0,1692,760,378],"forte_forte_fundo":[762,1692,760,354],"forte_forte_frente":[0,2072,760,354],"forte_campo_fundo":[762,2072,760,341],"forte_campo_frente":[0,2428,760,341],"casa_cabana":[762,2428,340,310],"casa_cabana_chao":[1104,2428,340,310],"casa_saloon":[1446,2428,340,304],"casa_saloon_chao":[0,2771,340,304],"casa_pedra":[342,2771,340,302],"casa_pedra_chao":[684,2771,340,302],"casa_castelo":[1026,2771,340,295],"casa_castelo_chao":[1368,2771,340,295],"casa_tribal":[0,3077,340,289],"casa_tribal_chao":[342,3077,340,289],"casa_castelo_dentro":[684,3077,340,278],"casa_castelo_dentro_chao":[1026,3077,340,278],"casa_tribal_dentro":[1368,3077,340,275],"casa_tribal_dentro_chao":[0,3368,340,275],"casa_cabana_dentro":[342,3368,340,274],"casa_cabana_dentro_chao":[684,3368,340,274],"casa_saloon_dentro":[1026,3368,340,274],"casa_saloon_dentro_chao":[1368,3368,340,274],"casa_domo":[0,3645,340,268],"casa_domo_chao":[342,3645,340,268],"casa_domo_dentro":[684,3645,340,268],"casa_domo_dentro_chao":[1026,3645,340,268],"casa_pedra_dentro":[1368,3645,340,260],"casa_pedra_dentro_chao":[0,3915,340,260],"torre_madeira":[342,3915,119,203],"torre_cristal":[463,3915,114,203],"torre_pedra":[579,3915,117,198],"torre_balista_cristal":[698,3915,113,196],"torre_canhao":[813,3915,137,188],"torre_balista":[952,3915,131,185],"iso_estante":[1085,3915,78,155],"iso_cama_dossel":[1165,3915,138,154],"forte_muralha":[1305,3915,180,154],"iso_guarda_roupa":[1487,3915,83,145],"iso_geladeira":[1572,3915,82,143],"iso_espelho":[1656,3915,70,137],"catapulta_0":[1728,3915,150,135],"catapulta_1":[1880,3915,150,135],"catapulta_2":[0,4177,150,135],"catapulta_3":[152,4177,150,135],"iso_luminaria":[304,4177,82,134],"iso_aquario":[388,4177,88,134],"movel_cama_dossel":[478,4177,126,132],"cristal_claro":[606,4177,103,131],"iso_cama_casal":[711,4177,150,130],"cristal_roxo":[863,4177,103,129],"iso_fogao":[968,4177,97,125],"catapulta_ferro":[1067,4177,161,124],"iso_lareira":[1230,4177,113,122],"iso_mesa":[1345,4177,144,119],"iso_cofre":[1491,4177,91,117],"movel_lareira":[1584,4177,63,117],"iso_sofa":[1649,4177,136,116],"muro_madeira_v":[1787,4177,31,112],"iso_pia":[1820,4177,153,111],"muro_tijolo_aberto":[0,4314,85,111],"movel_fogao":[87,4314,64,111],"iso_cama":[153,4314,125,110],"iso_cadeira":[280,4314,58,109],"iso_planta":[340,4314,64,106],"iso_poltrona":[406,4314,99,105],"movel_cama_casal":[507,4314,126,105],"iso_barril":[635,4314,71,104],"espinhos":[708,4314,120,103],"muro_tijolo_v":[830,4314,30,100],"movel_capsula":[862,4314,112,100],"muro_pedra_v":[976,4314,29,99],"iso_bau":[1007,4314,95,98],"movel_cama":[1104,4314,102,95],"iso_mesinha":[1208,4314,124,93],"muro_madeira_aberto":[1334,4314,88,93],"muro_pedra_aberto":[1424,4314,88,93],"iso_criado":[1514,4314,67,92],"forte_forte_cidade":[1583,4314,180,91],"forte_colonia":[1765,4314,180,90],"iso_quadro":[1947,4314,64,87],"muro_tijolo_portao":[0,4427,75,87],"muro_fortaleza_v":[77,4427,31,87],"movel_fogueira":[110,4427,68,85],"muro_fortaleza_aberto":[180,4427,90,84],"forte_forte":[272,4427,180,84],"muro_madeira_h":[454,4427,96,82],"forte_campo":[552,4427,180,81],"movel_cofre":[734,4427,63,78],"muro_madeira_portao":[799,4427,76,77],"muro_fortaleza_portao":[877,4427,79,75],"movel_mesa":[958,4427,90,74],"muro_ferro_aberto":[1050,4427,87,73],"movel_cesto":[1139,4427,70,73],"iso_tapete":[1211,4427,132,72],"movel_bau_ferro":[1345,4427,66,72],"muro_pedra_portao":[1413,4427,80,71],"muro_ferro_v":[1495,4427,31,71],"movel_bau":[1528,4427,66,64],"catapulta_impacto":[1596,4427,86,63],"muro_pedra_h":[1684,4427,96,63],"muro_ferro_portao":[1782,4427,75,62],"movel_banco":[1859,4427,81,62],"movel_mesa_redonda":[1942,4427,72,58],"muro_tijolo_h":[0,4516,96,56],"muro_fortaleza_h":[98,4516,96,56],"muro_ferro_h":[196,4516,96,55],"catapulta_pilha":[294,4516,62,42],"catapulta_pedra":[358,4516,30,29]}/*FIM_ATLAS2*/;
   let art2 = null;
+  if (!ATLAS2.casa_choupana) BUILDS.choupana.img = 'casa_cabana';   // até chegar a arte da choupana
   (function loadArt2() {
     const img = new Image();
     img.onload = () => { art2 = img; thumbCache.clear(); invDirty = true; };
@@ -2939,8 +2978,8 @@
     const pick = (val, on) => on ? '<button type="button" class="btn btn-chosen" data-bsel="nada:0" title="Toque para desmarcar">Escolhido ✓</button>' : `<button type="button" class="btn btn-gold" data-bsel="${val}">Escolher</button>`;
     let html = '';
     // tudo o que está construído por perto, do mais perto ao mais longe
-    const near = S.builds.map((b, i) => ({ b, i, dist: Math.hypot(b.x + BUILDS[b.k].w / 2 - S.p.x, b.y + BUILDS[b.k].h / 2 - S.p.y) }))
-      .filter(o => o.dist < 60).sort((a, c) => a.dist - c.dist).slice(0, 30);
+    const near = S.builds.map((b, i) => ({ b, i, vila: b.vila, dist: Math.hypot(b.x + BUILDS[b.k].w / 2 - S.p.x, b.y + BUILDS[b.k].h / 2 - S.p.y) }))
+      .filter(o => o.dist < 60 && !o.vila).sort((a, c) => a.dist - c.dist).slice(0, 30);
     near.push(...S.bots.map((b, i) => ({ bot: b, i, dist: Math.hypot(b.x - S.p.x, b.y - S.p.y) })).filter(o => o.dist < 60));
     html += '<div class="section-label">Construído por perto · guardar ou vender</div><div class="list">';
     if (!near.length) html += '<div class="empty">Nada construído por perto.</div>';
@@ -3074,6 +3113,15 @@
         c.fillStyle = '#ffffff'; c.font = '600 15px "Pixelify Sans", "Courier New", monospace'; c.fillText(String(near), cx + r * 0.75, cy - r * 0.75 + 1);
       }
     }
+    // áreas seguras
+    for (const zn of MUNDO.zonas) {
+      if (!zn.ativo) continue;
+      c.strokeStyle = '#7fe08a'; c.lineWidth = 3; c.setLineDash([6, 4]);
+      c.beginPath(); c.arc(zn.x * k, zn.y * k, zn.r * k, 0, 6.28); c.stroke(); c.setLineDash([]);
+      c.fillStyle = 'rgba(127,224,138,0.18)'; c.fill();
+    }
+    for (const v of MUNDO.vilas) { c.fillStyle = v.ativo ? '#c9a34a' : 'rgba(60,50,45,0.8)'; c.strokeStyle = adminMove === 'vila:' + v.id ? '#fff' : '#14110f'; c.lineWidth = 2; c.fillRect(v.x * k - 8, v.y * k - 8, 16, 16); c.strokeRect(v.x * k - 8, v.y * k - 8, 16, 16); }
+    if (MUNDO.fugitivo && MUNDO.fugitivo.ativo && !MUNDO.fugitivo.ganhador) { c.fillStyle = '#ff4a3a'; c.font = '600 22px sans-serif'; c.fillText('!', MUNDO.fugitivo.x * k, MUNDO.fugitivo.y * k); }
     // acampamentos de saqueadores
     for (const cp of S.camps) {
       const sel = adminMove === 'camp:' + cp.id;
@@ -3198,6 +3246,292 @@
     }
     box.innerHTML = html;
   }
+  // ================= Mundo do administrador: áreas seguras, eventos, fugitivo e vilas =================
+  // Com contas ligadas fica no servidor (tabela "mundo") e vale para todos; sem contas fica no próprio save.
+  const MUNDO_PADRAO = () => ({
+    zonas: [{ id: 1, nome: 'Praça do começo', x: SPAWN.x, y: SPAWN.y, r: 18, ativo: true }],
+    eventos: [], fugitivo: null, vilas: [], construtores: { premio: 'moedas:100', chance: 0.1 },
+  });
+  let MUNDO = MUNDO_PADRAO();
+  const online = () => NET.enabled && NET.user;
+  async function mundoCarregar() {
+    if (online()) {
+      try {
+        const o = await NET.mundoGet();
+        const base = MUNDO_PADRAO();
+        MUNDO = { zonas: o.zonas || base.zonas, eventos: o.eventos || [], fugitivo: o.fugitivo || null, vilas: o.vilas || [], construtores: o.construtores || base.construtores };
+      } catch (e) { /* sem rede: fica com o que já tinha */ }
+    } else MUNDO = S.mundo ? Object.assign(MUNDO_PADRAO(), S.mundo) : MUNDO_PADRAO();
+    avisarFugitivo();
+  }
+  function mundoSalvar(chave) {
+    S.mundo = MUNDO; save();
+    if (online() && NET.isAdmin) NET.mundoSet(chave, MUNDO[chave]).catch(e => toast('Não salvou no servidor: ' + e.message, 'warn'));
+  }
+  setInterval(() => { if (S && online() && !bootPending) mundoCarregar(); }, 120000);   // os jogadores recebem as mudanças do admin
+
+  // ---- prêmios: moedas, itens da loja, skins e construções
+  function premioOpcoes() {
+    const op = [['moedas:100', '100 moedas'], ['moedas:500', '500 moedas'], ['moedas:1000', '1.000 moedas'], ['moedas:5000', '5.000 moedas'], ['flechas:50', '50 flechas']];
+    for (const it of SHOP) if (!it.repetir) op.push(['shop:' + it.id, it.nome]);
+    for (const sk of SKINS) op.push(['skin:' + sk.id, 'Skin ' + sk.nome]);
+    for (const [k, d] of Object.entries(BUILDS)) op.push(['kit:' + k, d.nome]);
+    return op;
+  }
+  const premioNome = code => (premioOpcoes().find(o => o[0] === code) || [0, code])[1];
+  function darPremio(code) {
+    const [t, v] = String(code).split(':');
+    if (t === 'moedas') S.coins += +v;
+    else if (t === 'flechas') give('flechas', +v);
+    else if (t === 'shop') { S.owned[v] = true; if (DUR[v]) S.dur[v] = DUR[v]; }
+    else if (t === 'skin') { S.skins = S.skins || []; if (!S.skins.includes(v)) S.skins.push(v); else S.coins += Math.floor((SKINS.find(s => s.id === v) || { preco: 0 }).preco / 2); }
+    else if (t === 'kit') S.kit[v] = (S.kit[v] || 0) + 1;
+    invDirty = true; sfx('moeda'); save(true);
+    toast(`Você ganhou: ${premioNome(code)}!`, 'gold', 5000);
+  }
+
+  // ---- personagens de evento (Papai Noel, Coelho da Páscoa ou outro): aparecem só nas datas marcadas
+  const hoje = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const eventoNoAr = ev => ev.ativo && (!ev.inicio || hoje() >= ev.inicio) && (!ev.fim || hoje() <= ev.fim);
+  const evNpcs = new Map();
+  function eventosTick(dt) {
+    for (const ev of MUNDO.eventos) {
+      const zn = MUNDO.zonas.find(z => z.id === ev.zona) || MUNDO.zonas[0];
+      if (!zn || !eventoNoAr(ev)) { evNpcs.delete(ev.id); continue; }
+      let n = evNpcs.get(ev.id);
+      if (!n) { n = { ev, x: zn.x + 0.5, y: zn.y + 1.5, tx: zn.x, ty: zn.y, dir: 0, phase: 0, moving: false }; evNpcs.set(ev.id, n); }
+      n.ev = ev;
+      const dx = n.tx - n.x, dy = n.ty - n.y, L = Math.hypot(dx, dy);
+      if (L < 0.2) { n.moving = false; if (Math.random() < dt * 0.4) { const a = Math.random() * 6.28, r = Math.random() * Math.max(2, zn.r * 0.6); n.tx = zn.x + Math.cos(a) * r; n.ty = zn.y + Math.sin(a) * r; } }
+      else {
+        const st = Math.min(L, 1.3 * dt), nx = n.x + dx / L * st, ny = n.y + dy / L * st;
+        if (canStand(nx, ny, 0, 0.3)) { n.x = nx; n.y = ny; n.moving = true; n.phase += dt * 9; n.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 2 : 3) : (dy < 0 ? 1 : 0); }
+        else { n.tx = n.x; n.ty = n.y; }
+      }
+    }
+  }
+  function eventoPerto(x, y) {
+    if (S.p.z !== 0 || interior) return null;
+    for (const n of evNpcs.values()) if (Math.hypot(n.x - x - 0.5, n.y - y - 0.5) < 1.2 || Math.hypot(n.x - S.p.x, n.y - S.p.y) < 1.3) return n;
+    return null;
+  }
+  async function pedirPresente(n) {
+    const ev = n.ev, lim = Math.max(1, ev.limite || 1);
+    try {
+      let resta;
+      if (online()) resta = await NET.pegarPresente(ev.id, lim);
+      else { S.presentes = S.presentes || {}; const ja = S.presentes[ev.id] || 0; resta = ja >= lim ? -1 : lim - ja - 1; if (resta >= 0) S.presentes[ev.id] = ja + 1; }
+      if (resta < 0) { toast(`${ev.nome}: você já pegou ${lim > 1 ? 'todos os seus presentes' : 'o seu presente'}`, 'warn', 3500); return; }
+      darPremio(ev.premio);
+      if (resta > 0) toast(`Ainda pode pegar mais ${resta}`, 'leaf');
+    } catch (e) { toast(e.message, 'warn'); }
+  }
+  const EV_VISUAL = { natal: { nome: 'Papai Noel', arte: 'noel', cor: 'hue-rotate(-25deg) saturate(1.6)' }, pascoa: { nome: 'Coelho da Páscoa', arte: 'coelhao', cor: '' }, outro: { nome: 'Mensageiro', arte: 'mensageiro', cor: 'hue-rotate(180deg)' } };
+  function drawEventoNpc(n, sx, sy, u) {
+    const vis = EV_VISUAL[n.ev.tipo] || EV_VISUAL.outro, view = n.dir === 1 ? 'back' : n.dir === 0 ? 'front' : 'side', flip = n.dir === 2;
+    shadow(sx, sy + 5.6 * u, 4.6 * u, 1.5 * u);
+    const nf = framesOf(vis.arte, view);
+    if (nf && drawObj(`${vis.arte}_${view}_${n.moving ? Math.floor(n.phase / 1.4) % nf : 0}`, sx, sy + 6 * u, 1.55 * tp, flip)) return;
+    if (n.ev.tipo === 'pascoa') { drawObj(`coelho_${n.dir === 1 ? 'back' : n.dir === 0 ? 'front' : 'side'}_0`, sx, sy + 6 * u, 1.3 * tp, flip); return; }
+    ctx.filter = vis.cor || 'none';   // até chegar a arte: o Tião com outra cor
+    drawWalker('tiao_0', sx, sy + 6 * u, 1.55 * tp, flip, n.moving ? n.phase : 0);
+    ctx.filter = 'none';
+  }
+
+  // ---- fugitivo: não ataca, foge; o primeiro que derrubar ganha o prêmio escolhido pelo admin
+  function avisarFugitivo() {
+    const f = MUNDO.fugitivo;
+    if (!f || !f.ativo || f.ganhador) return;
+    S.fugVisto = S.fugVisto || {};
+    if (!S.fugVisto[f.id]) { S.fugVisto[f.id] = 1; toast(`Um fugitivo está solto em ${BIOMES[regionOf(f.x, f.y)].nome}! Quem pegar ganha ${premioNome(f.premio)}.`, 'gold', 7000); }
+  }
+  function fugitivoTick() {
+    const f = MUNDO.fugitivo, p = S.p;
+    const vivo = f && f.ativo && !f.ganhador && !(S.fugPegos || {})[f.id];
+    const m = S.mobs.find(q => q.kind === 'fugitivo');
+    if (!vivo) { if (m) S.mobs.splice(S.mobs.indexOf(m), 1); return; }
+    if (!m && Math.hypot(f.x - p.x, f.y - p.y) < 70) S.mobs.push(newMob('fugitivo', f.x + 0.5, f.y + 0.5, 0, { fug: f.id }));
+  }
+  async function pegouFugitivo(m) {
+    const f = MUNDO.fugitivo;
+    if (!f || f.id !== m.fug) return;
+    S.fugPegos = S.fugPegos || {}; S.fugPegos[f.id] = 1;
+    try {
+      const ok = online() ? await NET.pegarFugitivo(f.id) : true;
+      if (!ok) { toast('Alguém pegou o fugitivo antes de você', 'warn', 4000); return; }
+      darPremio(f.premio);
+      const nome = NET.profile ? NET.profile.username : 'Você';
+      if (online()) NET.anunciar(`${nome} pegou o fugitivo e ganhou ${premioNome(f.premio)}!`);
+      if (!online()) f.ganhador = nome;
+    } catch (e) { toast(e.message, 'warn'); }
+  }
+
+  // ---- construtores: andam em grupos, fazem choupanas e plantações; não atacam
+  const VILA_MAX_CASAS = 3, VILA_CASA_MS = 4 * 60000, CONSTRUTOR_VOLTA = 5 * 60000;
+  function vilasTick() {
+    const p = S.p;
+    S.vilaEstado = S.vilaEstado || {};
+    for (const v of MUNDO.vilas) {
+      const st = S.vilaEstado[v.id] = S.vilaEstado[v.id] || { mortos: [], ultima: 0 };
+      if (!v.ativo) { S.mobs = S.mobs.filter(m => m.vila !== v.id); continue; }
+      if (Math.hypot(v.x - p.x, v.y - p.y) > 75) continue;
+      st.mortos = st.mortos.filter(t => t > S.time);
+      const vivos = S.mobs.filter(m => m.vila === v.id).length;
+      if (vivos + st.mortos.length < v.n) { const a = Math.random() * 6.28; S.mobs.push(newMob('construtor', v.x + 0.5 + Math.cos(a) * 3, v.y + 0.5 + Math.sin(a) * 3, 0, { vila: v.id, hx: v.x + 0.5, hy: v.y + 0.5 })); }
+      // de tempos em tempos levantam uma choupana nova (as destruídas não são consertadas)
+      const casas = S.builds.filter(b => b.vila === v.id).length;
+      if (vivos > 0 && casas < VILA_MAX_CASAS && S.time - st.ultima > VILA_CASA_MS) {
+        st.ultima = S.time;
+        for (let t = 0; t < 30; t++) {
+          const a = Math.random() * 6.28, r = 3 + Math.random() * 9, c = { k: 'choupana', x: Math.round(v.x + Math.cos(a) * r) - 3, y: Math.round(v.y + Math.sin(a) * r) - 1 };
+          if (placeProblem(c, true) || zonaEm(c.x + 3, c.y + 1) || Math.hypot(c.x + 3 - p.x, c.y + 1 - p.y) < 6) continue;
+          const b = addBuild(c); b.dono = 'vila'; b.vila = v.id; b.hp = 60; b.acesso = 'todos';
+          for (let k = 0; k < 6; k++) {   // plantação na frente
+            const x = c.x + 1 + k % 3, y = c.y + BUILDS.choupana.h + 1 + Math.floor(k / 3), i = I(x, y, 0);
+            if (S.tiles[i] === T.GRASS && !buildBlocks(x + 0.5, y + 0.5)) { S.tiles[i] = T.CROP; S.aux[i] = Math.floor(Math.random() * 3); }
+          }
+          break;
+        }
+      }
+    }
+  }
+  function choupanaNaFrente(x, y) {
+    if (S.p.z !== 0 || interior) return null;
+    return S.builds.find(b => b.vila && (shapeHit(b, x + 0.5, y + 0.5) || shapeHit(b, S.p.x, S.p.y - 0.6))) || null;
+  }
+  function baterChoupana(b) {
+    b.hp = (b.hp || 60) - 15; sfx('corte'); shake(80, tp * 0.03);
+    fxAnim(['fx_lascas'], S.p.x + DIRS[S.p.dir][0], S.p.y + DIRS[S.p.dir][1] - 0.5, 0, 1, 300);
+    if (b.hp <= 0) { S.builds.splice(S.builds.indexOf(b), 1); give('madeira', 4); sfx('quebra'); toast('Choupana derrubada: +4 madeira'); save(); }
+    else toast(`Choupana: ${b.hp} de 60`);
+  }
+
+  // ---- painel do administrador: eventos
+  function selPremio(attr, atual) {
+    return `<select ${attr}>${premioOpcoes().map(([v, n]) => `<option value="${v}"${v === atual ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('')}</select>`;
+  }
+  function renderEventos() {
+    let box = document.getElementById('admin-eventos');
+    if (!box) {
+      box = document.createElement('div'); box.id = 'admin-eventos';
+      document.getElementById('admin-zonas').after(box);
+      box.addEventListener('keydown', e => e.stopPropagation());
+      box.addEventListener('click', e => {
+        const bt = e.target.closest('[data-ev]'); if (!bt) return;
+        const a = bt.dataset.ev, id = bt.dataset.id, val = q => (box.querySelector(q) || {}).value;
+        if (a === 'novo') {
+          const tipo = val('#ev-tipo');
+          MUNDO.eventos.push({ id: 'ev' + Date.now(), tipo, nome: (val('#ev-nome') || '').trim() || (EV_VISUAL[tipo] || EV_VISUAL.outro).nome, zona: +val('#ev-zona'),
+            inicio: val('#ev-ini') || hoje(), fim: val('#ev-fim') || val('#ev-ini') || hoje(), premio: val('#ev-premio'), limite: Math.max(1, +val('#ev-lim') || 1), ativo: true });
+          mundoSalvar('eventos'); toast('Evento criado');
+        } else if (a === 'ev-toggle' || a === 'ev-del' || a === 'ev-agora') {
+          const ev = MUNDO.eventos.find(q => q.id === id); if (!ev) return;
+          if (a === 'ev-toggle') ev.ativo = !ev.ativo;
+          if (a === 'ev-agora') { ev.inicio = hoje(); if (!ev.fim || ev.fim < hoje()) ev.fim = hoje(); ev.ativo = true; }
+          if (a === 'ev-del') MUNDO.eventos.splice(MUNDO.eventos.indexOf(ev), 1);
+          mundoSalvar('eventos');
+        } else if (a === 'fug-soltar') {
+          const p = S.p;
+          MUNDO.fugitivo = { id: 'f' + Date.now(), x: Math.round(p.x), y: Math.round(p.y), premio: val('#fug-premio'), ativo: true, ganhador: null };
+          S.fugVisto = S.fugVisto || {}; S.fugVisto[MUNDO.fugitivo.id] = 1;
+          mundoSalvar('fugitivo');
+          const txt = `Um fugitivo foi visto em ${BIOMES[regionOf(p.x, p.y)].nome}! Quem pegar ganha ${premioNome(MUNDO.fugitivo.premio)}.`;
+          if (online()) NET.anunciar(txt);
+          chatPush({ de: '', nome: 'Anúncio', texto: txt, tipo: 'todos', t: Date.now() }, false);
+          toast('Fugitivo solto onde você está', 'gold');
+        } else if (a === 'fug-parar') { if (MUNDO.fugitivo) MUNDO.fugitivo.ativo = false; mundoSalvar('fugitivo'); }
+        else if (a === 'vila-nova') { const p = S.p; MUNDO.vilas.push({ id: 'v' + Date.now(), nome: 'Vila', x: Math.round(p.x), y: Math.round(p.y), n: 3, ativo: true }); mundoSalvar('vilas'); toast('Vila criada onde você está'); }
+        else if (a.startsWith('vila-')) {
+          const v = MUNDO.vilas.find(q => q.id === id); if (!v) return;
+          if (a === 'vila-move') adminMove = 'vila:' + v.id;
+          if (a === 'vila-mais') v.n = Math.min(8, v.n + 1);
+          if (a === 'vila-menos') v.n = Math.max(1, v.n - 1);
+          if (a === 'vila-toggle') v.ativo = !v.ativo;
+          if (a === 'vila-ir') { S.p.x = v.x + 0.5; S.p.y = v.y + 4.5; S.p.z = 0; interior = null; closeSheet(); return; }
+          if (a === 'vila-del') MUNDO.vilas.splice(MUNDO.vilas.indexOf(v), 1);
+          mundoSalvar('vilas');
+        } else if (a === 'cons-salvar') {
+          MUNDO.construtores = { premio: val('#cons-premio'), chance: Math.min(1, Math.max(0, (+val('#cons-chance') || 0) / 100)) };
+          mundoSalvar('construtores'); toast('Prêmio dos construtores salvo');
+        }
+        renderAdmin();
+      });
+    }
+    const zonasOp = MUNDO.zonas.map(z => `<option value="${z.id}">${escapeHtml(z.nome)}</option>`).join('');
+    let html = '<div class="section-label">Eventos com data (Natal, Páscoa…)</div><div class="list">';
+    if (!MUNDO.eventos.length) html += '<div class="empty">Nenhum evento. Crie abaixo.</div>';
+    for (const ev of MUNDO.eventos) {
+      const zn = MUNDO.zonas.find(z => z.id === ev.zona);
+      html += `<div class="row admin-row"><span class="sw" style="background:${ev.tipo === 'natal' ? '#d9413a' : ev.tipo === 'pascoa' ? '#e8a8d0' : '#7fd0e0'}"></span>
+        <span class="name"><b>${escapeHtml(ev.nome)}${eventoNoAr(ev) ? ' · no ar' : ''}</b><small>${ev.inicio} a ${ev.fim} · ${zn ? escapeHtml(zn.nome) : 'sem área'} · ${premioNome(ev.premio)} · ${ev.limite} por jogador${ev.ativo ? '' : ' · desligado'}</small></span>
+        <span class="admin-btns"><button type="button" class="btn" data-ev="ev-agora" data-id="${ev.id}">Começar hoje</button>
+          <button type="button" class="btn" data-ev="ev-toggle" data-id="${ev.id}">${ev.ativo ? 'Desligar' : 'Ligar'}</button>
+          <button type="button" class="btn btn-danger" data-ev="ev-del" data-id="${ev.id}">Apagar</button></span></div>`;
+    }
+    html += `</div><div class="ev-form">
+      <select id="ev-tipo" aria-label="Personagem"><option value="natal">Papai Noel</option><option value="pascoa">Coelho da Páscoa</option><option value="outro">Mensageiro (outro evento)</option></select>
+      <input id="ev-nome" type="text" maxlength="30" placeholder="Nome (ex.: Natal 2026)">
+      <select id="ev-zona" aria-label="Área">${zonasOp}</select>
+      <label>De <input id="ev-ini" type="date" value="${hoje().slice(0, 4)}-12-25"></label><label>até <input id="ev-fim" type="date" value="${hoje().slice(0, 4)}-12-25"></label>
+      ${selPremio('id="ev-premio" aria-label="Presente"', 'moedas:500')}
+      <label>Presentes por jogador <input id="ev-lim" type="number" min="1" max="99" value="1"></label>
+      <button type="button" class="btn btn-gold" data-ev="novo">Criar evento</button></div>`;
+    const f = MUNDO.fugitivo;
+    html += '<div class="section-label">Fugitivo</div>';
+    html += f ? `<p class="muted small-text">${f.ativo ? (f.ganhador ? `Pego por ${escapeHtml(f.ganhador)}` : 'Solto agora') : 'Encerrado'} · ${BIOMES[regionOf(f.x, f.y)].nome} · prêmio: ${premioNome(f.premio)}</p>` : '<p class="muted small-text">Nenhum fugitivo solto.</p>';
+    html += `<div class="ev-form">${selPremio('id="fug-premio" aria-label="Prêmio do fugitivo"', 'moedas:1000')}
+      <button type="button" class="btn btn-gold" data-ev="fug-soltar">Soltar fugitivo aqui e anunciar</button>
+      ${f && f.ativo && !f.ganhador ? '<button type="button" class="btn" data-ev="fug-parar">Encerrar</button>' : ''}</div>`;
+    html += '<div class="section-label">Vilas de construtores</div><div class="list">';
+    for (const v of MUNDO.vilas) {
+      const casas = S.builds.filter(b => b.vila === v.id).length;
+      html += `<div class="row admin-row"><span class="sw" style="background:#c9a34a"></span><span class="name"><b>${escapeHtml(v.nome)}</b><small>${BIOMES[regionOf(v.x, v.y)].nome} · ${v.n} construtores · ${casas} choupanas no seu mundo${v.ativo ? '' : ' · desligada'}</small></span>
+        <span class="admin-btns"><button type="button" class="btn" data-ev="vila-move" data-id="${v.id}">Mover</button><button type="button" class="btn" data-ev="vila-menos" data-id="${v.id}">−1</button><button type="button" class="btn" data-ev="vila-mais" data-id="${v.id}">+1</button>
+          <button type="button" class="btn" data-ev="vila-toggle" data-id="${v.id}">${v.ativo ? 'Desligar' : 'Ligar'}</button><button type="button" class="btn" data-ev="vila-ir" data-id="${v.id}">Ir</button><button type="button" class="btn btn-danger" data-ev="vila-del" data-id="${v.id}">Apagar</button></span></div>`;
+    }
+    html += `</div><div class="ev-form"><button type="button" class="btn btn-gold" data-ev="vila-nova">Criar vila onde estou</button></div>
+      <p class="muted small-text">Cada construtor derrubado dá 50 moedas e, às vezes, um item raro:</p>
+      <div class="ev-form">${selPremio('id="cons-premio" aria-label="Item raro"', MUNDO.construtores.premio)}
+      <label>Chance (%) <input id="cons-chance" type="number" min="0" max="100" value="${Math.round((MUNDO.construtores.chance || 0) * 100)}"></label>
+      <button type="button" class="btn" data-ev="cons-salvar">Salvar</button></div>`;
+    box.innerHTML = html;
+  }
+  function renderZonas() {
+    let box = document.getElementById('admin-zonas');
+    if (!box) {
+      box = document.createElement('div'); box.id = 'admin-zonas';
+      $('admin-deposits').after(box);
+      box.addEventListener('click', e => {
+        const bt = e.target.closest('[data-zona]'); if (!bt) return;
+        const a = bt.dataset.zona, zn = MUNDO.zonas.find(q => q.id === +bt.dataset.id);
+        if (a === 'nova') { const p = S.p; MUNDO.zonas.push({ id: Date.now(), nome: 'Evento', x: Math.round(p.x), y: Math.round(p.y), r: 10, ativo: true }); toast('Área segura criada onde você está'); }
+        else if (!zn) return;
+        else if (a === 'move') adminMove = 'zona:' + zn.id;
+        else if (a === 'toggle') zn.ativo = !zn.ativo;
+        else if (a === 'mais') zn.r = Math.min(60, zn.r + 4);
+        else if (a === 'menos') zn.r = Math.max(4, zn.r - 4);
+        else if (a === 'del') MUNDO.zonas.splice(MUNDO.zonas.indexOf(zn), 1);
+        else if (a === 'goto') { S.p.x = zn.x + 0.5; S.p.y = zn.y + 0.5; S.p.z = 0; interior = null; closeSheet(); return; }
+        mundoSalvar('zonas'); renderAdmin();
+      });
+      box.addEventListener('change', e => {
+        const inp = e.target.closest('[data-zona-nome]'); if (!inp) return;
+        const zn = MUNDO.zonas.find(q => q.id === +inp.dataset.zonaNome); if (zn) { zn.nome = inp.value.trim().slice(0, 30) || 'Evento'; mundoSalvar('zonas'); }
+      });
+      box.addEventListener('keydown', e => e.stopPropagation());
+    }
+    let html = '<div class="section-label">Áreas seguras · eventos</div><div class="list">';
+    for (const zn of MUNDO.zonas) html += `<div class="row admin-row"><span class="sw" style="background:#7fe08a"></span>
+      <span class="name"><input class="zona-nome" data-zona-nome="${zn.id}" value="${escapeHtml(zn.nome)}" maxlength="30" aria-label="Nome da área">
+        <small>${BIOMES[regionOf(zn.x, zn.y)].nome} · raio de ${zn.r} blocos · ${zn.ativo ? 'ativa' : 'desligada'}</small></span>
+      <span class="admin-btns"><button type="button" class="btn" data-zona="move" data-id="${zn.id}">Mover</button>
+        <button type="button" class="btn" data-zona="menos" data-id="${zn.id}">−</button><button type="button" class="btn" data-zona="mais" data-id="${zn.id}">+</button>
+        <button type="button" class="btn" data-zona="toggle" data-id="${zn.id}">${zn.ativo ? 'Desligar' : 'Ligar'}</button>
+        <button type="button" class="btn" data-zona="goto" data-id="${zn.id}">Ir</button>
+        <button type="button" class="btn btn-danger" data-zona="del" data-id="${zn.id}">Apagar</button></span></div>`;
+    html += '</div><div class="list-actions"><button type="button" class="btn btn-gold" data-zona="nova">Criar área segura onde estou</button></div>';
+    box.innerHTML = html;
+  }
   function renderCamps() {
     let box = document.getElementById('admin-camps');
     if (!box) {
@@ -3245,9 +3579,9 @@
     drawMinimap();
     staffExtras();
     const mode = $('admin-mode');
-    if (adminMove === 'tp' || (typeof adminMove === 'string' && adminMove.startsWith('camp:'))) {
+    if (adminMove === 'tp' || (typeof adminMove === 'string' && (adminMove.startsWith('camp:') || adminMove.startsWith('zona:') || adminMove.startsWith('vila:')))) {
       mode.hidden = false;
-      mode.innerHTML = `${adminMove === 'tp' ? 'Toque no mapa para onde quer ir.' : 'Toque no mapa para o novo lugar do acampamento.'} <button type="button" class="btn" data-admin="cancel">Cancelar</button>`;
+      mode.innerHTML = `${adminMove === 'tp' ? 'Toque no mapa para onde quer ir.' : adminMove.startsWith('zona:') ? 'Toque no mapa para o novo lugar da área segura.' : adminMove.startsWith('vila:') ? 'Toque no mapa para o novo lugar da vila.' : 'Toque no mapa para o novo lugar do acampamento.'} <button type="button" class="btn" data-admin="cancel">Cancelar</button>`;
     } else if (adminMove !== null) {
       const d = S.deposits.find(x => x.id === adminMove);
       mode.hidden = false;
@@ -3269,6 +3603,8 @@
     }
     $('admin-deposits').innerHTML = html;
     renderCamps();
+    renderZonas();
+    renderEventos();
   }
 
   function adminDeposit(action, id) {
@@ -3308,6 +3644,17 @@
       for (let k = 0; k < 20; k++) waterTick();
       closeSheet(); toast(`Teletransportado: ${BIOMES[regionOf(S.p.x, S.p.y)].nome}`, 'leaf'); sfx('magia');
       return;
+    }
+    if (typeof adminMove === 'string' && adminMove.startsWith('vila:')) {
+      const v = MUNDO.vilas.find(q => q.id === adminMove.slice(5)); adminMove = null;
+      if (v) { v.x = clamp(x, 8, W - 9); v.y = clamp(y, 8, H - 9); mundoSalvar('vilas'); toast(`Vila movida para ${BIOMES[regionOf(v.x, v.y)].nome}`); }
+      renderAdmin(); return;
+    }
+    if (typeof adminMove === 'string' && adminMove.startsWith('zona:')) {
+      const zn = MUNDO.zonas.find(q => q.id === +adminMove.slice(5));
+      adminMove = null;
+      if (zn) { zn.x = clamp(x, 4, W - 5); zn.y = clamp(y, 4, H - 5); toast(`Área segura movida para ${BIOMES[regionOf(zn.x, zn.y)].nome}`); mundoSalvar('zonas'); }
+      renderAdmin(); return;
     }
     if (typeof adminMove === 'string' && adminMove.startsWith('camp:')) {
       const c = S.camps.find(q => q.id === +adminMove.slice(5));
@@ -4212,7 +4559,7 @@
   const PISOS = { madeira: ['#9a6a3e', '#8a5c34'], clara: ['#d8b98a', '#c9a874'], pedra: ['#8d9096', '#7d8086'], xadrez: ['#e8e2d6', '#2a2622'],
     verde: ['#5f9a4e', '#53893f'], azul: ['#4a74b8', '#3f67a8'], vermelho: ['#b8493f', '#a63f36'], rosa: ['#e08cb4', '#d07ca4'], roxo: ['#8a5cc0', '#7b4fb0'], preto: ['#2e2a30', '#26222a'] };
   const PAREDES = { creme: '#e6d8b8', madeira: '#7a5230', pedra: '#6f7278', branca: '#f0eee8', azul: '#5d7fb5', verde: '#6e9a5e', vinho: '#7a2f3a', preta: '#2a2628' };
-  const roomSize = b => (b.k === 'castelo' ? 45 : 15);
+  const roomSize = b => (b.k === 'castelo' ? 45 : b.k === 'choupana' ? 10 : 15);
   function roomOf(b) {
     if (!b.room) b.room = { piso: 'madeira', parede: 'creme', itens: [] };
     const N = roomSize(b);   // cômodo diminuiu: o que ficou fora volta para "Suas construções"
@@ -4518,6 +4865,11 @@
     }
     const psx = p.x * tp - camX, psy = p.y * tp - camY;
     drawMobs(ents, camX, camY, W2, H2);
+    if (z === 0) for (const n of evNpcs.values()) {
+      const sx = n.x * tp - camX, sy = n.y * tp - camY;
+      if (sx < -2 * tp || sy < -3 * tp || sx > W2 + 2 * tp || sy > H2 + 2 * tp) continue;
+      ents.push({ y: sy + 6 * u, wx: n.x, wy: n.y, f: () => drawEventoNpc(n, sx, sy, u) });
+    }
     if (S.morte && S.morte.z === z) {   // X da última morte (só você vê)
       const mx = S.morte.x * tp - camX, my = S.morte.y * tp - camY;
       ents.push({ y: -1e8, f: () => { ctx.strokeStyle = '#e0372a'; ctx.lineWidth = Math.max(3, tp * 0.12); ctx.lineCap = 'round';
@@ -4555,6 +4907,11 @@
     ents.sort((e1, e2) => e1.y - e2.y);   // ordena só depois dos ajustes acima
     for (const e of ents) e.f();
     drawSmoke(camX, camY, now);
+    if (z === 0) for (const zn of MUNDO.zonas) {   // borda da área segura no chão
+      if (!zn.ativo || Math.hypot(zn.x - p.x, zn.y - p.y) > zn.r + 20) continue;
+      ctx.save(); ctx.strokeStyle = 'rgba(127,224,138,0.55)'; ctx.lineWidth = Math.max(2, tp * 0.06); ctx.setLineDash([tp * 0.4, tp * 0.3]);
+      ctx.beginPath(); ctx.arc(zn.x * tp - camX, zn.y * tp - camY, zn.r * tp, 0, 6.28); ctx.stroke(); ctx.restore();
+    }
     drawShots(camX, camY, now);
     drawCombatFx(camX, camY, now);
     drawBubble(psx, psy - 1.55 * tp, CHAT.bolha);
@@ -4629,6 +4986,11 @@
         if (b.tipo === 'fazenda') { const c = b.store.colheita || 0; if (c) drawLabel(`Ajudante · ${c} trigo${c >= FARM_CAP ? ' (cheio)' : ''}`, bx, by - 26 * u, u, '#7fd16a'); continue; }
         drawLabel(n ? `Robô · ${n}${n >= ROBO_CAP ? ' (cheio)' : ''}` : 'Robô · sem minério', bx, by - 26 * u, u, '#c9a34a');
       }
+      for (const n of evNpcs.values()) {
+        const sx = n.x * tp - camX, sy = n.y * tp - camY;
+        if (sx < -tp || sy < -tp || sx > W2 + tp || sy > H2 + tp) continue;
+        drawLabel(Math.hypot(n.x - p.x, n.y - p.y) < 2.5 ? `${n.ev.nome} · Usar para ganhar presente` : n.ev.nome, sx, sy - 24 * u, u, '#e0372a');
+      }
       drawNpcArrows(camX, camY, W2, H2);
       if (S.morte && S.morte.z === 0) {
         const mx = S.morte.x * tp - camX, my = S.morte.y * tp - camY;
@@ -4677,6 +5039,7 @@
     if (accFarm > 1.5) { accFarm = 0; farmTick(); }
     if (accSpawn > 4) {
       accSpawn = 0;
+      fugitivoTick(); vilasTick();
       if (S.animals.length < ANIMAL_CAP) spawnAnimal(true);
       if (Math.random() < 1 / 3) legendCheck();   // checagem do lendário a cada ~12 s
     }
@@ -4684,6 +5047,8 @@
     animalsTick(dt, now);
     botsTick(dt);
     combatTick(dt, now);
+    zonaTick();
+    eventosTick(dt);
     auraTick(dt);
     shotsTick(dt, now);
     if ((TOOLS[S.tool].id === 'cetro' || TOOLS[S.tool].id === 'livro') && Math.floor(mana) !== lastMana) { lastMana = Math.floor(mana); invDirty = true; }
@@ -4713,6 +5078,7 @@
     S.animals = [];
     S.mobs = [];
     if (!S.camps || !S.camps.length) makeCamps();
+    if (!online()) mundoCarregar();
     for (const c of S.camps) clearAround(c.x, c.y, 3);
     for (let k = 0; k < 30; k++) spawnAnimal(false);
     for (let k = 0; k < 24; k++) waterTick();     // enche lagoas e valas existentes
@@ -4930,7 +5296,7 @@
   $('btn-staff').addEventListener('click', () => { closeSheet(); openStaff(); });
 
   // ?teste na URL: expõe o estado para testes automáticos
-  if (/[?&]teste\b/.test(location.search)) window.TerraDebug = { get S() { return S; }, get RP() { return RP; }, roomFrontTile, get interior() { return interior; }, get fx() { return effects; }, get pushT() { return pushT; }, doorAction, catapultInFront, useTool, target, placeKit, pickUp, candidate, placeProblem, showSheet, botMine, save };
+  if (/[?&]teste\b/.test(location.search)) window.TerraDebug = { get S() { return S; }, get RP() { return RP; }, roomFrontTile, get interior() { return interior; }, get fx() { return effects; }, get pushT() { return pushT; }, doorAction, catapultInFront, useTool, target, placeKit, pickUp, candidate, placeProblem, showSheet, botMine, save, get MUNDO() { return MUNDO; }, evNpcs, vilasTick, fugitivoTick, darPremio, renderAdmin, killMob, enterHouse };
 
   async function boot() {
     buildSprites();
@@ -4954,6 +5320,7 @@
     bootPending = false;
     updateAccountUi();
     chatStartIfReady();
+    mundoCarregar();
     if (!loaded || !S.char) {
       showChars(true); save();
       if (oldSaveFound) toast('O mapa ficou 6 vezes maior, com biomas novos: um mundo novo foi criado.', 'gold', 6000);
