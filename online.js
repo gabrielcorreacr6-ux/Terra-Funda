@@ -129,6 +129,7 @@
   T.ban = (target, dias, motivo) => rpc('staff_ban', { target, dias, motivo: motivo || null });
   T.setRole = (target, novo) => rpc('admin_set_role', { target, novo });
   T.giveCoins = (target, quantidade) => rpc('admin_give_coins', { target, quantidade });
+  T.bless = (target, arma, nivel, horas) => rpc('admin_bless', { target, arma, nivel, horas });
 
   window.TerraOnline = T;
 })();

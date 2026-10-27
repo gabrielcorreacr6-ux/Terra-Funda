@@ -306,3 +306,10 @@ kbd {
 .slot .dur i { display: block; height: 100%; width: 100%; background: #7fd16a; }
 .slot .dur i.low { background: #e0573f; }
 #toolname { cursor: pointer; }
+.chip.hp { color: #ffd9d4; }
+.chip.hp .heart { color: #e0573f; margin-right: 6px; }
+.chip.hp.low { animation: hpPulse 0.8s ease-in-out infinite alternate; }
+@keyframes hpPulse { to { background: rgba(160, 40, 30, 0.85); } }
+.hud-left { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.bless-form { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.bless-form select { font: inherit; font-size: .85em; padding: 4px; background: #2a2420; color: inherit; border: 1px solid var(--line); border-radius: 6px; }
