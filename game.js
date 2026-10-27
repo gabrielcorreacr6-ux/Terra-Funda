@@ -135,7 +135,7 @@
     saloon: { tipo: 'casa', nome: 'Saloon do faroeste', w: 8, h: 4, porta: 0.55, preco: 2400, desc: 'Balcão, piano e mesas de jogo.' },
     castelo: { tipo: 'casa', nome: 'Castelo', w: 8, h: 4, porta: 0.55, preco: 4500, desc: 'Torres nos cantos, lareira e armaduras.' },
     domo: { tipo: 'casa', nome: 'Domo alienígena', w: 8, h: 4, porta: 0.43, preco: 6500, desc: 'Cápsulas de dormir e holograma.' },
-    muralha: { tipo: 'forte', nome: 'Muralha de castelo', w: 24, h: 12, preco: 4000, desc: 'Muralha com torres e portão. Cabem casas dentro.' },
+    muralha: { tipo: 'forte', nome: 'Muralha de castelo', w: 24, h: 12, porta: 0.5, preco: 4000, desc: 'Muralha com torres e portão. Cabem casas dentro.' },
     muralha_vila: { tipo: 'forte', arte: 'muralha', nome: 'Muralha com casas de camponeses', w: 24, h: 12, preco: 5200,
       desc: 'A muralha já vem com duas casas de camponês dentro (dá para mover).', junto: [['cabana', 4, 3], ['cabana', 12, 5]] },
     forte: { tipo: 'forte', nome: 'Forte do faroeste', w: 26, h: 13, preco: 3000, desc: 'Cerca de troncos com porteira.' },
@@ -165,7 +165,7 @@
   for (const [k, d] of Object.entries(BUILDS)) {
     d.w = d.w || 1; d.h = d.h || 1;
     d.band = d.tipo === 'casa' ? 0.55 : 0.6;
-    d.portaR = d.tipo === 'casa' ? 0.8 : 1.3;
+    d.portaR = d.tipo === 'casa' ? 1.1 : 1.6;
     d.pad = d.tipo === 'casa' ? 0.15 : 0;
     d.img = d.tipo === 'casa' ? 'casa_' + k : d.tipo === 'forte' ? 'forte_' + (d.arte || k) : d.tipo === 'movel' ? (d.arte || 'movel_' + k) : k;
   }
@@ -574,7 +574,7 @@
       if (dd > 1) return null;
       if ((1 - dd) * a * bb / Math.hypot(a, bb) > d.band) return 'inside';
       const [qx, qy] = doorPoint(b);
-      return Math.hypot(px - qx, py - qy) < d.portaR ? 'inside' : 'solid';
+      return Math.hypot(px - qx, py - qy) < d.portaR ? 'inside' : 'solid';   // a porta também dá para atravessar andando
     }
     if (px < b.x || py < b.y || px >= b.x + d.w || py >= b.y + d.h) return null;
     if (d.tipo === 'armadilha') return move ? null : 'solid';
@@ -582,7 +582,7 @@
   }
   function doorPoint(b) {
     const d = BUILDS[b.k], a = d.w / 2, bb = d.h / 2, cx = b.x + a, cy = b.y + bb;
-    return d.tipo === 'casa' ? [cx - a + d.porta * a, cy + d.porta * bb] : [cx, cy + bb - 0.4];
+    return d.porta !== undefined ? [cx - a + d.porta * a, cy + d.porta * bb] : [cx, cy + bb - 0.4];
   }
   function buildBlocks(px, py) {
     for (const b of S.builds) if (shapeHit(b, px, py, true) === 'solid') return true;
@@ -621,6 +621,36 @@
   // ---- Flechas e magia
   const shots = [], effects = [];
   let mana = 5, shotAnim = 0;
+  // Usar encostado na parede de uma casa ou fortaleza: entra (se está fora) ou sai pela porta (se está dentro)
+  function doorAction() {
+    if (S.p.z !== 0) return null;
+    const p = S.p, tg = target(), px = tg.x + 0.5, py = tg.y + 0.5;
+    let best = null;
+    for (const b of S.builds) {
+      const d = BUILDS[b.k];
+      if (d.tipo !== 'casa' && d.tipo !== 'forte') continue;
+      if (shapeHit(b, px, py) !== 'solid' && shapeHit(b, p.x + DIRS[p.dir][0] * 0.45, p.y + DIRS[p.dir][1] * 0.45) !== 'solid') continue;
+      if (!best || d.w < BUILDS[best.k].w) best = b;   // casa dentro do forte: vale a casa
+    }
+    if (!best) return null;
+    return () => {
+      const b = best, d = BUILDS[b.k], [qx, qy] = doorPoint(b);
+      const cx = b.x + d.w / 2, cy = b.y + d.h / 2;
+      let ux = qx - cx, uy = qy - cy; const L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
+      const inside = insideOf(p.x, p.y, d.tipo) === b;
+      const sgn = inside ? 1 : -1;   // sai pela porta para fora; entra pela porta para dentro
+      for (const dist of [1.1, 1.5, 2, 2.6, 0.8]) for (const side of [0, 0.4, -0.4, 0.8, -0.8]) {
+        const nx = qx + sgn * ux * dist - uy * side, ny = qy + sgn * uy * dist + ux * side;
+        if (canStand(nx, ny, 0, 0.3) && (insideOf(nx, ny, d.tipo) === b) !== inside) {
+          p.x = nx; p.y = ny; p.dir = inside ? (uy > 0.3 ? 0 : ux < 0 ? 2 : 3) : 1;
+          sfx('construir');
+          toast(inside ? `Saiu: ${d.nome}` : `Entrou: ${d.nome}`, 'leaf');
+          return;
+        }
+      }
+      toast('A porta está bloqueada', 'warn');
+    };
+  }
   function catapultInFront() {
     if (S.p.z !== 0) return null;
     const tg = target();
@@ -1174,7 +1204,7 @@
       addBuild(c); sfx('construir');
       for (const [jk, ox, oy] of d.junto || []) addBuild({ k: jk, x: c.x + ox, y: c.y + oy });
       toast(`${d.nome}: pronto`, 'gold');
-      if (d.tipo === 'casa') hint('casa', 'Entre pela porta. Para mudar de lugar, use Construir → Guardar.');
+      if (d.tipo === 'casa') hint('casa', 'Para entrar ou sair, encoste na parede e aperte Usar. Para mudar de lugar: Construir → Guardar.');
     }
     if (!(S.kit[k] > 0)) S.sel = { k: 'muro', m: 0 };
     invDirty = true; save();
@@ -1190,6 +1220,23 @@
       if (pts.some(([x, y]) => shapeHit(b, x, y)) && d.w * d.h < area) { best = b; area = d.w * d.h; }
     }
     return best ? { b: best } : null;
+  }
+  // guarda (volta para "Suas construções") ou vende pela metade do preço; casas levam os móveis de dentro
+  function removeBuild(b, vender) {
+    const d = BUILDS[b.k], gone = [b];
+    if (d.tipo === 'casa' || d.tipo === 'forte') for (const o of S.builds) {
+      const od = BUILDS[o.k];
+      if (o !== b && nestOK(b, o) && (d.tipo === 'casa' || od.tipo === 'movel') && shapeHit(b, o.x + od.w / 2, o.y + od.h / 2)) gone.push(o);
+    }
+    let coins = 0;
+    for (const o of gone) {
+      S.builds.splice(S.builds.indexOf(o), 1);
+      const kk = o.k === 'muralha' && d.junto ? o.k : o.k;
+      if (vender) coins += Math.floor(BUILDS[kk].preco / 2); else S.kit[kk] = (S.kit[kk] || 0) + 1;
+    }
+    if (vender) { S.coins += coins; sfx('moeda'); toast(`${d.nome} vendido: +${coins} moedas`, 'gold'); }
+    else toast(gone.length > 1 ? `${d.nome} guardado com ${gone.length - 1} ${gone.length > 2 ? 'itens' : 'item'} de dentro` : `${d.nome}: guardado. Coloque de novo com Construir.`, 'leaf', 3200);
+    invDirty = true; save();
   }
   function pickUp() {
     const r = pickupTarget();
@@ -1282,6 +1329,8 @@
     const { x, y, z } = target();
     const npc = npcInFront(x, y);
     if (npc) { actHeld = false; showSheet('sheet-shop', npc); return; }
+    const door = tool !== 'muro' && doorAction();
+    if (door) { actHeld = false; door(); return; }
     const cat = tool !== 'muro' && catapultInFront();
     if (cat) { actHeld = false; fireCatapult(cat); return; }
     const bot = tool !== 'muro' && botNear(x, y);
@@ -2247,7 +2296,22 @@
     const row = (th, name, sub, btn) => `<div class="row skin-row">${th || '<span></span>'}<span class="name"><b>${name}</b><small>${sub}</small></span><span></span>${btn}</div>`;
     const cur = (k, m, id) => S.sel.k === k && (k === 'kit' ? S.sel.id === id : (S.sel.m || 0) === m);
     const pick = (val, on) => on ? '<span class="owned">Escolhido</span>' : `<button type="button" class="btn btn-gold" data-bsel="${val}">Escolher</button>`;
-    let html = '<div class="section-label">Muros</div><div class="list">';
+    let html = '';
+    // tudo o que está construído por perto, do mais perto ao mais longe
+    const near = S.builds.map((b, i) => ({ b, i, dist: Math.hypot(b.x + BUILDS[b.k].w / 2 - S.p.x, b.y + BUILDS[b.k].h / 2 - S.p.y) }))
+      .filter(o => o.dist < 60).sort((a, c) => a.dist - c.dist).slice(0, 30);
+    near.push(...S.bots.map((b, i) => ({ bot: b, i, dist: Math.hypot(b.x - S.p.x, b.y - S.p.y) })).filter(o => o.dist < 60));
+    html += '<div class="section-label">Construído por perto · guardar ou vender</div><div class="list">';
+    if (!near.length) html += '<div class="empty">Nada construído por perto.</div>';
+    for (const o of near) {
+      const d = o.bot ? BUILDS.robo : BUILDS[o.b.k], th = o.bot ? thumb1('robo_front_0') : thumb2(d.img + (d.tipo === 'forte' ? '' : ''));
+      const tag = o.bot ? 'bot' : 'b';
+      html += `<div class="row skin-row">${th || '<span></span>'}<span class="name"><b>${d.nome}</b><small>a ${Math.round(o.dist)} blocos · vender devolve ${Math.floor(d.preco / 2)} moedas</small></span>
+        <button type="button" class="btn" data-bpick="${tag}:${o.i}">Guardar</button>
+        <button type="button" class="btn btn-danger" data-bsell="${tag}:${o.i}">Vender</button></div>`;
+    }
+    html += '</div><p class="muted small-text">Guardar devolve para "Suas construções", para colocar em outro lugar. Casas levam os móveis de dentro. Muros e portões: desmonte com a picareta.</p>';
+    html += '<div class="section-label">Muros</div><div class="list">';
     WALL_MATS.forEach((m, k) => { html += row(thumb2(`muro_${m.id}_h`), m.nome, `${costTxt(m.custo)} · ${m.golpes} golpes para derrubar`, pick('muro:' + k, cur('muro', k))); });
     html += '</div><div class="section-label">Portões · abrem quando você chega perto</div><div class="list">';
     WALL_MATS.forEach((m, k) => { html += row(thumb2(`muro_${m.id}_portao`), `Portão (${m.nome.toLowerCase()})`, costTxt(wallCost(k, true)), pick('portao:' + k, cur('portao', k))); });
@@ -2642,6 +2706,18 @@
         return;
       }
       if (e.target.closest('[data-pickup]')) { closeSheet(); pickUp(); return; }
+      const bp = e.target.closest('[data-bpick]') || e.target.closest('[data-bsell]');
+      if (bp) {
+        const sellIt = !!bp.dataset.bsell, [tag, idx] = (bp.dataset.bsell || bp.dataset.bpick).split(':');
+        if (tag === 'bot') {
+          const b = S.bots[+idx];
+          if (b) { collectBot(b, true); S.bots.splice(+idx, 1);
+            if (sellIt) { S.coins += Math.floor(BUILDS.robo.preco / 2); sfx('moeda'); toast(`Robô vendido: +${Math.floor(BUILDS.robo.preco / 2)} moedas`, 'gold'); }
+            else { S.kit.robo = (S.kit.robo || 0) + 1; toast('Robô guardado', 'leaf'); }
+            invDirty = true; save(); }
+        } else if (S.builds[+idx]) removeBuild(S.builds[+idx], sellIt);
+        renderBuild(); return;
+      }
       const buyBtn = e.target.closest('[data-buy]');
       if (buyBtn) { buy(buyBtn.dataset.buy); renderShop(); return; }
       const depBtn = e.target.closest('[data-dep]');
@@ -3400,6 +3476,14 @@
         if (sx < -tp || sy < -tp || sx > W2 + tp || sy > H2 + tp) continue;
         const near = (n.x - p.x) ** 2 + (n.y - p.y) ** 2 < 6.25;
         drawLabel(near ? `${n.def.nome} · Usar para vender` : n.def.nome, sx, sy - (art ? 23 : 14) * u, u, n.def.cor);
+      }
+      for (const b of S.builds) {   // "Usar para entrar" perto das paredes
+        const d = BUILDS[b.k];
+        if (d.tipo !== 'casa' && d.tipo !== 'forte') continue;
+        const [qx, qy] = doorPoint(b);
+        if (Math.hypot(qx - p.x, qy - p.y) > 2.2) continue;
+        const inside = insideOf(p.x, p.y, d.tipo) === b;
+        drawLabel(inside ? 'Usar na parede: sair' : 'Usar na parede: entrar', qx * tp - camX, qy * tp - camY - 18 * u, u, '#c9a34a');
       }
       for (const b of S.bots) {
         const n = botCount(b);
