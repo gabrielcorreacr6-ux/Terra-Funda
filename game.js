@@ -4091,7 +4091,7 @@
     RP.x = 0.6; RP.y = roomSize(b) - 1.5; RP.dir = 3;   // entra pela porta, no canto da frente
     for (let k = 0; k < 20 && roomBlocked(b, RP.x, RP.y); k++) RP.x += 0.5;
     sfx('construir'); updateDoorBtn();
-    hint('decorar', 'Toque em Decorar para mudar a cor do chão e das paredes e colocar seus móveis.');
+    hint('decorar', 'Para sair, vá até a porta. Decorar fica no canto de cima.');
   }
   function leaveHouse() {
     const b = interior; if (!b) return;
@@ -4200,7 +4200,9 @@
     if (!S) return;
     decorBtn.hidden = !interior || !!openSheet;
     const b = interior || houseNear();
-    const txt = interior ? `Sair · ${BUILDS[interior.k].nome}` : b ? `Entrar · ${BUILDS[b.k].nome}` : '';
+    // dentro: o botão Sair só aparece perto da porta (canto da frente, na parede da esquerda)
+    const naPorta = interior && RP.x < 1.8 && RP.y > roomSize(interior) - 3.6;
+    const txt = interior ? (naPorta ? 'Sair' : '') : b ? `Entrar · ${BUILDS[b.k].nome}` : '';
     doorBtn.hidden = !txt || !!openSheet;
     if (txt && doorBtn.textContent !== txt) doorBtn.textContent = txt;
   }
@@ -4321,6 +4323,9 @@
     // porta (canto da frente à esquerda)
     const d0 = P(0, N - 2), d1 = P(0, N - 1);
     poly([d0, d1, [d1[0], d1[1] - th * 3.2], [d0[0], d0[1] - th * 3.2]], '#4a2e1c', '#2a1a10');
+    ctx.font = `600 ${Math.round(tw * 0.22)}px "Pixelify Sans", monospace`; ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(20,17,15,0.75)'; const lx = (d0[0] + d1[0]) / 2, ly = (d0[1] + d1[1]) / 2 - th * 3.6;
+    ctx.fillRect(lx - tw * 0.4, ly - tw * 0.2, tw * 0.8, tw * 0.28); ctx.fillStyle = '#efb941'; ctx.fillText('Saída', lx, ly); ctx.textAlign = 'left';
     // alvo na frente do jogador quando estiver construindo
     const f = TOOLS[S.tool].id === 'muro' && !openSheet ? roomFrontTile(b) : null;
     if (f) poly([P(f.x, f.y), P(f.x + 1, f.y), P(f.x + 1, f.y + 1), P(f.x, f.y + 1)], roomItemFront(b) ? 'rgba(240,180,60,0.35)' : 'rgba(140,230,120,0.3)', 'rgba(255,255,255,0.7)');
