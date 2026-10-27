@@ -347,7 +347,7 @@
       builds: [],     // construções colocadas: { k, x, y }
       kit: {},        // construções compradas e ainda não colocadas
       bots: [],       // robôs mineradores
-      sel: { k: 'muro', m: 0 },   // o que a ferramenta Construir coloca
+      sel: { k: 'nada' },   // o que a ferramenta Construir coloca
       dur: {},        // usos restantes de cada ferramenta
       broken: {},     // ferramentas simples quebradas (fazer outra na Mochila)
       hp: 100, wxp: {}, wbless: {}, camps: [], mobs: [], aura: null, playMs: 0, morte: null,
@@ -544,7 +544,7 @@
       s.builds = Array.isArray(d.builds) ? d.builds.filter(b => BUILDS[b.k]) : [];
       s.tirado = d.tirado || {}; s.kit = d.kit || {}; s.dur = d.dur || {}; s.broken = d.broken || {};
       if (d.sel && d.sel.carry) { const c = wallCost(d.sel.carry.w & 15, d.sel.carry.gate); for (const [k, n] of Object.entries(c)) s.inv[k] = (s.inv[k] || 0) + n; }   // salvou segurando um muro: devolve
-      if (d.sel && (['muro', 'portao', 'girar', 'remover'].includes(d.sel.k) || (d.sel.k === 'kit' && BUILDS[d.sel.id]))) s.sel = d.sel;
+      if (d.sel && (['nada', 'muro', 'portao', 'girar', 'remover'].includes(d.sel.k) || (d.sel.k === 'kit' && BUILDS[d.sel.id]))) s.sel = d.sel;
       s.bots = Array.isArray(d.bots) ? d.bots.map(newBot) : [];
       s.hp = typeof d.hp === 'number' && d.hp > 0 ? d.hp : 100; s.wxp = d.wxp || {}; s.wbless = d.wbless || {};
       s.camps = Array.isArray(d.camps) ? d.camps : []; s.aura = d.aura || null; s.playMs = d.playMs || 0; s.morte = d.morte || null; s.bichoMorto = d.bichoMorto || {};
@@ -1724,7 +1724,7 @@
       toast(`${d.nome}: pronto`, 'gold');
       if (d.tipo === 'casa') hint('casa', 'Chegue perto da porta e toque em Entrar. Para mudar de lugar: Construir.');
     }
-    if (!(S.kit[k] > 0)) S.sel = { k: 'muro', m: 0 };
+    if (!(S.kit[k] > 0)) S.sel = { k: 'nada' };
     else S.sel.flip = !!S.sel.flip;
     invDirty = true; save();
   }
@@ -1993,6 +1993,7 @@
       }
       case 'muro': {
         swing = 0;
+        if (S.sel.k === 'nada') { toast('Escolha o que construir: toque no nome da ferramenta (ou R)'); actHeld = false; showSheet('sheet-build'); return; }
         if (S.sel.k === 'kit') placeKit(S.sel.id);
         else if (S.sel.k === 'mover' || S.sel.k === 'girar' || S.sel.k === 'remover') wallEdit(x, y, z, t, i);
         else placeWall(x, y, z, t, i);
@@ -2644,6 +2645,7 @@
   }
   function selName() {
     const sl = S.sel;
+    if (sl.k === 'nada') return 'Escolher construção';
     if (sl.k === 'kit') return BUILDS[sl.id].nome;
     if (sl.k === 'mover') return sl.carry ? 'Soltar muro' : 'Mover muro';
     if (sl.k === 'girar') return 'Girar muro';
@@ -2654,7 +2656,7 @@
   function selCount() {
     const sl = S.sel;
     if (sl.k === 'kit') return S.kit[sl.id] || 0;
-    if (sl.k === 'mover' || sl.k === 'girar' || sl.k === 'remover') return '';
+    if (sl.k === 'mover' || sl.k === 'girar' || sl.k === 'remover' || sl.k === 'nada') return '';
     const cost = wallCost(sl.m || 0, sl.k === 'portao');
     return Math.min(...Object.entries(cost).map(([k, n]) => Math.floor((S.inv[k] || 0) / n)));
   }
@@ -2751,13 +2753,13 @@
         const sub = brk ? `Quebrada · fazer outra: ${costTxt(BASIC[v].receita)}` : `${left} de ${max} usos` + (basic ? ` · fazer outra: ${costTxt(BASIC[v].receita)}` : ' · da loja');
         html += `<div class="row"><span></span><span class="name"><b>${basic ? BASIC[v].nome : shopName(v)}</b><small>${sub}</small></span><span></span>${btn}</div>`;
       }
-      const comprados = SHOP.filter(it => !it.repetir && S.owned[it.id]);
+      const comprados = SHOP.filter(it => !it.repetir && S.owned[it.id] && it.id !== 'capacete');   // o capacete tem a linha dele
       if (comprados.length) {
         html += '<div class="section-label">Comprados na loja · descartar</div><div class="list">';
         for (const it of comprados) html += `<div class="row"><span></span><span class="name"><b>${it.nome}</b><small>Descartar não devolve moedas</small></span><span></span><button type="button" class="btn btn-danger" data-discard="${it.id}">Descartar</button></div>`;
         html += '</div>';
       }
-      if (S.owned.capacete) html += `<div class="row"><span></span><span class="name"><b>Capacete com lanterna${wearing('capacete') ? '' : ' (guardado)'}</b><small>Bateria: ${Math.ceil((S.dur.capacete ?? DUR.capacete) / 60)} min de luz no escuro</small></span><span></span><button type="button" class="btn" data-equip="capacete">${wearing('capacete') ? 'Tirar' : 'Colocar'}</button></div>`;
+      if (S.owned.capacete) html += `<div class="row"><span></span><span class="name"><b>Capacete com lanterna${wearing('capacete') ? '' : ' (guardado)'}</b><small>Bateria: ${Math.ceil((S.dur.capacete ?? DUR.capacete) / 60)} min de luz no escuro</small></span><span></span><span class="admin-btns"><button type="button" class="btn" data-equip="capacete">${wearing('capacete') ? 'Tirar' : 'Colocar'}</button><button type="button" class="btn btn-danger" data-discard="capacete">Descartar</button></span></div>`;
       html += '</div>';
       if (total) html += `<p class="muted small-text">Tudo na mochila vale cerca de ${coinsTxt(total)}.</p>`;
     }
@@ -2861,7 +2863,7 @@
   function renderBuild() {
     const row = (th, name, sub, btn) => `<div class="row skin-row">${th || '<span></span>'}<span class="name"><b>${name}</b><small>${sub}</small></span><span></span>${btn}</div>`;
     const cur = (k, m, id) => S.sel.k === k && (k === 'kit' ? S.sel.id === id : (S.sel.m || 0) === m);
-    const pick = (val, on) => on ? '<span class="owned">Escolhido</span>' : `<button type="button" class="btn btn-gold" data-bsel="${val}">Escolher</button>`;
+    const pick = (val, on) => on ? '<button type="button" class="btn btn-chosen" data-bsel="nada:0" title="Toque para desmarcar">Escolhido ✓</button>' : `<button type="button" class="btn btn-gold" data-bsel="${val}">Escolher</button>`;
     let html = '';
     // tudo o que está construído por perto, do mais perto ao mais longe
     const near = S.builds.map((b, i) => ({ b, i, dist: Math.hypot(b.x + BUILDS[b.k].w / 2 - S.p.x, b.y + BUILDS[b.k].h / 2 - S.p.y) }))
@@ -3338,7 +3340,8 @@
   $('btn-shop').addEventListener('click', () => showSheet('sheet-shop'));
   $('btn-bag').addEventListener('click', () => showSheet('sheet-shop', null, 'bag'));
   $('btn-home').addEventListener('click', () => goHome());
-  $('toolname').addEventListener('click', () => { if (TOOLS[S.tool].id === 'muro') showSheet('sheet-build'); });
+  // o nome da ferramenta no meio da tela abre o modo construção
+  $('toolname').addEventListener('click', () => { S.tool = TOOLS.findIndex(t => t.id === 'muro'); invDirty = true; showSheet('sheet-build'); });
   $('btn-sethome').addEventListener('click', () => { closeSheet(); setHome(); });
   $('btn-menu').addEventListener('click', () => showSheet('sheet-menu'));
   $('btn-help').addEventListener('click', () => showSheet('sheet-help'));
@@ -3409,6 +3412,7 @@
       if (bsel) {
         const [k, v] = bsel.dataset.bsel.split(':');
         dropCarry();
+        if (k === 'nada') { S.sel = { k: 'nada' }; invDirty = true; renderBuild(); return; }   // tocar em "Escolhido" desmarca
         S.sel = k === 'kit' ? { k, id: v } : { k, m: +v };
         S.tool = TOOLS.findIndex(t => t.id === 'muro'); invDirty = true; closeSheet();
         if (k === 'kit') hint('colocar', 'Fique de frente para o lugar: a prévia fica verde quando cabe. Use para construir.');
@@ -3868,6 +3872,7 @@
   // prévia do que vai ser construído na frente do jogador (vermelho quando não cabe)
   function drawGhost(camX, camY) {
     if (TOOLS[S.tool].id !== 'muro' || openSheet) return;
+    if (S.sel.k === 'nada') return;
     if (S.sel.k !== 'kit') {   // muros: mostra onde vai ficar (verde cabe, vermelho não) ou o muro que será ajustado
       const tg = target(), t = tileAt(tg.x, tg.y, tg.z), x0 = tg.x * tp - camX, y0 = tg.y * tp - camY;
       const edit = ['girar', 'remover'].includes(S.sel.k) || (S.sel.k === 'mover' && !S.sel.carry);
@@ -4070,8 +4075,8 @@
     if (!bt) return;
     const a = bt.dataset.ed;
     if (a === 'girarkit') { S.sel.flip = !S.sel.flip; sfx('toque'); }
-    else if (a === 'cancelar') { S.sel = { k: 'muro', m: 0 }; toast('Guardado em Construir → Suas construções'); }
-    else if (a === 'soltar') { dropCarry(); S.sel = { k: 'muro', m: 0 }; }
+    else if (a === 'cancelar') { S.sel = { k: 'nada' }; toast('Guardado em Construir → Suas construções'); }
+    else if (a === 'soltar') { dropCarry(); S.sel = { k: 'nada' }; }
     else if (a.startsWith('w')) {
       const tg = target(), i = I(tg.x, tg.y, tg.z), keep = S.sel;
       S.sel = { k: a.slice(1) };

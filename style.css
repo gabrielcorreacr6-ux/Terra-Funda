@@ -325,3 +325,8 @@ kbd {
 @media (pointer: coarse) { .edit-bar { bottom: calc(360px + env(safe-area-inset-bottom, 0px)); } }
 .gift-form { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 10px; border-bottom: 1px solid var(--line); }
 .gift-form input { flex: 1 1 160px; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: #2a2420; color: inherit; }
+/* o nome da ferramenta é também o atalho para o modo construção */
+#toolname { display: inline-flex; align-items: center; gap: 6px; border-color: #c9a34a; }
+#toolname::after { content: '🔨'; font-size: 12px; opacity: .85; }
+#toolname:active { transform: translateY(1px); }
+.btn-chosen { color: #8fd97a; border-color: #5f9a4e; background: rgba(95,154,78,.15); }
