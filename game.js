@@ -632,6 +632,12 @@
       if (shapeHit(b, px, py) !== 'solid' && shapeHit(b, p.x + DIRS[p.dir][0] * 0.45, p.y + DIRS[p.dir][1] * 0.45) !== 'solid') continue;
       if (!best || d.w < BUILDS[best.k].w) best = b;   // casa dentro do forte: vale a casa
     }
+    if (!best) for (const b of S.builds) {   // parado na própria porta, empurrando: também vale
+      const d = BUILDS[b.k];
+      if (d.tipo !== 'casa' && d.tipo !== 'forte') continue;
+      const [qx, qy] = doorPoint(b);
+      if (Math.hypot(qx - p.x, qy - p.y) < 1.6 && (!best || d.w < BUILDS[best.k].w)) best = b;
+    }
     if (!best) return null;
     return () => {
       const b = best, d = BUILDS[b.k], [qx, qy] = doorPoint(b);
@@ -644,7 +650,9 @@
         if (canStand(nx, ny, 0, 0.3) && (insideOf(nx, ny, d.tipo) === b) !== inside) {
           p.x = nx; p.y = ny; p.dir = inside ? (uy > 0.3 ? 0 : ux < 0 ? 2 : 3) : 1;
           sfx('construir');
-          toast(inside ? `Saiu: ${d.nome}` : `Entrou: ${d.nome}`, 'leaf');
+          S.hints.portaN = (S.hints.portaN || 0) + 1;
+          if (S.hints.portaN >= 3) S.hints.porta = 1;
+          if (!S.hints.porta) toast(inside ? `Saiu: ${d.nome}` : `Entrou: ${d.nome}`, 'leaf');
           return;
         }
       }
@@ -1204,7 +1212,7 @@
       addBuild(c); sfx('construir');
       for (const [jk, ox, oy] of d.junto || []) addBuild({ k: jk, x: c.x + ox, y: c.y + oy });
       toast(`${d.nome}: pronto`, 'gold');
-      if (d.tipo === 'casa') hint('casa', 'Para entrar ou sair, encoste na parede e aperte Usar. Para mudar de lugar: Construir → Guardar.');
+      if (d.tipo === 'casa') hint('casa', 'Para entrar ou sair, é só andar contra a parede. Para mudar de lugar: Construir.');
     }
     if (!(S.kit[k] > 0)) S.sel = { k: 'muro', m: 0 };
     invDirty = true; save();
@@ -1907,7 +1915,7 @@
   })();
   function artRect(name) { return art && ATLAS[name]; }
   // Segundo atlas: muros, torres, casas, fortalezas e móveis (tools/build_structures.py)
-  const ATLAS2 = /*ATLAS2_MAP*/{"forte_muralha_fundo":[0,0,760,651],"forte_muralha_frente":[762,0,760,651],"forte_forte_cidade_fundo":[0,653,760,384],"forte_forte_cidade_frente":[762,653,760,384],"forte_colonia_fundo":[0,1039,760,378],"forte_colonia_frente":[762,1039,760,378],"forte_forte_fundo":[0,1419,760,354],"forte_forte_frente":[762,1419,760,354],"forte_campo_fundo":[0,1775,760,341],"forte_campo_frente":[762,1775,760,341],"casa_cabana":[1524,1775,340,310],"casa_saloon":[0,2118,340,304],"casa_pedra":[342,2118,340,302],"casa_castelo":[684,2118,340,295],"casa_tribal":[1026,2118,340,289],"casa_castelo_dentro":[1368,2118,340,278],"casa_tribal_dentro":[0,2424,340,275],"casa_cabana_dentro":[342,2424,340,274],"casa_saloon_dentro":[684,2424,340,274],"casa_domo":[1026,2424,340,268],"casa_domo_dentro":[1368,2424,340,268],"casa_pedra_dentro":[0,2701,340,260],"torre_madeira":[342,2701,119,203],"torre_cristal":[463,2701,114,203],"torre_pedra":[579,2701,117,198],"torre_balista_cristal":[698,2701,113,196],"torre_canhao":[813,2701,137,188],"torre_balista":[952,2701,131,185],"forte_muralha":[1085,2701,180,154],"catapulta_0":[1267,2701,150,135],"catapulta_1":[1419,2701,150,135],"catapulta_2":[1571,2701,150,135],"catapulta_3":[1723,2701,150,135],"movel_cama_dossel":[1875,2701,126,132],"cristal_claro":[0,2963,103,131],"cristal_roxo":[105,2963,103,129],"catapulta_ferro":[210,2963,161,124],"movel_lareira":[373,2963,63,117],"muro_madeira_v":[438,2963,31,112],"muro_tijolo_aberto":[471,2963,85,111],"movel_fogao":[558,2963,64,111],"movel_cama_casal":[624,2963,126,105],"espinhos":[752,2963,120,103],"muro_tijolo_v":[874,2963,30,100],"movel_capsula":[906,2963,112,100],"muro_pedra_v":[1020,2963,29,99],"movel_cama":[1051,2963,102,95],"muro_madeira_aberto":[1155,2963,88,93],"muro_pedra_aberto":[1245,2963,88,93],"forte_forte_cidade":[1335,2963,180,91],"forte_colonia":[1517,2963,180,90],"muro_tijolo_portao":[1699,2963,75,87],"muro_fortaleza_v":[1776,2963,31,87],"movel_fogueira":[1809,2963,68,85],"muro_fortaleza_aberto":[1879,2963,90,84],"forte_forte":[0,3096,180,84],"muro_madeira_h":[182,3096,96,82],"forte_campo":[280,3096,180,81],"movel_cofre":[462,3096,63,78],"muro_madeira_portao":[527,3096,76,77],"muro_fortaleza_portao":[605,3096,79,75],"movel_mesa":[686,3096,90,74],"muro_ferro_aberto":[778,3096,87,73],"movel_cesto":[867,3096,70,73],"movel_bau_ferro":[939,3096,66,72],"muro_pedra_portao":[1007,3096,80,71],"muro_ferro_v":[1089,3096,31,71],"movel_bau":[1122,3096,66,64],"catapulta_impacto":[1190,3096,86,63],"muro_pedra_h":[1278,3096,96,63],"muro_ferro_portao":[1376,3096,75,62],"movel_banco":[1453,3096,81,62],"movel_mesa_redonda":[1536,3096,72,58],"muro_tijolo_h":[1610,3096,96,56],"muro_fortaleza_h":[1708,3096,96,56],"muro_ferro_h":[1806,3096,96,55],"catapulta_pilha":[1904,3096,62,42],"catapulta_pedra":[1968,3096,30,29]}/*FIM_ATLAS2*/;
+  const ATLAS2 = /*ATLAS2_MAP*/{"forte_muralha_chao":[0,0,760,651],"forte_muralha_fundo":[762,0,760,651],"forte_muralha_frente":[0,653,760,651],"forte_forte_cidade_fundo":[762,653,760,384],"forte_forte_cidade_frente":[0,1306,760,384],"forte_colonia_fundo":[762,1306,760,378],"forte_colonia_frente":[0,1692,760,378],"forte_forte_fundo":[762,1692,760,354],"forte_forte_frente":[0,2072,760,354],"forte_campo_fundo":[762,2072,760,341],"forte_campo_frente":[0,2428,760,341],"casa_cabana":[762,2428,340,310],"casa_saloon":[1104,2428,340,304],"casa_pedra":[1446,2428,340,302],"casa_castelo":[0,2771,340,295],"casa_tribal":[342,2771,340,289],"casa_castelo_dentro":[684,2771,340,278],"casa_tribal_dentro":[1026,2771,340,275],"casa_cabana_dentro":[1368,2771,340,274],"casa_saloon_dentro":[0,3068,340,274],"casa_domo":[342,3068,340,268],"casa_domo_dentro":[684,3068,340,268],"casa_pedra_dentro":[1026,3068,340,260],"torre_madeira":[1368,3068,119,203],"torre_cristal":[1489,3068,114,203],"torre_pedra":[1605,3068,117,198],"torre_balista_cristal":[1724,3068,113,196],"torre_canhao":[1839,3068,137,188],"torre_balista":[0,3344,131,185],"forte_muralha":[133,3344,180,154],"catapulta_0":[315,3344,150,135],"catapulta_1":[467,3344,150,135],"catapulta_2":[619,3344,150,135],"catapulta_3":[771,3344,150,135],"movel_cama_dossel":[923,3344,126,132],"cristal_claro":[1051,3344,103,131],"cristal_roxo":[1156,3344,103,129],"catapulta_ferro":[1261,3344,161,124],"movel_lareira":[1424,3344,63,117],"muro_madeira_v":[1489,3344,31,112],"muro_tijolo_aberto":[1522,3344,85,111],"movel_fogao":[1609,3344,64,111],"movel_cama_casal":[1675,3344,126,105],"espinhos":[1803,3344,120,103],"muro_tijolo_v":[1925,3344,30,100],"movel_capsula":[0,3531,112,100],"muro_pedra_v":[114,3531,29,99],"movel_cama":[145,3531,102,95],"muro_madeira_aberto":[249,3531,88,93],"muro_pedra_aberto":[339,3531,88,93],"forte_forte_cidade":[429,3531,180,91],"forte_colonia":[611,3531,180,90],"muro_tijolo_portao":[793,3531,75,87],"muro_fortaleza_v":[870,3531,31,87],"movel_fogueira":[903,3531,68,85],"muro_fortaleza_aberto":[973,3531,90,84],"forte_forte":[1065,3531,180,84],"muro_madeira_h":[1247,3531,96,82],"forte_campo":[1345,3531,180,81],"movel_cofre":[1527,3531,63,78],"muro_madeira_portao":[1592,3531,76,77],"muro_fortaleza_portao":[1670,3531,79,75],"movel_mesa":[1751,3531,90,74],"muro_ferro_aberto":[1843,3531,87,73],"movel_cesto":[1932,3531,70,73],"movel_bau_ferro":[0,3633,66,72],"muro_pedra_portao":[68,3633,80,71],"muro_ferro_v":[150,3633,31,71],"movel_bau":[183,3633,66,64],"catapulta_impacto":[251,3633,86,63],"muro_pedra_h":[339,3633,96,63],"muro_ferro_portao":[437,3633,75,62],"movel_banco":[514,3633,81,62],"movel_mesa_redonda":[597,3633,72,58],"muro_tijolo_h":[671,3633,96,56],"muro_fortaleza_h":[769,3633,96,56],"muro_ferro_h":[867,3633,96,55],"catapulta_pilha":[965,3633,62,42],"catapulta_pedra":[1029,3633,30,29]}/*FIM_ATLAS2*/;
   let art2 = null;
   (function loadArt2() {
     const img = new Image();
@@ -2065,7 +2073,7 @@
   const $ = id => document.getElementById(id);
   const canvas = $('game'), ctx = canvas.getContext('2d');
   const lightCv = document.createElement('canvas'), lctx = lightCv.getContext('2d');
-  let invDirty = true, lastMana = 5;
+  let invDirty = true, lastMana = 5, pushT = 0;
   const slotEls = [];
 
   function buildHotbar() {
@@ -3139,6 +3147,7 @@
         // muros altos: dentro do forte a frente fica transparente; atrás dele, o fundo
         const a = d.w / 2, ox = Math.abs(p.x - b.x - a);
         const behind = b !== fort && ox < a && p.y < b.y + d.h / 2 - (d.h / 2) * Math.max(0, 1 - ox / a) && p.y > topY + 0.4;
+        if (ATLAS2[d.img + '_chao']) ents.push({ y: -1e9, f: () => drawBuild(b, d.img + '_chao', camX, camY) });   // terra na frente do portão: chão
         ents.push({ y: y0 - 3, f: () => drawBuild(b, d.img + '_fundo', camX, camY, behind ? 0.5 : 1) });
         ents.push({ y: key, f: () => drawBuild(b, d.img + '_frente', camX, camY, b === fort ? 0.42 : 1) });
         fronts.push({ b, d, key });
@@ -3483,7 +3492,8 @@
         const [qx, qy] = doorPoint(b);
         if (Math.hypot(qx - p.x, qy - p.y) > 2.2) continue;
         const inside = insideOf(p.x, p.y, d.tipo) === b;
-        drawLabel(inside ? 'Usar na parede: sair' : 'Usar na parede: entrar', qx * tp - camX, qy * tp - camY - 18 * u, u, '#c9a34a');
+        if (S.hints.porta) continue;
+        drawLabel(inside ? 'Ande contra a parede: sair' : 'Ande contra a parede: entrar', qx * tp - camX, qy * tp - camY - 18 * u, u, '#c9a34a');
       }
       for (const b of S.bots) {
         const n = botCount(b);
@@ -3512,10 +3522,16 @@
       const len = Math.hypot(vx, vy);
       const slow = p.z === 0 && S.water[Math.floor(p.y) * W + Math.floor(p.x)] > 0 ? 0.6 : 1;   // anda mais devagar na água
       vx = vx / len * SPEED * slow * dt; vy = vy / len * SPEED * slow * dt;
+      const ox = p.x, oy = p.y;
       if (canStand(p.x + vx, p.y, p.z, 0.3)) p.x += vx;
       if (canStand(p.x, p.y + vy, p.z, 0.3)) p.y += vy;
+      // andando contra a parede de uma casa ou fortaleza: entra (ou sai) sozinho depois de um instante
+      if (Math.hypot(p.x - ox, p.y - oy) < Math.hypot(vx, vy) * 0.3 && p.z === 0 && S.builds.length) {
+        pushT += dt;
+        if (pushT > 0.22) { pushT = -0.5; const door = doorAction(); if (door) door(); }   // -0.5: espera antes de repetir
+      } else pushT = Math.min(0, pushT + dt);
       walkPhase += dt * 12;
-    }
+    } else pushT = Math.min(0, pushT + dt);
     if (actHeld && cooldown <= 0 && !openSheet) useTool();
 
     accWater += dt; accFarm += dt; accSave += dt; accSpawn += dt; accHud += dt;
@@ -3638,7 +3654,7 @@
   $('btn-staff').addEventListener('click', () => { closeSheet(); openStaff(); });
 
   // ?teste na URL: expõe o estado para testes automáticos
-  if (/[?&]teste\b/.test(location.search)) window.TerraDebug = { get S() { return S; }, catapultInFront, useTool, target, placeKit, pickUp, candidate, placeProblem, showSheet, botMine, save };
+  if (/[?&]teste\b/.test(location.search)) window.TerraDebug = { get S() { return S; }, get pushT() { return pushT; }, doorAction, catapultInFront, useTool, target, placeKit, pickUp, candidate, placeProblem, showSheet, botMine, save };
 
   async function boot() {
     buildSprites();
