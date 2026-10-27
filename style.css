@@ -370,3 +370,8 @@ kbd {
 .btn.btn-roxo { background: #5b2aa8; border-color: #a66bff; color: #fff; }
 .aviso-form input, .aviso-form textarea { flex: 1 1 100%; }
 .ev-form textarea { background: #1d1814; color: inherit; border: 1px solid #5a4a3c; border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 14px; resize: vertical; }
+.skin-evento { background: linear-gradient(90deg, rgba(166,107,255,.16), transparent 70%); border-radius: 6px; }
+.skin-evento small { color: #d4b8ff; }
+.venda-preco { width: 90px; background: #1d1814; color: inherit; border: 1px solid #5a4a3c; border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 14px; }
+.gestos { display: flex; gap: 6px; }
+.btn.gesto { padding: 2px 8px; font-size: 18px; line-height: 1.3; min-width: 0; background: rgba(20,17,15,.72); }
