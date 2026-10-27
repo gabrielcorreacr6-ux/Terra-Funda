@@ -1840,6 +1840,7 @@
   }
   function botsTick(dt) {
     for (const b of S.bots) {
+      b.still = b.moving || b.job ? 0 : (b.still || 0) + dt;
       if (b.tipo === 'fazenda') {
         b.t += dt;
         if (!b.job && b.t >= 2) { b.t = 0; b.job = farmJob(b); b.msg = b.job ? '' : 'nada para colher'; if (b.job) { b.tx = b.job.x + 0.5; b.ty = b.job.y + 0.5; } }
@@ -4011,7 +4012,7 @@
     if (b.tipo === 'fazenda') {   // ajudante de fazenda (npc_ajudante.jpg)
       const v = BOT_VIEW[b.face], n = framesOf('faz', v);
       let nm = b.mode === 'dig' ? `faz_${b.job && b.job.act === 'plantar' ? 'plantar' : 'colher'}_${Math.floor(b.phase) % 2}`
-        : b.moving && n ? `faz_${v}_${Math.floor(b.phase) % n}` : !b.job && b.msg ? 'faz_sentado' : `faz_${v}_0`;
+        : b.moving && n ? `faz_${v}_${Math.floor(b.phase) % n}` : !b.job && (b.still || 0) > 5 ? 'faz_sentado' : `faz_${v}_0`;   // só senta depois de 5 s parado
       if (b.happy > performance.now()) nm = 'faz_feliz';
       if (drawObj(nm, sx, bottom, 1.25 * tp, flip)) return;
       ctx.filter = 'hue-rotate(75deg) saturate(1.3)';
