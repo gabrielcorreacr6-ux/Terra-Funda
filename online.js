@@ -55,6 +55,7 @@
     if (/already registered|already exists/i.test(m)) return 'Esse e-mail já tem conta. Use Entrar.';
     if (/duplicate key.*username|profiles_username_key|Database error saving new user/i.test(m)) return 'Esse nome de jogador já está em uso.';
     if (/Password should be/i.test(m)) return 'A senha precisa ter pelo menos 6 caracteres.';
+    if (/Esse é o seu código/.test(m)) return 'Esse é o seu próprio código.';
     if (/Jogador não encontrado/.test(m)) return 'Não achei nenhum jogador com esse código.';
     if (/rate limit|security purposes/i.test(m)) return 'Muitas tentativas. Espere um minuto e tente de novo.';
     if (/same.*password|different from the old/i.test(m)) return 'A nova senha precisa ser diferente da antiga.';
@@ -132,6 +133,48 @@
   T.giveCoins = (target, quantidade) => rpc('admin_give_coins', { target, quantidade });
   T.giftSkin = (codigo, skin) => rpc('presentear_skin', { codigo, skin });
   T.bless = (target, arma, nivel, horas) => rpc('admin_bless', { target, arma, nivel, horas });
+
+
+  // ---- Chat ao vivo (Supabase Realtime). Nada fica guardado: a mensagem só passa por quem está conectado.
+  // Canais: "tf-geral" (todos) e "tf-dm-<código>" (caixa de cada jogador, para privadas e de amigos).
+  const chat = { onMsg: null, geral: null, caixa: null, ultimo: 0 };
+  T.chatReady = false;
+  T.chatStart = function (onMsg) {
+    if (!enabled || !T.user || !T.profile || chat.geral) return;
+    chat.onMsg = onMsg;
+    const cfg = { config: { broadcast: { self: false } } };
+    chat.geral = sb.channel('tf-geral', cfg).on('broadcast', { event: 'msg' }, ({ payload }) => onMsg(payload)).subscribe(st => { T.chatReady = st === 'SUBSCRIBED'; });
+    chat.caixa = sb.channel('tf-dm-' + T.profile.codigo, cfg).on('broadcast', { event: 'msg' }, ({ payload }) => onMsg(payload)).subscribe();
+  };
+  const meuNome = () => (T.isAdmin ? 'Equipe' : T.profile.username);   // o administrador continua invisível
+  function enviar(canal, payload) {
+    return new Promise((ok, falha) => {
+      if (canal === 'tf-geral' && chat.geral) { chat.geral.send({ type: 'broadcast', event: 'msg', payload }).then(ok, falha); return; }
+      const ch = sb.channel(canal);
+      const t = setTimeout(() => { sb.removeChannel(ch); falha(new Error('Sem conexão com o chat')); }, 8000);
+      ch.subscribe(st => {
+        if (st !== 'SUBSCRIBED') return;
+        ch.send({ type: 'broadcast', event: 'msg', payload }).then(r => { clearTimeout(t); sb.removeChannel(ch); ok(r); }, e => { clearTimeout(t); sb.removeChannel(ch); falha(e); });
+      });
+    });
+  }
+  // tipo: 'todos' | 'privado' | 'amigos'. destinos: códigos TF- (privado) ou lista de amigos
+  T.chatSend = async function (tipo, texto, destinos) {
+    if (!T.user || !T.profile) throw new Error('Entre na sua conta para usar o chat');
+    if (T.banned) throw new Error('Conta suspensa');
+    texto = String(texto || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (!texto) return null;
+    const agora = Date.now();
+    if (agora - chat.ultimo < 1500) throw new Error('Espere um pouco antes de mandar outra mensagem');
+    chat.ultimo = agora;
+    const msg = { de: T.profile.codigo, nome: meuNome(), texto, tipo, t: agora, para: tipo === 'privado' ? destinos : undefined };
+    if (tipo === 'todos') await enviar('tf-geral', msg);
+    else for (const c of destinos) await enviar('tf-dm-' + c, msg);
+    return msg;
+  };
+  T.addFriend = codigo => rpc('adicionar_amigo', { codigo });
+  T.removeFriend = alvo => rpc('remover_amigo', { alvo });
+  T.friends = () => rpc('meus_amigos', {});
 
   window.TerraOnline = T;
 })();

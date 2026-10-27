@@ -39,7 +39,7 @@
     </div>
     <div class="toolrow">
       <button type="button" class="mini" id="btn-home" title="Voltar para casa (H)">Casa</button>
-      <div id="toolname" class="toolname">Picareta</div>
+      <div id="toolname" class="toolname" role="button" tabindex="0" title="Modo construção (R)">Picareta</div>
       <button type="button" class="mini" id="btn-bag" title="Mochila (I)">Mochila</button>
     </div>
     <nav class="hotbar" id="hotbar" aria-label="Ferramentas"></nav>
@@ -54,6 +54,29 @@
         <button type="button" class="btn" data-close>Fechar</button>
       </div>
       <div id="shop-body"></div>
+    </div>
+  </div>
+
+  <button type="button" class="chat-bar" id="chat-bar" aria-label="Abrir o chat"><span class="chat-ico" aria-hidden="true">💬</span><span id="chat-last">Chat</span><span class="chat-badge" id="chat-badge" hidden>0</span></button>
+
+  <div class="sheet" id="sheet-chat" hidden>
+    <div class="panel chat-panel" role="dialog" aria-modal="true" aria-labelledby="chat-title">
+      <div class="panel-head">
+        <h2 id="chat-title">Chat</h2>
+        <button type="button" class="btn" data-close>Fechar</button>
+      </div>
+      <div class="shop-tabs" id="chat-tabs">
+        <button type="button" class="btn btn-gold" data-ctab="todos">Todos</button>
+        <button type="button" class="btn" data-ctab="privado">Privado</button>
+        <button type="button" class="btn" data-ctab="amigos">Amigos</button>
+      </div>
+      <div id="chat-extra"></div>
+      <div class="chat-log" id="chat-log" aria-live="polite"></div>
+      <form class="chat-form" id="chat-form" autocomplete="off">
+        <input id="chat-input" type="text" maxlength="200" placeholder="Escreva uma mensagem">
+        <button type="submit" class="btn btn-gold">Enviar</button>
+      </form>
+      <p class="muted small-text" id="chat-note">As mensagens não ficam guardadas: só quem está jogando agora recebe.</p>
     </div>
   </div>
 
