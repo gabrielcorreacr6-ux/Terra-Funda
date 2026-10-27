@@ -1683,6 +1683,15 @@
     }
     return null;
   }
+  function clearUnderHouse(b) {
+    const d = BUILDS[b.k];
+    if (d.tipo !== 'casa') return;
+    for (let y = Math.max(1, b.y - d.h - 2); y < b.y + d.h + 1; y++) for (let x = b.x - 1; x < b.x + d.w + 1; x++) {
+      const i = I(x, y, 0), t = S.tiles[i];
+      const dug = t === T.TILLED || t === T.CROP || t === T.VALA, obj = (t === T.TREE || t === T.SAPLING || t === T.ROCK) && shapeHit(b, x + 0.5, y + 0.5);
+      if (dug || obj) { S.tiles[i] = T.GRASS; S.aux[i] = 0; S.water[i] = 0; }
+    }
+  }
   function addBuild(c) {
     const d = BUILDS[c.k];
     const b = { k: d.tipo === 'forte' && d.arte ? d.arte : c.k, x: c.x, y: c.y, dono: myId(), flip: !!c.flip };
@@ -1695,6 +1704,7 @@
       }
     }
     S.builds.push(b);
+    clearUnderHouse(b);
     return b;
   }
   function placeKit(k) {
@@ -3831,9 +3841,12 @@
       const rr = ATLAS2[d.tipo === 'forte' ? d.img + '_fundo' : d.img];
       const topY = rr ? b.y + d.h + d.pad - d.w * rr[3] / rr[2] : b.y;
       if (d.tipo === 'casa') {
-        // a casa fica sempre opaca; quem anda perto dela é desenhado por cima (ver abaixo)
-        ents.push({ y: key, f: () => drawBuild(b, d.img, camX, camY) });
-        fronts.push({ b, d, key, casa: true, topY });
+        // atrás da casa (paredes do fundo): a casa fica meio transparente e você passa por trás;
+        // na frente e dos lados da frente: você fica por cima do desenho
+        const a = d.w / 2, ox = Math.abs(p.x - b.x - a), cy = b.y + d.h / 2;
+        const behind = ox < a + 0.8 && p.y < cy - 0.3 && p.y > topY + 0.2;
+        ents.push({ y: key, f: () => drawBuild(b, d.img, camX, camY, behind ? 0.55 : 1) });
+        fronts.push({ b, d, key, casa: true, topY, behind });
       } else if (d.tipo === 'forte') {
         // muros altos: dentro do forte a frente fica transparente; atrás dele, o fundo
         const a = d.w / 2, ox = Math.abs(p.x - b.x - a);
@@ -4286,7 +4299,7 @@
       if (v.casa) {   // casas: o personagem fica sempre por cima do desenho; bichos seguem a ordem normal
         if (!e.eu) continue;
         const a = v.d.w / 2, ox = Math.abs(e.wx - v.b.x - a);
-        if (ox < a + 1 && e.wy > v.topY - 0.5 && e.wy < v.b.y + v.d.h + 1.5) e.y = Math.max(e.y, v.key + 0.5);
+        if (ox < a + 1 && e.wy > v.topY - 0.5 && e.wy < v.b.y + v.d.h + 1.5) e.y = v.behind ? Math.min(e.y, v.key - 0.5) : Math.max(e.y, v.key + 0.5);
         continue;
       }
       // quem está na frente da parede da frente de uma casa ou forte é desenhado depois dela
@@ -4460,15 +4473,7 @@
     homing = null;
     lastBiome = null;
     interior = S.p.z === 0 ? insideOf(S.p.x, S.p.y, 'casa') : null;
-    for (const b of S.builds) {   // casas antigas: limpa o chão embaixo
-      const d = BUILDS[b.k];
-      if (d.tipo !== 'casa') continue;
-      for (let y = b.y; y < b.y + d.h; y++) for (let x = b.x; x < b.x + d.w; x++) {
-        if (!shapeHit(b, x + 0.5, y + 0.5)) continue;
-        const i = I(x, y, 0), t = S.tiles[i];
-        if (t === T.TILLED || t === T.CROP || t === T.VALA || t === T.TREE || t === T.SAPLING || t === T.ROCK) { S.tiles[i] = T.GRASS; S.aux[i] = 0; }
-      }
-    }
+    for (const b of S.builds) clearUnderHouse(b);   // casas antigas: limpa o chão embaixo
     hits.clear();
     invDirty = true;
     updateHud();
