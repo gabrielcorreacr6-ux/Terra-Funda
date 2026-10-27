@@ -1358,7 +1358,13 @@
   }
 
   // Plantações crescem de dia (bem mais rápido com água ao lado); terra arada vazia volta a ser grama.
+  const NEVE_MS = 2 * 60 * 1000, NEVE_ID = BIOMES.findIndex(b => b.id === 'neve'), neveAt = new Map();
+  function nearSource(x, y) {
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) if (S.tiles[I(x + dx, y + dy, 0)] === T.SOURCE) return true;
+    return false;
+  }
   function farmTick() {
+    for (const [i] of neveAt) { const t = S.tiles[i]; if (t !== T.TILLED && t !== T.VALA) neveAt.delete(i); }
     const tl = S.tiles, aux = S.aux, day = isDay();
     for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
       const i = y * W + x, t = tl[i];
@@ -1368,6 +1374,10 @@
           const chance = (day ? (wet ? 0.16 : 0.03) : (wet && B.id !== 'neve' ? 0.03 : 0)) * B.cresce;
           if (Math.random() < chance) aux[i]++;
         }
+      } else if ((t === T.TILLED || t === T.VALA) && S.biome[i] === NEVE_ID) {
+        // na neve, o chão cavado volta a ficar coberto 2 minutos depois (as lagoas ficam)
+        if (!neveAt.has(i)) { if (!nearSource(x, y)) neveAt.set(i, S.time); }
+        else if (S.time - neveAt.get(i) > NEVE_MS) { tl[i] = T.GRASS; aux[i] = 0; S.water[i] = 0; neveAt.delete(i); }
       } else if (t === T.TILLED) {
         if (Math.random() < 0.003) tl[i] = T.GRASS;
       } else if (t === T.SAPLING) {
@@ -2726,6 +2736,12 @@
         const sub = brk ? `Quebrada · fazer outra: ${costTxt(BASIC[v].receita)}` : `${left} de ${max} usos` + (basic ? ` · fazer outra: ${costTxt(BASIC[v].receita)}` : ' · da loja');
         html += `<div class="row"><span></span><span class="name"><b>${basic ? BASIC[v].nome : shopName(v)}</b><small>${sub}</small></span><span></span>${btn}</div>`;
       }
+      const comprados = SHOP.filter(it => !it.repetir && S.owned[it.id]);
+      if (comprados.length) {
+        html += '<div class="section-label">Comprados na loja · descartar</div><div class="list">';
+        for (const it of comprados) html += `<div class="row"><span></span><span class="name"><b>${it.nome}</b><small>Descartar não devolve moedas</small></span><span></span><button type="button" class="btn btn-danger" data-discard="${it.id}">Descartar</button></div>`;
+        html += '</div>';
+      }
       if (S.owned.capacete) html += `<div class="row"><span></span><span class="name"><b>Capacete com lanterna${wearing('capacete') ? '' : ' (guardado)'}</b><small>Bateria: ${Math.ceil((S.dur.capacete ?? DUR.capacete) / 60)} min de luz no escuro</small></span><span></span><button type="button" class="btn" data-equip="capacete">${wearing('capacete') ? 'Tirar' : 'Colocar'}</button></div>`;
       html += '</div>';
       if (total) html += `<p class="muted small-text">Tudo na mochila vale cerca de ${coinsTxt(total)}.</p>`;
@@ -2764,7 +2780,7 @@
     $('shop-body').innerHTML = html;
   }
 
-  let shopTab = 'ferramentas';
+  let shopTab = 'ferramentas', giftOpen = null;
   function renderBuyList() {
     let html = '<div class="shop-tabs" role="tablist">' + SHOP_TABS.map(([k, n]) =>
       `<button type="button" class="btn ${shopTab === k ? 'btn-gold' : ''}" data-tab="${k}" aria-pressed="${shopTab === k}">${n}</button>`).join('') + '</div>';
@@ -2790,8 +2806,11 @@
         let btn;
         if (wearing) btn = `<button type="button" class="btn" data-skin="off">Tirar</button>`;
         else if (has) btn = `<button type="button" class="btn btn-gold" data-skin="${sk.id}">Vestir</button>`;
+        if (has) btn += `<button type="button" class="btn" data-gift="${sk.id}">Presentear</button>`;
         else btn = `<button type="button" class="btn ${S.coins >= sk.preco ? 'btn-gold' : ''}" data-skinbuy="${sk.id}" ${S.coins >= sk.preco ? '' : 'disabled'}>${sk.preco} moedas</button>`;
-        html += `<div class="row skin-row">${skinThumb(sk.id)}<span class="name"><b>${sk.nome}</b><small>${sk.raridade} · só visual${wearing ? ' · usando' : ''}</small></span><span></span>${btn}</div>`;
+        html += `<div class="row skin-row">${skinThumb(sk.id)}<span class="name"><b>${sk.nome}</b><small>${sk.raridade} · só visual${wearing ? ' · usando' : ''}</small></span><span></span><span class="admin-btns">${btn}</span></div>`;
+        if (giftOpen === sk.id) html += `<div class="gift-form"><input id="gift-code" type="text" placeholder="Código do jogador (TF-…)" autocomplete="off" maxlength="12">
+          <button type="button" class="btn btn-gold" data-giftsend="${sk.id}">Enviar presente</button><button type="button" class="btn" data-gift="">Cancelar</button></div>`;
       }
       html += '</div>';
     } else {
@@ -3324,6 +3343,32 @@
       if (e.target === sh || e.target.closest('[data-close]')) { closeSheet(); return; }
       const eq = e.target.closest('[data-equip]');
       if (eq) { S.tirado = S.tirado || {}; S.tirado[eq.dataset.equip] = wearing(eq.dataset.equip); toast(wearing(eq.dataset.equip) ? 'Capacete colocado' : 'Capacete guardado na mochila'); save(); renderShop(); return; }
+      const gf = e.target.closest('[data-gift]');
+      if (gf) {
+        if (gf.dataset.gift && !(NET.enabled && NET.user)) { toast('Para presentear, entre na sua conta (precisa das contas ligadas)', 'warn', 3500); return; }
+        giftOpen = gf.dataset.gift || null; renderShop(); const inp = document.getElementById('gift-code'); if (inp) inp.focus(); return;
+      }
+      const gs = e.target.closest('[data-giftsend]');
+      if (gs) {
+        const id = gs.dataset.giftsend, code = (document.getElementById('gift-code').value || '').trim().toUpperCase();
+        if (!/^TF-[A-Z0-9]{6}$/.test(code)) { toast('Digite o código no formato TF-XXXXXX', 'warn'); return; }
+        gs.disabled = true;
+        save(true);
+        NET.giftSkin(code, id).then(nome => {
+          S.skins = (S.skins || []).filter(x => x !== id); if (S.skin === id) S.skin = null;
+          giftOpen = null; invDirty = true; save(true);
+          toast(`Skin enviada para ${nome}!`, 'gold', 4000); renderShop();
+        }).catch(err => { gs.disabled = false; toast(err.message, 'warn', 4000); });
+        return;
+      }
+      const dc = e.target.closest('[data-discard]');
+      if (dc) {
+        const id = dc.dataset.discard;
+        if (!dc.dataset.armed) { dc.dataset.armed = 1; dc.textContent = 'Confirmar?'; setTimeout(() => { if (dc.isConnected) { delete dc.dataset.armed; dc.textContent = 'Descartar'; } }, 3500); return; }
+        delete S.owned[id]; delete S.dur[id];
+        if (['arco', 'cetro', 'livro'].includes(TOOLS[S.tool].id) && !S.owned[TOOLS[S.tool].id]) S.tool = 0;
+        toast(`Descartou: ${SHOP.find(x => x.id === id).nome}`); invDirty = true; save(); renderShop(); return;
+      }
       const tr = e.target.closest('[data-trash]');
       if (tr) {
         const k = tr.dataset.trash;
@@ -3781,11 +3826,9 @@
       const rr = ATLAS2[d.tipo === 'forte' ? d.img + '_fundo' : d.img];
       const topY = rr ? b.y + d.h + d.pad - d.w * rr[3] / rr[2] : b.y;
       if (d.tipo === 'casa') {
-        // jogador atrás da casa: a casa fica meio transparente para ele não sumir
-        const a = d.w / 2, ox = Math.abs(p.x - b.x - a);
-        const behind = ox < a + 0.3 && p.y < b.y + d.h / 2 + (d.h / 2) * Math.max(0, 1 - ox / a) && p.y > topY + 0.4;
-        ents.push({ y: key, f: () => drawBuild(b, d.img, camX, camY, behind ? 0.55 : 1) });
-        fronts.push({ b, d, key });
+        // a casa fica sempre opaca; quem anda perto dela é desenhado por cima (ver abaixo)
+        ents.push({ y: key, f: () => drawBuild(b, d.img, camX, camY) });
+        fronts.push({ b, d, key, casa: true, topY });
       } else if (d.tipo === 'forte') {
         // muros altos: dentro do forte a frente fica transparente; atrás dele, o fundo
         const a = d.w / 2, ox = Math.abs(p.x - b.x - a);
@@ -4224,8 +4267,7 @@
       if (hiddenInHouse(b.x, b.y)) continue;
       ents.push({ y: by + 4 * u, wx: b.x, wy: b.y, f: () => drawBot(b, bx, by + 4 * u) });
     }
-    ents.push({ y: psy + 6 * u, wx: p.x, wy: p.y, f: () => wade(p.x, p.y, psy + 6 * u, 4 * u, 5.5 * u, () => drawPlayer(psx, psy, u, p.dir, moving, walkPhase)) });
-    ents.sort((e1, e2) => e1.y - e2.y);
+    ents.push({ y: psy + 6 * u, wx: p.x, wy: p.y, eu: true, f: () => wade(p.x, p.y, psy + 6 * u, 4 * u, 5.5 * u, () => drawPlayer(psx, psy, u, p.dir, moving, walkPhase)) });
     for (const e of ents) {   // árvores e bichos atrás do muro do fundo de um forte ficam atrás dele
       const ex = e.wx ?? e.tx, ey = e.wy ?? e.ty;
       if (ex === undefined) continue;
@@ -4236,12 +4278,19 @@
       }
     }
     for (const e of ents) if (e.wx !== undefined) for (const v of fronts) {
+      if (v.casa) {   // casas: o personagem fica sempre por cima do desenho; bichos seguem a ordem normal
+        if (!e.eu) continue;
+        const a = v.d.w / 2, ox = Math.abs(e.wx - v.b.x - a);
+        if (ox < a + 1 && e.wy > v.topY - 0.5 && e.wy < v.b.y + v.d.h + 1.5) e.y = Math.max(e.y, v.key + 0.5);
+        continue;
+      }
       // quem está na frente da parede da frente de uma casa ou forte é desenhado depois dela
       const a = v.d.w / 2, bb = v.d.h / 2, ox = Math.abs(e.wx - v.b.x - a);
       if (ox >= a + 0.4) continue;
       const fe = v.b.y + bb + bb * Math.max(0, 1 - ox / a);
       e.y = e.wy >= fe - 0.05 ? Math.max(e.y, v.key + 0.5) : Math.min(e.y, v.key - 0.5);
     }
+    ents.sort((e1, e2) => e1.y - e2.y);   // ordena só depois dos ajustes acima
     for (const e of ents) e.f();
     drawSmoke(camX, camY, now);
     drawShots(camX, camY, now);
@@ -4406,6 +4455,15 @@
     homing = null;
     lastBiome = null;
     interior = S.p.z === 0 ? insideOf(S.p.x, S.p.y, 'casa') : null;
+    for (const b of S.builds) {   // casas antigas: limpa o chão embaixo
+      const d = BUILDS[b.k];
+      if (d.tipo !== 'casa') continue;
+      for (let y = b.y; y < b.y + d.h; y++) for (let x = b.x; x < b.x + d.w; x++) {
+        if (!shapeHit(b, x + 0.5, y + 0.5)) continue;
+        const i = I(x, y, 0), t = S.tiles[i];
+        if (t === T.TILLED || t === T.CROP || t === T.VALA || t === T.TREE || t === T.SAPLING || t === T.ROCK) { S.tiles[i] = T.GRASS; S.aux[i] = 0; }
+      }
+    }
     hits.clear();
     invDirty = true;
     updateHud();

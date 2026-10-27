@@ -55,6 +55,7 @@
     if (/already registered|already exists/i.test(m)) return 'Esse e-mail já tem conta. Use Entrar.';
     if (/duplicate key.*username|profiles_username_key|Database error saving new user/i.test(m)) return 'Esse nome de jogador já está em uso.';
     if (/Password should be/i.test(m)) return 'A senha precisa ter pelo menos 6 caracteres.';
+    if (/Jogador não encontrado/.test(m)) return 'Não achei nenhum jogador com esse código.';
     if (/rate limit|security purposes/i.test(m)) return 'Muitas tentativas. Espere um minuto e tente de novo.';
     if (/same.*password|different from the old/i.test(m)) return 'A nova senha precisa ser diferente da antiga.';
     if (/Email not confirmed/i.test(m)) return 'Confirme seu e-mail pelo link que enviamos e depois entre.';
@@ -129,6 +130,7 @@
   T.ban = (target, dias, motivo) => rpc('staff_ban', { target, dias, motivo: motivo || null });
   T.setRole = (target, novo) => rpc('admin_set_role', { target, novo });
   T.giveCoins = (target, quantidade) => rpc('admin_give_coins', { target, quantidade });
+  T.giftSkin = (codigo, skin) => rpc('presentear_skin', { codigo, skin });
   T.bless = (target, arma, nivel, horas) => rpc('admin_bless', { target, arma, nivel, horas });
 
   window.TerraOnline = T;

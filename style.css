@@ -323,3 +323,5 @@ kbd {
 .edit-bar > span { font-weight: 600; margin-right: 4px; white-space: nowrap; }
 .edit-bar .btn { padding: 6px 10px; font-size: .9em; }
 @media (pointer: coarse) { .edit-bar { bottom: calc(360px + env(safe-area-inset-bottom, 0px)); } }
+.gift-form { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 10px; border-bottom: 1px solid var(--line); }
+.gift-form input { flex: 1 1 160px; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: #2a2420; color: inherit; }
