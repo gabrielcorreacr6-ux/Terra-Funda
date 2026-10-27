@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Terra Funda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Pixelify+Sans:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game" aria-label="Mundo do jogo"></canvas>
+
+  <header class="hud">
+    <div class="chip coins" title="Moedas"><span class="coin" aria-hidden="true"></span><span id="coins">0</span></div>
+    <div class="chip clock"><span id="clock">07:00</span><span id="depth">Superfície</span></div>
+    <div class="hud-actions">
+      <button id="btn-shop" class="btn btn-gold" type="button">Loja</button>
+      <button id="btn-menu" class="btn" type="button">Menu</button>
+    </div>
+  </header>
+
+  <div id="toasts" aria-live="polite"></div>
+
+  <div class="bottom">
+    <div class="touch" id="touch" hidden>
+      <div class="dpad">
+        <button type="button" class="d up" data-dir="up" aria-label="Cima"></button>
+        <button type="button" class="d left" data-dir="left" aria-label="Esquerda"></button>
+        <button type="button" class="d right" data-dir="right" aria-label="Direita"></button>
+        <button type="button" class="d down" data-dir="down" aria-label="Baixo"></button>
+      </div>
+      <div class="acts">
+        <button type="button" id="btn-f" class="act act-f">Descer</button>
+        <button type="button" id="btn-a" class="act act-a">Usar</button>
+      </div>
+    </div>
+    <div class="toolrow">
+      <button type="button" class="mini" id="btn-home" title="Voltar para casa (H)">Casa</button>
+      <div id="toolname" class="toolname">Picareta</div>
+      <button type="button" class="mini" id="btn-bag" title="Mochila (I)">Mochila</button>
+    </div>
+    <nav class="hotbar" id="hotbar" aria-label="Ferramentas"></nav>
+    <p class="keys" id="keys"><kbd>WASD</kbd> andar · <kbd>Espaço</kbd> usar · <kbd>F</kbd> descer/subir · <kbd>1</kbd>–<kbd>9</kbd> ferramentas · <kbd>I</kbd> mochila · <kbd>H</kbd> casa · <kbd>R</kbd> construir · <kbd>B</kbd> loja</p>
+  </div>
+
+  <div class="sheet" id="sheet-shop" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shop-title">
+      <div class="panel-head">
+        <h2 id="shop-title">Loja</h2>
+        <div class="chip coins small"><span class="coin" aria-hidden="true"></span><span id="shop-coins">0</span></div>
+        <button type="button" class="btn" data-close>Fechar</button>
+      </div>
+      <div id="shop-body"></div>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-build" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="build-title">
+      <div class="panel-head">
+        <h2 id="build-title">Construir</h2>
+        <button type="button" class="btn" data-close>Fechar</button>
+      </div>
+      <div id="build-body"></div>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-menu" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+      <div class="panel-head">
+        <h2 id="menu-title">Menu</h2>
+        <button type="button" class="btn" data-close>Fechar</button>
+      </div>
+      <div class="menu-list">
+        <p class="account" id="account-line" hidden></p>
+        <button type="button" class="btn btn-gold" id="btn-staff" hidden>Painel da equipe</button>
+        <button type="button" class="btn" id="btn-char">Trocar personagem</button>
+        <button type="button" class="btn" id="btn-sethome">Definir casa aqui</button>
+        <button type="button" class="btn" id="btn-help">Como jogar</button>
+        <button type="button" class="btn" id="btn-save">Salvar agora</button>
+        <button type="button" class="btn btn-danger" id="btn-new">Novo mundo</button>
+        <div class="confirm" id="confirm-new" hidden>
+          <p>Isso apaga o mundo atual, sua casa e sua mochila.</p>
+          <div class="confirm-row">
+            <button type="button" class="btn btn-danger" id="btn-new-yes">Apagar e criar novo</button>
+            <button type="button" class="btn" id="btn-new-no">Cancelar</button>
+          </div>
+        </div>
+        <button type="button" class="btn" id="btn-logout" hidden>Sair da conta</button>
+        <p class="muted small-text" id="save-note">O progresso é salvo neste navegador a cada 15 segundos.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-auth" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <div class="panel-head"><h2 id="auth-title">Entrar em Terra Funda</h2></div>
+      <form id="auth-form" class="auth-form" novalidate>
+        <div class="auth-tabs" role="tablist">
+          <button type="button" class="btn btn-gold" id="auth-tab-in" aria-pressed="true">Entrar</button>
+          <button type="button" class="btn" id="auth-tab-up" aria-pressed="false">Criar conta</button>
+        </div>
+        <label class="field" id="auth-name-row" hidden>Nome de jogador
+          <input id="auth-name" type="text" autocomplete="nickname" maxlength="20" placeholder="3 a 20 letras ou números">
+        </label>
+        <label class="field" id="auth-email-row">E-mail
+          <input id="auth-email" type="email" autocomplete="email" required>
+        </label>
+        <label class="field" id="auth-pass-row"><span id="auth-pass-label">Senha</span>
+          <input id="auth-pass" type="password" autocomplete="current-password" minlength="6" required>
+        </label>
+        <p class="auth-msg" id="auth-msg" role="status"></p>
+        <button type="submit" class="btn btn-gold" id="auth-submit">Entrar</button>
+        <button type="button" class="linkbtn" id="auth-forgot">Esqueci minha senha</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-banned" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="ban-title">
+      <div class="panel-head"><h2 id="ban-title">Conta suspensa</h2></div>
+      <p id="ban-text"></p>
+      <button type="button" class="btn" id="ban-logout">Sair</button>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-chars" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="chars-title">
+      <div class="panel-head">
+        <h2 id="chars-title">Escolha seu personagem</h2>
+        <button type="button" class="btn" id="char-close" data-close>Fechar</button>
+      </div>
+      <div class="char-list" id="char-list"></div>
+      <p class="muted small-text">Dá para trocar depois pelo Menu.</p>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-admin" hidden>
+    <div class="panel admin" role="dialog" aria-modal="true" aria-labelledby="admin-title">
+      <div class="panel-head">
+        <h2 id="admin-title">Administrador</h2>
+        <button type="button" class="btn" data-close>Fechar</button>
+      </div>
+      <p class="muted small-text" id="admin-note">Modo de teste local. Com contas ligadas, este painel só abre para a equipe, conferido pelo servidor.</p>
+      <div class="minimap-wrap"><canvas id="minimap" width="960" height="640" aria-label="Minimapa do mundo com as jazidas"></canvas></div>
+      <p class="admin-mode" id="admin-mode" hidden></p>
+      <div id="admin-players-wrap" hidden>
+        <div class="section-label">Jogadores</div>
+        <div class="search-row">
+          <input id="admin-search" type="search" placeholder="Nome ou código (TF-…)" aria-label="Buscar jogador">
+          <button type="button" class="btn" id="admin-search-btn">Buscar</button>
+        </div>
+        <div class="list" id="admin-players"></div>
+      </div>
+      <div id="admin-world">
+      <div class="section-label">Jazidas de recursos importantes</div>
+      <div class="list" id="admin-deposits"></div>
+      <div class="section-label">Ferramentas de teste</div>
+      <div class="confirm-row">
+        <button type="button" class="btn" data-admin="coins">+500 moedas</button>
+        <button type="button" class="btn" data-admin="hour">Avançar 6 horas</button>
+        <button type="button" class="btn" data-admin="javali">Chamar javali dourado</button>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-help" hidden>
+    <div class="panel help" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <div class="panel-head">
+        <h2 id="help-title">Terra Funda</h2>
+        <button type="button" class="btn btn-gold" data-close>Jogar</button>
+      </div>
+      <p>Cave, plante, cace e venda o que encontrar. Os minérios são finitos: quanto mais fundo, mais raros e valiosos.</p>
+      <p>Para vender, procure os compradores que andam pelo mapa: Tião compra minérios e madeira, Dona Ana compra colheitas e carne, e Lia compra animais vivos. As setas na borda da tela mostram onde estão.</p>
+      <p>Defina sua casa pelo Menu. O botão <b>Casa</b> leva você de volta de qualquer lugar: fique parado por 3 segundos; depois ele espera 5 minutos para ser usado de novo.</p>
+      <div class="section-label">Ferramentas</div>
+      <ul>
+        <li><b>Picareta</b>: minera pedras e minérios; na grama, cava uma vala.</li>
+        <li><b>Machado</b>: corta árvores e dá madeira.</li>
+        <li><b>Enxada</b>: ara a terra, planta sementes e colhe.</li>
+        <li><b>Espada</b>: caça galinhas e coelhos.</li>
+        <li><b>Construir</b>: muros de 5 materiais, portões, e as casas, torres, móveis e robôs comprados na loja. Toque de novo no nome da ferramenta (ou <kbd>R</kbd>) para escolher.</li>
+        <li><b>Rede</b> (comprada na loja): captura animais vivos, que valem mais que a carne.</li>
+      </ul>
+      <div class="section-label">Desgaste</div>
+      <p>As ferramentas gastam com o uso. As simples você faz de novo na Mochila com madeira e pedra; as melhores só vêm da loja.</p>
+      <div class="section-label">Animais raros</div>
+      <p>Raposas só saem à noite, cervos ficam perto da água e pavões vivem longe do início e fogem. Contam que um javali dourado aparece em noites raras. Capture todos para completar o catálogo.</p>
+      <div class="section-label">Água e camadas</div>
+      <ul>
+        <li>Cave uma vala da lagoa até sua plantação: a água escorre pela vala e as plantas crescem mais rápido.</li>
+        <li><b>Descer</b> (<kbd>F</kbd>) cava um buraco e leva você uma camada abaixo. Em cima de uma escada, <b>Descer</b> vira <b>Subir</b>.</li>
+        <li>Carvão, bronze e ferro existem em todo o mapa. Prata, ouro, petróleo e diamante só aparecem em jazidas, espalhadas pelos biomas.</li>
+        <li>O mundo tem seis biomas: Floresta, Campos, Pântano, Deserto, Montanhas e Neve. Nas montanhas os minérios ficam mais rasos; no deserto e na neve as plantas crescem devagar.</li>
+      </ul>
+      <div class="section-label">Teclado</div>
+      <p><kbd>WASD</kbd> ou setas andam · <kbd>Espaço</kbd> usa · <kbd>F</kbd> desce ou sobe · <kbd>1</kbd>–<kbd>9</kbd> ou <kbd>Q</kbd>/<kbd>E</kbd> trocam ferramenta · <kbd>B</kbd> abre a loja</p>
+    </div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="online.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
