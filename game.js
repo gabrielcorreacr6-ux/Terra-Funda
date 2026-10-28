@@ -2280,6 +2280,13 @@
     desaba: 'quebra', pedra_quebra: 'quebra', inimigo: 'quebra', bicho_morre: 'quebra', bicho_ruge: 'quebra' };
   const somBuf = {}, somUltimo = {};
   function carregarSons() {
+    // os sons vêm todos juntos no arquivo sons.js (um só arquivo para subir); sem ele, procura a pasta sons/
+    if (!window.TERRA_SONS && !carregarSons.tentou) {
+      carregarSons.tentou = true;
+      const sc = document.createElement('script'); sc.src = 'sons.js';
+      sc.onload = sc.onerror = () => carregarSons();
+      document.head.appendChild(sc); return;
+    }
     const todos = [...new Set(Object.values(SOM_ARQ).flat())];
     for (const f of todos) {
       const src = (window.TERRA_SONS && window.TERRA_SONS[f]) || 'sons/' + f + '.mp3';
