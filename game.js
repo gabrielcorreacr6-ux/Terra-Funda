@@ -5941,8 +5941,9 @@
     const img = new Image();
     img.onload = () => { art = img; buildIconURLs(); invDirty = true; };
     // se a pasta assets não foi enviada, tenta o arquivo solto na raiz do site
-    img.onerror = () => { if (!img.dataset.raiz) { img.dataset.raiz = 1; img.src = 'atlas.webp'; } };
-    img.src = window.TERRA_ATLAS || 'assets/atlas.webp';
+    // nome com versão: cada atualização das imagens usa um arquivo novo (evita misturar com o antigo e o cache)
+    img.onerror = () => { const n = +(img.dataset.tent || 0); img.dataset.tent = n + 1; const alt = ['atlas-v67.webp', 'assets/atlas.webp', 'atlas.webp'][n]; if (alt) img.src = alt; };
+    img.src = window.TERRA_ATLAS || 'assets/atlas-v67.webp';
   })();
   function artRect(name) { return art && ATLAS[name]; }
   // Segundo atlas: muros, torres, casas, fortalezas e móveis (tools/build_structures.py)
