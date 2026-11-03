@@ -220,14 +220,14 @@
   const SKINS = [
     SK('camponesa', 'Camponesa', 'basica'), SK('egipcia', 'Egípcia', 'basica'), SK('monge', 'Monge', 'basica'), SK('feiticeira', 'Feiticeira', 'basica'),
     SK('rainha', 'Rainha', 'basica'), SK('bispo', 'Bispo', 'basica'), SK('bruxa', 'Bruxa da Floresta', 'basica'), SK('druida', 'Druida', 'basica'),
-    SK('brutamontes', 'Brutamontes', 'premium'), SK('executiva', 'Executiva', 'premium'), SK('moca_cardigan', 'Moça de Cardigã', 'premium'),
+    SK('brutamontes', 'Brutamontes', 'lendaria'), SK('executiva', 'Executiva', 'premium'), SK('moca_cardigan', 'Moça de Cardigã', 'premium'),
     SK('atleta', 'Atleta', 'premium'), SK('professor', 'Professor', 'premium'), SK('secretaria', 'Secretária', 'premium'),
     SK('fazendeiro', 'Fazendeiro', 'premium'), SK('mineiro', 'Mineiro', 'premium'), SK('operario', 'Operário', 'premium'),
     SK('fantasma_dourado', 'Fantasma Dourado', 'epica', { flutua: 1 }), SK('bruxa_roxa', 'Bruxa da Lua', 'epica'), SK('cavaleiro_gelo', 'Cavaleiro de Gelo', 'epica'),
-    SK('boneco_neve', 'Boneco de Neve', 'epica'), SK('rei', 'Rei', 'epica'), SK('cavaleiro_lava', 'Cavaleiro de Lava', 'epica'), SK('arqueiro_lava', 'Arqueiro de Lava', 'epica'),
+    SK('boneco_neve', 'Boneco de Neve', 'lendaria'), SK('rei', 'Rei', 'lendaria'), SK('cavaleiro_lava', 'Cavaleiro de Lava', 'lendaria'), SK('arqueiro_lava', 'Arqueiro de Lava', 'lendaria'),
     SK('fantasma', 'Fantasma Azul', 'premium_limitada', { flutua: 1 }), SK('espirito_fogo', 'Espírito de Fogo', 'premium_limitada', { flutua: 1 }), SK('mago_sombra', 'Mago das Sombras', 'premium_limitada'),
     SK('lobisomem', 'Lobisomem', 'especial'), SK('guaxinim_mago', 'Guaxinim Mago', 'especial'), SK('cavaleiro_azul', 'Cavaleiro Azul', 'especial'),
-    SK('elfo_natal', 'Elfo de Natal', 'epica_limitada'),
+    SK('elfo_natal', 'Elfo de Natal', 'lendaria'),
     SK('anjo', 'Anjo', 'lendaria', { flutua: 1 }), SK('sombra', 'Sombra', 'lendaria', { flutua: 1 }), SK('dragao_pedra', 'Dragão de Pedra', 'lendaria'),
     SK('dragao_vermelho', 'Dragão Vermelho', 'lendaria'), SK('raposinha', 'Guardião da Raposa', 'lendaria'), SK('retalhos', 'Menina de Retalhos', 'lendaria'),
   ];
