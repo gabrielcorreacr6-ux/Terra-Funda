@@ -6261,6 +6261,28 @@
         const v = b.dataset.st;
         if (v === 'tp') { adminMove = 'tp'; renderAdmin(); return; }
         if (v === 'equip') { adminEquipSalvar(); renderAdmin(); return; }
+        if (v.startsWith('adianta:')) {   // teste: adianta a produção só das suas máquinas
+          const n = +v.slice(8), ms = eqCfg().ciclo * 60000; let q = 0;
+          for (const b of S.builds) if (BUILDS[b.k] && BUILDS[b.k].tipo === 'maquina') { maqEstado(b); if (!b.quebrada) { b.prontos = 0; b.ult -= n * ms; maqEstado(b); q++; } }
+          toast(q ? `Produção adiantada em ${n} ${n === 1 ? 'ciclo' : 'ciclos'} (${q} ${q === 1 ? 'máquina' : 'máquinas'}). Use a máquina para coletar.` : 'Você não tem máquinas funcionando na sua terra', q ? 'gold' : 'warn', 4000);
+          save(); return;
+        }
+        if (v === 'quebra' || v === 'conserta') {
+          let q = 0;
+          for (const b of S.builds) if (BUILDS[b.k] && BUILDS[b.k].tipo === 'maquina') { maqEstado(b); q++; if (v === 'quebra') { b.quebrada = true; b.usado = eqCfg()[b.k].dur; } else { b.quebrada = false; b.usado = 0; b.ult = Date.now(); } }
+          toast(q ? (v === 'quebra' ? 'Máquinas com defeito (para testar a troca)' : 'Máquinas novas de novo') : 'Você não tem máquinas', q ? 'leaf' : 'warn'); save(); return;
+        }
+        if (v === 'daritem') {
+          const it = $('adm-item').value, q = Math.max(1, Math.min(99999, Math.floor(+$('adm-qtd').value || 1)));
+          if (ITEMS[it]) { give(it, q); toast(`+${q} ${ITEMS[it].nome.toLowerCase()}`, 'gold'); save(); }
+          return;
+        }
+        if (v === 'darkit') {
+          const k = $('adm-kit').value;
+          if (BUILDS[k]) { S.kit[k] = (S.kit[k] || 0) + 1; toast(`${BUILDS[k].nome} na sua lista de Construir (ferramenta 5)`, 'gold', 4000); save(); }
+          return;
+        }
+        if (v === 'darmoedas') { S.coins += 10000; invDirty = true; updateHud(); toast('+10.000 moedas', 'gold'); save(); return; }
         if (v.startsWith('aura:')) { S.aura = v.slice(5) === 'off' ? null : v.slice(5); save(); renderAdmin(); return; }
         if (v.startsWith('bless:')) {
           const [, arma, nivel] = v.split(':');
@@ -6277,6 +6299,14 @@
       + `<button type="button" class="btn ${!S.aura ? 'btn-gold' : ''}" data-st="aura:off">Sem aura</button>`
       + cores.map(c => `<button type="button" class="btn ${S.aura === c ? 'btn-gold' : ''}" data-st="aura:${c}">${c[0].toUpperCase() + c.slice(1)}</button>`).join('') + '</div>';
     if (admin) {
+      html += '<div class="section-label">Testes (só para você)</div>'
+        + '<p class="muted small-text">Pegar qualquer item a qualquer momento:</p>'
+        + `<div class="cla-linha"><label class="field">Item<select id="adm-item">${Object.keys(ITEMS).map(k => `<option value="${k}">${ITEMS[k].nome}</option>`).join('')}</select></label><label class="field">Quantidade<input id="adm-qtd" type="number" min="1" value="50"></label></div>`
+        + '<div class="confirm-row"><button type="button" class="btn btn-gold" data-st="daritem">Receber item</button><button type="button" class="btn" data-st="darmoedas">+10.000 moedas</button></div>'
+        + `<p class="muted small-text">Receber uma construção de graça (vai para Construir):</p><div class="cla-linha"><label class="field">Construção<select id="adm-kit">${Object.entries(BUILDS).filter(([, d]) => d.tipo !== 'movel').map(([k, d]) => `<option value="${k}" ${k === 'maq_petroleo' ? 'selected' : ''}>${d.nome}</option>`).join('')}</select></label></div>`
+        + '<div class="confirm-row"><button type="button" class="btn btn-gold" data-st="darkit">Receber construção</button></div>'
+        + '<p class="muted small-text">Suas máquinas (plataforma de petróleo e mineração), na hora:</p>'
+        + '<div class="confirm-row"><button type="button" class="btn btn-gold" data-st="adianta:1">Adiantar 1 ciclo</button><button type="button" class="btn btn-gold" data-st="adianta:4">Adiantar 4 ciclos</button><button type="button" class="btn" data-st="quebra">Dar defeito</button><button type="button" class="btn" data-st="conserta">Deixar novas</button></div>';
       html += adminEquipHtml();
       html += '<div class="section-label">Suas armas · experiência</div><div class="list">';
       for (const [w, nome] of Object.entries(ARMAS)) {
