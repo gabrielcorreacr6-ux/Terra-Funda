@@ -137,7 +137,7 @@
 
   // ---- Chat ao vivo (Supabase Realtime). Nada fica guardado: a mensagem só passa por quem está conectado.
   // Canais: "tf-geral" (todos) e "tf-dm-<código>" (caixa de cada jogador, para privadas e de amigos).
-  const chat = { onMsg: null, geral: null, caixa: null, ultimo: 0 };
+  const chat = { onMsg: null, geral: null, caixa: null, cla: null, claId: null, ultimo: 0 };
   T.chatReady = false;
   T.chatStart = function (onMsg) {
     if (!enabled || !T.user || !T.profile || chat.geral) return;
@@ -150,6 +150,7 @@
   function enviar(canal, payload) {
     return new Promise((ok, falha) => {
       if (canal === 'tf-geral' && chat.geral) { chat.geral.send({ type: 'broadcast', event: 'msg', payload }).then(ok, falha); return; }
+      if (chat.cla && canal === 'tf-cla-' + chat.claId) { chat.cla.send({ type: 'broadcast', event: 'msg', payload }).then(ok, falha); return; }
       const ch = sb.channel(canal);
       const t = setTimeout(() => { sb.removeChannel(ch); falha(new Error('Sem conexão com o chat')); }, 8000);
       ch.subscribe(st => {
@@ -167,10 +168,35 @@
     const agora = Date.now();
     if (agora - chat.ultimo < 1500) throw new Error('Espere um pouco antes de mandar outra mensagem');
     chat.ultimo = agora;
-    const msg = { de: T.profile.codigo, nome: meuNome(), texto, tipo, t: agora, para: tipo === 'privado' ? destinos : undefined };
+    const msg = { de: T.profile.codigo, nome: meuNome(), texto, tipo, t: agora, para: tipo === 'privado' ? destinos : undefined, tag: T.isAdmin ? undefined : T.claTag || undefined };
     if (tipo === 'todos') await enviar('tf-geral', msg);
+    else if (tipo === 'cla') { if (!chat.cla) throw new Error('Você não está em um clã'); await enviar('tf-cla-' + chat.claId, msg); }
     else for (const c of destinos) await enviar('tf-dm-' + c, msg);
     return msg;
+  };
+  // ---- Clãs (todas as regras ficam no servidor: supabase/clas.sql)
+  T.claMeu = () => rpc('meu_cla', {});
+  T.claCriar = o => rpc('criar_cla', { p_nome: o.nome, p_tag: o.tag, p_cor: o.cor, p_brasao: o.brasao, p_aberto: o.aberto });
+  T.claEntrar = id => rpc('entrar_cla', { p_cla: id });
+  T.claConvidar = codigo => rpc('convidar_cla', { p_codigo: codigo });
+  T.claRecusar = id => rpc('recusar_convite', { p_cla: id });
+  T.claCancelarConvite = alvo => rpc('cancelar_convite', { p_alvo: alvo });
+  T.claSair = () => rpc('sair_cla', {});
+  T.claExpulsar = alvo => rpc('expulsar_cla', { p_alvo: alvo });
+  T.claPapel = (alvo, papel) => rpc('papel_cla', { p_alvo: alvo, p_papel: papel });
+  T.claEditar = o => rpc('editar_cla', { p_cor: o.cor, p_brasao: o.brasao, p_descricao: o.descricao, p_aberto: o.aberto });
+  T.claDissolver = id => rpc('dissolver_cla', { p_cla: id });
+  T.claConvites = () => rpc('meus_convites', {});
+  T.claListar = busca => rpc('listar_clas', { p_busca: busca || '' });
+  // chat do clã: um canal por clã, trocado quando o jogador entra ou sai
+  T.claTag = '';
+  T.claChat = function (id) {
+    if (!enabled || !chat.onMsg) return;
+    if (chat.cla && chat.claId === id) return;
+    if (chat.cla) { sb.removeChannel(chat.cla); chat.cla = null; chat.claId = null; }
+    if (!id) return;
+    chat.claId = id;
+    chat.cla = sb.channel('tf-cla-' + id, { config: { broadcast: { self: false } } }).on('broadcast', { event: 'msg' }, ({ payload }) => chat.onMsg(Object.assign({}, payload, { tipo: 'cla' }))).subscribe();
   };
   T.addFriend = codigo => rpc('adicionar_amigo', { codigo });
   T.removeFriend = alvo => rpc('remover_amigo', { alvo });

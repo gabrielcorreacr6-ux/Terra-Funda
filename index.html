@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Pixelify+Sans:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=72">
+<link rel="stylesheet" href="style.css?v=73">
 </head>
 <body>
 <div id="app">
@@ -69,6 +69,7 @@
         <button type="button" class="btn btn-gold" data-ctab="todos">Todos</button>
         <button type="button" class="btn" data-ctab="privado">Privado</button>
         <button type="button" class="btn" data-ctab="amigos">Amigos</button>
+        <button type="button" class="btn" data-ctab="cla" id="ctab-cla" hidden>Clã</button>
       </div>
       <div id="chat-extra"></div>
       <div class="chat-log" id="chat-log" aria-live="polite"></div>
@@ -100,6 +101,16 @@
     </div>
   </div>
 
+  <div class="sheet" id="sheet-cla" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="cla-title">
+      <div class="panel-head">
+        <h2 id="cla-title">Clã</h2>
+        <button type="button" class="btn" data-close>Fechar</button>
+      </div>
+      <div id="cla-body"></div>
+    </div>
+  </div>
+
   <div class="sheet" id="sheet-menu" hidden>
     <div class="panel" role="dialog" aria-modal="true" aria-labelledby="menu-title">
       <div class="panel-head">
@@ -109,6 +120,7 @@
       <div class="menu-list">
         <p class="account" id="account-line" hidden></p>
         <button type="button" class="btn btn-gold" id="btn-staff" hidden>Painel da equipe</button>
+        <button type="button" class="btn" id="btn-cla">Clã</button>
         <button type="button" class="btn" id="btn-char">Trocar personagem</button>
         <button type="button" class="btn" id="btn-sethome">Definir casa aqui</button>
         <button type="button" class="btn" id="btn-help">Como jogar</button>
@@ -236,7 +248,7 @@
 </div>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="online.js?v=72"></script>
-<script src="game.js?v=72"></script>
+<script src="online.js?v=73"></script>
+<script src="game.js?v=73"></script>
 </body>
 </html>

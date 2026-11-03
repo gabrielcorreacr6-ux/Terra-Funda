@@ -9529,7 +9529,7 @@
   function chatPush(m, minha) {
     CHAT.log.push(Object.assign({ minha }, m));
     if (CHAT.log.length > 150) CHAT.log.shift();
-    const quem = minha ? 'Você' : m.nome, pre = m.tipo === 'privado' ? '(privado) ' : m.tipo === 'amigos' ? '(amigos) ' : m.titulo ? m.titulo + ': ' : '';
+    const quem = minha ? 'Você' : m.nome, pre = m.tipo === 'privado' ? '(privado) ' : m.tipo === 'amigos' ? '(amigos) ' : m.tipo === 'cla' ? '(clã) ' : m.titulo ? m.titulo + ': ' : '';
     $('chat-last').textContent = `${quem}: ${pre}${m.texto}`;
     $('chat-bar').classList.toggle('amigos', m.tipo === 'amigos');
     $('chat-bar').classList.toggle('aviso', !!m.sistema);
@@ -9541,7 +9541,8 @@
     if (m && m.sistema) { if (online()) mundoCarregar(); return; }   // sinal de aviso: busca o texto verdadeiro no servidor
     if (!m || typeof m.texto !== 'string') return;
     if (m.tipo === 'amigos' && !CHAT.amigos.some(a => a.mutuo && a.codigo === m.de)) return;   // só amigos de verdade
-    chatPush({ de: m.de, nome: String(m.nome || '?').slice(0, 20), texto: m.texto.slice(0, 200), tipo: ['todos', 'privado', 'amigos'].includes(m.tipo) ? m.tipo : 'todos', t: m.t }, false);
+    const tag = typeof m.tag === 'string' && /^[A-Z0-9]{2,4}$/.test(m.tag) ? m.tag : undefined;
+    chatPush({ de: m.de, nome: String(m.nome || '?').slice(0, 20), tag, texto: m.texto.slice(0, 200), tipo: ['todos', 'privado', 'amigos', 'cla'].includes(m.tipo) ? m.tipo : 'todos', t: m.t }, false);
   }
   function renderChatLog() {
     const box = $('chat-log'), tab = CHAT.tab;
@@ -9551,7 +9552,8 @@
       if (m.sistema) return `<div class="chat-msg aviso"><span class="chat-hora">${hora}</span> <b>Moderação</b>${m.titulo ? ` · <i>${chatEsc(m.titulo)}</i>` : ''}: ${chatEsc(m.texto)}</div>`;
       const quem = m.minha ? 'Você' + (m.tipo === 'privado' && m.para ? ' → ' + m.para.join(', ') : '') : m.nome;
       const responder = !m.minha && m.de && m.tipo !== 'amigos' ? ` <button type="button" class="linkbtn" data-reply="${chatEsc(m.de)}">responder</button>` : '';
-      return `<div class="chat-msg ${m.tipo}${m.minha ? ' minha' : ''}"><span class="chat-hora">${hora}</span> <b>${chatEsc(quem)}</b>${m.tipo !== 'todos' ? ` <small>(${m.tipo})</small>` : ''}: ${chatEsc(m.texto)}${responder}</div>`;
+      const tag = m.tag && m.tipo !== 'cla' ? `<span class="chat-tag" style="background:${CLA.cores[m.tag] || '#6d4c2f'}">${chatEsc(m.tag)}</span>` : '';
+      return `<div class="chat-msg ${m.tipo}${m.minha ? ' minha' : ''}"><span class="chat-hora">${hora}</span> ${tag}<b>${chatEsc(quem)}</b>${m.tipo !== 'todos' ? ` <small>(${m.tipo === 'cla' ? 'clã' : m.tipo})</small>` : ''}: ${chatEsc(m.texto)}${responder}</div>`;
     }).join('') : '<div class="empty">Nenhuma mensagem ainda nesta partida.</div>';
     box.scrollTop = box.scrollHeight;
   }
@@ -9586,7 +9588,7 @@
   function chatTab(t) {
     CHAT.tab = t;
     document.querySelectorAll('#chat-tabs [data-ctab]').forEach(b => b.classList.toggle('btn-gold', b.dataset.ctab === t));
-    $('chat-input').placeholder = t === 'amigos' ? 'Mensagem para seus amigos' : t === 'privado' ? 'Mensagem privada' : 'Mensagem para todos';
+    $('chat-input').placeholder = t === 'amigos' ? 'Mensagem para seus amigos' : t === 'privado' ? 'Mensagem privada' : t === 'cla' ? 'Mensagem para o seu clã' : 'Mensagem para todos';
     renderChatExtra(); renderChatLog();
   }
   function openChat() {
@@ -9632,7 +9634,149 @@
     if (!NET.enabled || !NET.user || !NET.chatStart) return;
     NET.chatStart(chatOnMsg);
     NET.friends().then(l => { CHAT.amigos = l || []; }).catch(() => {});
+    claCarregar();
   }
+  // ================= Clãs =================
+  // Criar (custa moedas), convidar pelo código TF-, entrar em clãs abertos, cargos (líder, oficial, membro) e chat do clã.
+  // Toda regra é conferida no servidor (supabase/clas.sql); aqui é só a tela.
+  const CLA_PRECO = 300;
+  const BRASOES = { escudo: '🛡️', espadas: '⚔️', lobo: '🐺', aguia: '🦅', dragao: '🐉', leao: '🦁', urso: '🐻', raposa: '🦊', serpente: '🐍',
+    coroa: '👑', fogo: '🔥', gelo: '❄️', lua: '🌙', sol: '☀️', arvore: '🌲', ancora: '⚓', caveira: '💀', estrela: '⭐' };
+  const CLA_CORES = ['#c0392b', '#e67e22', '#d4ac0d', '#27ae60', '#16a085', '#2980b9', '#8e44ad', '#d35490', '#7f8c8d', '#2c3e50', '#6d4c2f', '#b8b8b8'];
+  const PAPEL_NOME = { lider: 'Líder', oficial: 'Oficial', membro: 'Membro' };
+  const CLA = { dados: null, convites: [], lista: [], busca: '', aba: 'meu', novo: { nome: '', tag: '', cor: CLA_CORES[0], brasao: 'escudo', aberto: true }, edit: null, sairOk: false, cores: {} };
+  const brasaoHtml = (b, cor, peq) => `<span class="cla-brasao${peq ? ' peq' : ''}" style="background:${/^#[0-9a-fA-F]{6}$/.test(cor) ? cor : '#6d4c2f'}">${BRASOES[b] || BRASOES.escudo}</span>`;
+  async function claCarregar() {
+    if (!online()) { CLA.dados = null; return; }
+    try { CLA.dados = await NET.claMeu(); } catch (e) { CLA.dados = null; }
+    const d = CLA.dados;
+    NET.claTag = d ? d.tag : '';
+    if (d) CLA.cores[d.tag] = d.cor;
+    if (NET.claChat) NET.claChat(d ? d.id : null);
+    $('ctab-cla').hidden = !d;
+    if (!d && CHAT.tab === 'cla') CHAT.tab = 'todos';
+  }
+  async function renderCla() {
+    const body = $('cla-body');
+    if (!online()) { body.innerHTML = '<div class="empty">Os clãs funcionam com a conta ligada (no site do jogo no GitHub). Entre na sua conta pelo Menu.</div>'; return; }
+    body.innerHTML = '<div class="empty">Carregando…</div>';
+    await claCarregar();
+    try { CLA.convites = CLA.dados ? [] : (await NET.claConvites()) || []; } catch (e) { CLA.convites = []; }
+    if (CLA.aba === 'procurar' || !CLA.dados) try { CLA.lista = (await NET.claListar(CLA.busca)) || []; } catch (e) { CLA.lista = []; }
+    for (const c of CLA.lista) CLA.cores[c.tag] = c.cor;
+    if (!openSheet || openSheet.id !== 'sheet-cla') return;
+    const d = CLA.dados, E = chatEsc;
+    let h = '';
+    if (d && CLA.aba !== 'procurar') {
+      const lider = d.papel === 'lider', chefe = d.papel !== 'membro';
+      h += `<div class="cla-topo">${brasaoHtml(d.brasao, d.cor)}<div><h3>[${E(d.tag)}] ${E(d.nome)}</h3>
+        <small class="muted">${d.membros.length} ${d.membros.length === 1 ? 'membro' : 'membros'} · ${d.aberto ? 'aberto a todos' : 'só convidados'} · você é ${PAPEL_NOME[d.papel]}</small></div></div>`;
+      if (d.descricao) h += `<p class="muted">${E(d.descricao)}</p>`;
+      h += `<div class="cla-linha"><button type="button" class="btn btn-gold" data-cla="chat">Chat do clã</button><button type="button" class="btn" data-cla="aba-procurar">Ver outros clãs</button></div>`;
+      h += '<div class="cla-sec">Membros</div><div class="list">';
+      for (const m of d.membros) {
+        const eu = NET.profile && m.codigo === NET.profile.codigo;
+        let b = '';
+        if (!eu && lider) b += m.papel === 'membro' ? `<button type="button" class="btn" data-cla="papel" data-id="${m.id}" data-p="oficial">Promover a oficial</button>` : `<button type="button" class="btn" data-cla="papel" data-id="${m.id}" data-p="membro">Rebaixar</button>`;
+        if (!eu && lider) b += `<button type="button" class="btn" data-cla="papel" data-id="${m.id}" data-p="lider" data-nome="${E(m.username)}">Passar liderança</button>`;
+        if (!eu && (lider || (d.papel === 'oficial' && m.papel === 'membro'))) b += `<button type="button" class="btn btn-danger" data-cla="expulsar" data-id="${m.id}" data-nome="${E(m.username)}">Expulsar</button>`;
+        h += `<div class="row shop"><span class="name"><b>${E(m.username)}${eu ? ' (você)' : ''}</b><small>${PAPEL_NOME[m.papel]} · ${E(m.codigo)}</small></span>${b ? `<span class="admin-btns">${b}</span>` : ''}</div>`;
+      }
+      h += '</div>';
+      if (chefe) {
+        h += `<div class="cla-sec">Convidar</div><div class="search-row"><input id="cla-conv" type="text" maxlength="12" placeholder="Código do jogador (TF-…)"><button type="button" class="btn btn-gold" data-cla="convidar">Convidar</button></div>`;
+        if (d.convidados.length) h += '<div class="list">' + d.convidados.map(c => `<div class="row shop"><span class="name"><b>${E(c.username)}</b><small>convite enviado · ${E(c.codigo)}</small></span><span class="admin-btns"><button type="button" class="btn" data-cla="cancelar" data-id="${c.id}">Cancelar convite</button></span></div>`).join('') + '</div>';
+      }
+      if (lider) {
+        const e = CLA.edit || (CLA.edit = { cor: d.cor, brasao: d.brasao, descricao: d.descricao, aberto: d.aberto });
+        h += '<div class="cla-sec">Editar o clã</div>' + claEscolhas(e, 'edit');
+        h += `<label class="field">Descrição<input id="cla-desc" type="text" maxlength="140" value="${E(e.descricao)}" placeholder="Uma frase sobre o clã"></label>`;
+        h += `<label class="cla-check"><input type="checkbox" id="cla-aberto-e" ${e.aberto ? 'checked' : ''}> Qualquer um pode entrar (sem convite)</label>`;
+        h += '<button type="button" class="btn" data-cla="salvar">Salvar mudanças</button>';
+      }
+      h += '<div class="cla-sec">Sair</div>';
+      h += CLA.sairOk ? `<p class="muted">${lider && d.membros.length > 1 ? 'A liderança passa para o oficial (ou membro) mais antigo.' : lider ? 'Você é o único membro: o clã deixa de existir.' : 'Você pode voltar depois se for convidado.'}</p>
+        <div class="cla-linha"><button type="button" class="btn btn-danger" data-cla="sair-sim">Sair do clã</button><button type="button" class="btn" data-cla="sair-nao">Cancelar</button></div>`
+        : '<button type="button" class="btn btn-danger" data-cla="sair">Sair do clã</button>';
+    } else {
+      if (d) h += '<button type="button" class="btn" data-cla="aba-meu">← Voltar para o meu clã</button>';
+      if (!d && CLA.convites.length) {
+        h += '<div class="cla-sec">Convites para você</div><div class="list">' + CLA.convites.map(c => `<div class="row shop"><span class="name cla-linha">${brasaoHtml(c.brasao, c.cor, 1)}<span><b>[${E(c.tag)}] ${E(c.nome)}</b><small>${c.membros} membros</small></span></span>
+          <span class="admin-btns"><button type="button" class="btn btn-gold" data-cla="entrar" data-id="${c.id}">Aceitar</button><button type="button" class="btn" data-cla="recusar" data-id="${c.id}">Recusar</button></span></div>`).join('') + '</div>';
+      }
+      if (!d) {
+        const n = CLA.novo;
+        h += `<div class="cla-sec">Criar um clã (${coinsTxt(CLA_PRECO)})</div>
+          <label class="field">Nome do clã<input id="cla-nome" type="text" maxlength="20" value="${E(n.nome)}" placeholder="De 3 a 20 letras"></label>
+          <label class="field">Sigla (aparece no chat)<input id="cla-tag" type="text" maxlength="4" value="${E(n.tag)}" placeholder="2 a 4 letras ou números" style="text-transform:uppercase"></label>`;
+        h += claEscolhas(n, 'novo');
+        h += `<label class="cla-check"><input type="checkbox" id="cla-aberto" ${n.aberto ? 'checked' : ''}> Qualquer um pode entrar (sem convite)</label>
+          <div class="cla-linha">${brasaoHtml(n.brasao, n.cor)}<button type="button" class="btn btn-gold" data-cla="criar">Criar clã</button><small class="muted">Você tem ${coinsTxt(S.coins)}</small></div>`;
+      }
+      h += `<div class="cla-sec">Clãs</div><div class="search-row"><input id="cla-busca" type="text" maxlength="20" value="${E(CLA.busca)}" placeholder="Procurar pelo nome ou sigla"><button type="button" class="btn" data-cla="buscar">Procurar</button></div><div class="list">`;
+      h += CLA.lista.length ? CLA.lista.map(c => `<div class="row shop"><span class="name cla-linha">${brasaoHtml(c.brasao, c.cor, 1)}<span><b>[${E(c.tag)}] ${E(c.nome)}</b><small>${c.membros} ${c.membros == 1 ? 'membro' : 'membros'} · líder ${E(c.lider_nome || '—')} · ${c.aberto ? 'aberto' : 'só convidados'}${c.descricao ? ' · ' + E(c.descricao) : ''}</small></span></span>
+        ${(!d && c.aberto) || NET.isStaff ? `<span class="admin-btns">${!d && c.aberto ? `<button type="button" class="btn btn-gold" data-cla="entrar" data-id="${c.id}">Entrar</button>` : ''}${NET.isStaff ? `<button type="button" class="btn btn-danger" data-cla="dissolver" data-id="${c.id}" data-nome="${E(c.nome)}">Dissolver (equipe)</button>` : ''}</span>` : ''}</div>`).join('')
+        : '<div class="empty">Nenhum clã encontrado.</div>';
+      h += '</div>';
+    }
+    body.innerHTML = h;
+  }
+  function claEscolhas(o, alvo) {
+    return `<div class="muted small-text">Cor</div><div class="cla-escolhas">${CLA_CORES.map(c => `<button type="button" class="${o.cor === c ? 'sel' : ''}" style="background:${c}" data-cla="cor" data-alvo="${alvo}" data-v="${c}" aria-label="Cor ${c}"></button>`).join('')}</div>
+      <div class="muted small-text">Brasão</div><div class="cla-escolhas">${Object.entries(BRASOES).map(([k, e]) => `<button type="button" class="${o.brasao === k ? 'sel' : ''}" data-cla="brasao" data-alvo="${alvo}" data-v="${k}" aria-label="${k}">${e}</button>`).join('')}</div>`;
+  }
+  function claLerCampos() {   // guarda o que foi digitado antes de redesenhar a tela
+    const v = id => $(id) ? $(id).value : null;
+    if ($('cla-nome')) { CLA.novo.nome = v('cla-nome'); CLA.novo.tag = v('cla-tag').toUpperCase(); CLA.novo.aberto = $('cla-aberto').checked; }
+    if ($('cla-desc') && CLA.edit) { CLA.edit.descricao = v('cla-desc'); CLA.edit.aberto = $('cla-aberto-e').checked; }
+    if ($('cla-busca')) CLA.busca = v('cla-busca').trim();
+  }
+  $('btn-cla').addEventListener('click', () => { CLA.aba = 'meu'; CLA.edit = null; CLA.sairOk = false; showSheet('sheet-cla'); renderCla(); });
+  $('cla-body').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') closeSheet(); if (e.key === 'Enter' && e.target.id === 'cla-busca') $('cla-body').querySelector('[data-cla="buscar"]').click(); });
+  $('cla-body').addEventListener('click', async e => {
+    const b = e.target.closest('[data-cla]');
+    if (!b) return;
+    claLerCampos();
+    const a = b.dataset.cla, id = b.dataset.id, d = CLA.dados;
+    const vale = async (fn, ok) => { b.disabled = true; try { const r = await fn(); if (ok) toast(typeof ok === 'function' ? ok(r) : ok, 'leaf'); return true; } catch (err) { toast(err.message, 'warn', 3500); return false; } finally { b.disabled = false; } };
+    if (a === 'cor' || a === 'brasao') { const o = b.dataset.alvo === 'edit' ? CLA.edit : CLA.novo; o[a] = b.dataset.v; renderCla(); return; }
+    if (a === 'aba-procurar' || a === 'aba-meu') { CLA.aba = a.slice(4); renderCla(); return; }
+    if (a === 'buscar') { renderCla(); return; }
+    if (a === 'chat') { closeSheet(); CHAT.tab = 'cla'; openChat(); return; }
+    if (a === 'sair') { CLA.sairOk = true; renderCla(); return; }
+    if (a === 'sair-nao') { CLA.sairOk = false; renderCla(); return; }
+    if (a === 'criar') {
+      const n = CLA.novo; n.nome = n.nome.trim().replace(/\s+/g, ' ');
+      if (n.nome.length < 3) { toast('O nome precisa de pelo menos 3 letras', 'warn'); return; }
+      if (!/^[A-Z0-9]{2,4}$/.test(n.tag)) { toast('A sigla precisa de 2 a 4 letras ou números', 'warn'); return; }
+      if (S.coins < CLA_PRECO) { toast(`Criar um clã custa ${coinsTxt(CLA_PRECO)}`, 'warn'); return; }
+      if (await vale(() => NET.claCriar(n), `Clã [${n.tag}] ${n.nome} criado!`)) { S.coins -= CLA_PRECO; save(true); CLA.novo = { nome: '', tag: '', cor: CLA_CORES[0], brasao: 'escudo', aberto: true }; sfx('moeda'); }
+    }
+    if (a === 'entrar') { if (await vale(() => NET.claEntrar(+id), nome => `Você entrou no clã ${nome}`)) CLA.aba = 'meu'; }
+    if (a === 'recusar') await vale(() => NET.claRecusar(+id), 'Convite recusado');
+    if (a === 'convidar') {
+      const c = ($('cla-conv').value || '').trim().toUpperCase();
+      if (!/^TF-[A-Z0-9]{6}$/.test(c)) { toast('Digite o código no formato TF-XXXXXX', 'warn'); return; }
+      await vale(() => NET.claConvidar(c), nome => `Convite enviado para ${nome}`);
+    }
+    if (a === 'cancelar') await vale(() => NET.claCancelarConvite(id), 'Convite cancelado');
+    if (a === 'papel') {
+      if (b.dataset.p === 'lider' && !b.dataset.ok) { b.dataset.ok = 1; b.textContent = `Confirmar: ${b.dataset.nome} vira líder`; return; }
+      await vale(() => NET.claPapel(id, b.dataset.p), b.dataset.p === 'lider' ? 'Liderança passada' : 'Cargo alterado');
+    }
+    if (a === 'expulsar') {
+      if (!b.dataset.ok) { b.dataset.ok = 1; b.textContent = `Confirmar expulsão de ${b.dataset.nome}`; return; }
+      await vale(() => NET.claExpulsar(id), 'Jogador expulso do clã');
+    }
+    if (a === 'salvar' && CLA.edit) { if (await vale(() => NET.claEditar(CLA.edit), 'Clã atualizado')) CLA.edit = null; }
+    if (a === 'sair-sim') { if (await vale(() => NET.claSair(), d ? `Você saiu do clã ${d.nome}` : 'Você saiu do clã')) { CLA.sairOk = false; CLA.edit = null; } }
+    if (a === 'dissolver') {
+      if (!b.dataset.ok) { b.dataset.ok = 1; b.textContent = `Confirmar: apagar ${b.dataset.nome}`; return; }
+      await vale(() => NET.claDissolver(+id), 'Clã dissolvido');
+    }
+    renderCla();
+  });
+
   // balão sobre a cabeça de quem mandou a mensagem
   function drawBubble(x, y, b) {
     if (!b || performance.now() > b.ate) return;

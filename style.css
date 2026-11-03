@@ -343,6 +343,19 @@ kbd {
 .chat-msg { padding: 3px 0; line-height: 1.35; word-wrap: break-word; }
 .chat-msg.amigos, .chat-msg.amigos b { color: #ffd24a; }
 .chat-msg.privado b { color: #b79bff; }
+.chat-msg.cla, .chat-msg.cla b { color: #8fe3a8; }
+.chat-tag { font-weight: 600; font-size: 12px; padding: 0 4px; border-radius: 4px; margin-right: 3px; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.6); }
+/* Clãs */
+.cla-brasao { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font-size: 24px; border: 2px solid rgba(255,255,255,.35); flex: none; }
+.cla-brasao.peq { width: 32px; height: 32px; font-size: 17px; }
+.cla-topo { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+.cla-topo h3 { margin: 0; font-family: var(--f-display); font-size: 20px; }
+.cla-escolhas { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.cla-escolhas button { width: 36px; height: 36px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; font-size: 19px; background: var(--panel-2); padding: 0; }
+.cla-escolhas button.sel { border-color: var(--gold); }
+.cla-linha { display: flex; gap: 10px; align-items: center; }
+.cla-sec { margin: 14px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.cla-check { display: flex; gap: 8px; align-items: center; font-size: 14px; margin: 6px 0; }
 .chat-msg.minha b { color: #8fd97a; }
 .chat-hora { opacity: .5; font-size: .82em; }
 .chat-form { display: flex; gap: 6px; }
