@@ -388,3 +388,13 @@ kbd {
 .venda-preco { width: 90px; background: #1d1814; color: inherit; border: 1px solid #5a4a3c; border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 14px; }
 .gestos { display: flex; gap: 6px; }
 .btn.gesto { padding: 2px 8px; font-size: 18px; line-height: 1.3; min-width: 0; background: rgba(20,17,15,.72); }
+
+/* Cor das skins que tingem */
+.cor-amostra { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255,255,255,.6); margin-right: 5px; vertical-align: -1px; }
+.cor-painel { padding: 8px 4px 12px; border-bottom: 1px solid var(--line); }
+.cor-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 6px; }
+.cor-grade button { aspect-ratio: 1; border-radius: 7px; border: 2px solid rgba(0,0,0,.35); cursor: pointer; padding: 0; }
+.cor-grade button.sel { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); }
+.cor-linha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.cor-livre { display: flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); }
+.cor-livre input { width: 44px; height: 32px; border: 0; padding: 0; background: none; cursor: pointer; }
