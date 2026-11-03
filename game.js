@@ -2158,7 +2158,7 @@
         if (k < 0) return;
         const a = S.animals[k], sp = SPECIES[a.kind];
         cooldown = 0.8; wear('rede'); sfx('golpe');
-        if (a.stun > now || Math.random() < sp.chance) {
+        if ((a.stun || 0) > performance.now() || Math.random() < sp.chance) {
           S.animals.splice(k, 1);
           give(sp.vivo, 1);
           const novo = !S.catalog[a.kind];
@@ -8628,7 +8628,7 @@
       } else pushT = Math.min(0, pushT + dt);
       walkPhase += dt * 12;
     } else pushT = Math.min(0, pushT + dt);
-    if (actHeld && cooldown <= 0 && !openSheet) useTool();
+    if (actHeld && cooldown <= 0 && !openSheet) { try { useTool(); } catch (e) { actHeld = false; cooldown = 0.5; console.error(e); } }   // um erro numa ferramenta não pode parar o jogo
 
     accWater += dt; accFarm += dt; accSave += dt; accSpawn += dt; accHud += dt;
     if (accWater > 0.18) { accWater = 0; waterTick(); }
