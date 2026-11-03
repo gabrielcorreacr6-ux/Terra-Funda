@@ -865,12 +865,12 @@
       if (tr) {   // rastro atrás do tiro (os desenhos vêm na diagonal)
         const w = 0.9 * tp, h = w * tr[3] / tr[2];
         ctx.save(); ctx.translate(x - Math.cos(ang) * tp * 0.35, y - Math.sin(ang) * tp * 0.35); ctx.rotate(ang + Math.PI / 4);
-        ctx.globalAlpha = 0.75; ctx.drawImage(art, tr[0], tr[1], tr[2], tr[3], -w / 2, -h / 2, w, h); ctx.restore(); ctx.globalAlpha = 1;
+        ctx.globalAlpha = 0.75; ctx.drawImage(nat(tr), 0, 0, tr[2], tr[3], -w / 2, -h / 2, w, h); ctx.restore(); ctx.globalAlpha = 1;
       }
       if (sr2) {
         ctx.save(); ctx.translate(x, y); ctx.rotate(s2.kind === 'flecha' ? ang : ang + Math.PI / 4);
         const w = (s2.kind === 'flecha' ? 0.9 : 0.6) * tp, h = w * sr2[3] / sr2[2];
-        ctx.drawImage(art, sr2[0], sr2[1], sr2[2], sr2[3], -w * (s2.kind === 'flecha' ? 0.6 : 0.65), -h * (s2.kind === 'flecha' ? 0.5 : 0.35), w, h);
+        ctx.drawImage(nat(sr2), 0, 0, sr2[2], sr2[3], -w * (s2.kind === 'flecha' ? 0.6 : 0.65), -h * (s2.kind === 'flecha' ? 0.5 : 0.35), w, h);
         ctx.restore();
         continue;
       }
@@ -934,8 +934,8 @@
       ctx.save(); ctx.translate(hx + (dir >= 2 ? side * 2 * u2 : 0), hy);
       if (dir === 2) ctx.scale(-1, 1);
       ctx.rotate(tool === 'arco' ? -Math.PI / 4 + 0.05 : -Math.PI / 4 + 0.18);
-      if (tool === 'arco') ctx.drawImage(art, wr[0], wr[1], wr[2], wr[3], -w * 0.5, -hh * 0.5, w, hh);
-      else ctx.drawImage(art, wr[0], wr[1], wr[2], wr[3], -w * 0.22, -hh * 0.78, w, hh);
+      if (tool === 'arco') ctx.drawImage(nat(wr), 0, 0, wr[2], wr[3], -w * 0.5, -hh * 0.5, w, hh);
+      else ctx.drawImage(nat(wr), 0, 0, wr[2], wr[3], -w * 0.22, -hh * 0.78, w, hh);
       ctx.restore();
       return;
     }
@@ -1384,7 +1384,7 @@
         const w = fx.size * tp * (fx.spr.length === 1 ? 0.8 + 0.4 * k : 1), h = w * r[3] / r[2];
         ctx.save(); ctx.globalAlpha = fx.spr.length === 1 ? 1 - k * k : (k > 0.7 ? (1 - k) / 0.3 : 1);
         ctx.translate(fx.x * tp - camX, fx.y * tp - camY); ctx.rotate(fx.rot || 0); if (fx.flip) ctx.scale(1, -1);
-        ctx.drawImage(art, r[0], r[1], r[2], r[3], -w / 2, -h / 2, w, h); ctx.restore();
+        ctx.drawImage(nat(r), 0, 0, r[2], r[3], -w / 2, -h / 2, w, h); ctx.restore();
         continue;
       }
       if (fx.z !== S.p.z || (!fx.txt && !fx.ring)) continue;
@@ -1397,7 +1397,7 @@
       } else {
         ctx.globalAlpha = Math.max(0, 0.8 * (1 - k));
         const rr = fx.img && artRect(fx.img);
-        if (rr) { const w = fx.ring * 2 * tp * (0.4 + 0.6 * k), h = w * rr[3] / rr[2]; ctx.drawImage(art, rr[0], rr[1], rr[2], rr[3], x - w / 2, y - h / 2, w, h); ctx.globalAlpha = 1; continue; }
+        if (rr) { const w = fx.ring * 2 * tp * (0.4 + 0.6 * k), h = w * rr[3] / rr[2]; ctx.drawImage(nat(rr), 0, 0, rr[2], rr[3], x - w / 2, y - h / 2, w, h); ctx.globalAlpha = 1; continue; }
         ctx.strokeStyle = fx.cor; ctx.lineWidth = Math.max(2, tp * 0.08);
         ctx.beginPath(); ctx.ellipse(x, y, fx.ring * tp * (0.4 + 0.6 * k), fx.ring * tp * 0.5 * (0.4 + 0.6 * k), 0, 0, 6.28); ctx.stroke();
       }
@@ -5530,15 +5530,48 @@
     if (flip) { ctx.save(); ctx.translate(cx, 0); ctx.scale(-1, 1); ctx.drawImage(cv, -w / 2, bottom - h, w, h); ctx.restore(); }
     else ctx.drawImage(cv, cx - w / 2, bottom - h, w, h);
   }
+  // Cópia de um pedaço do atlas no tamanho original: desenhos girados (ferramenta na mão, golpes, armas)
+  // saem bem mais leves de um canvas pequeno do que de um pedaço do atlas grande.
+  const natCache = new Map();
+  function nat(r) {
+    const key = r[0] * 8192 + r[1];
+    let c = natCache.get(key);
+    if (!c) {
+      c = document.createElement('canvas'); c.width = r[2]; c.height = r[3];
+      c.getContext('2d').drawImage(art, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
+      natCache.set(key, c);
+    }
+    return c;
+  }
+  // Cópias já no tamanho da tela de cada desenho (árvores, bichos, personagens…): copiar 1:1 é bem mais leve
+  // do que reduzir a partir do atlas grande a cada quadro. Poucas cópias novas por quadro para não engasgar.
+  const escCache = new Map();
+  let escTp = 0, escNovos = 0;   // escNovos volta a 0 a cada quadro (frame)
+  function spriteEsc(name, r, W1, H1) {
+    if (escTp !== tp) { escCache.clear(); escTp = tp; }
+    const key = name + '|' + W1 + 'x' + H1;
+    let c = escCache.get(key);
+    if (c) return c;
+    if (escNovos >= 6 || W1 > 900 || H1 > 900) return null;   // limite por quadro: o resto fica para os próximos
+    escNovos++;
+    c = document.createElement('canvas'); c.width = W1; c.height = H1;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    g.drawImage(art, r[0], r[1], r[2], r[3], 0, 0, W1, H1);
+    if (escCache.size > 900) escCache.delete(escCache.keys().next().value);
+    escCache.set(key, c);
+    return c;
+  }
   function drawObj(name, cx, bottom, h, flip = false) {
     const r = artRect(name);
     if (!r) return false;
-    const w = h * r[2] / r[3];
+    const w = h * r[2] / r[3], W1 = Math.round(w), H1 = Math.round(h);
+    const c = W1 > 0 && H1 > 0 ? spriteEsc(name, r, W1, H1) : null;
     if (flip) {
-      ctx.save(); ctx.translate(cx, 0); ctx.scale(-1, 1);
-      ctx.drawImage(art, r[0], r[1], r[2], r[3], -w / 2, bottom - h, w, h);
+      ctx.save(); ctx.translate(Math.round(cx), 0); ctx.scale(-1, 1);
+      if (c) ctx.drawImage(c, -Math.round(W1 / 2), Math.round(bottom - H1)); else ctx.drawImage(art, r[0], r[1], r[2], r[3], -w / 2, bottom - h, w, h);
       ctx.restore();
-    } else ctx.drawImage(art, r[0], r[1], r[2], r[3], cx - w / 2, bottom - h, w, h);
+    } else if (c) ctx.drawImage(c, Math.round(cx - W1 / 2), Math.round(bottom - H1));
+    else ctx.drawImage(art, r[0], r[1], r[2], r[3], cx - w / 2, bottom - h, w, h);
     return true;
   }
   // Passo simulado para sprites sem quadros de caminhada: as pernas (parte de baixo) alternam,
@@ -5555,10 +5588,11 @@
     const top = bottom - h, legTop = top + h * split;
     const halfSrc = r[2] / 2, halfW = w / 2;
     // perna esquerda e direita (metades da parte de baixo)
-    ctx.drawImage(art, r[0], r[1] + bodySrcH, halfSrc, legSrcH, -halfW, legTop - Math.max(0, lift), halfW, h * (1 - split));
-    ctx.drawImage(art, r[0] + halfSrc, r[1] + bodySrcH, halfSrc, legSrcH, 0, legTop - Math.max(0, -lift), halfW, h * (1 - split));
+    const n = nat(r);   // pedaços tirados de uma cópia pequena: bem mais leve que do atlas grande
+    ctx.drawImage(n, 0, bodySrcH, halfSrc, legSrcH, -halfW, legTop - Math.max(0, lift), halfW, h * (1 - split));
+    ctx.drawImage(n, halfSrc, bodySrcH, halfSrc, legSrcH, 0, legTop - Math.max(0, -lift), halfW, h * (1 - split));
     // corpo por cima, com um pequeno sobe e desce
-    ctx.drawImage(art, r[0], r[1], r[2], bodySrcH + 1, -halfW, top - bob, w, h * split + 1);
+    ctx.drawImage(n, 0, 0, r[2], Math.min(r[3], bodySrcH + 1), -halfW, top - bob, w, h * split + 1);
     ctx.restore();
     return true;
   }
@@ -7129,7 +7163,7 @@
     ctx.scale(s, s);
     // de frente a mão segura perto da ponta do cabo (o atlas guarda a pegada a 30% do cabo)
     const gx = dir === 0 && g.length > 4 ? g[4] : g[0], gy = dir === 0 && g.length > 4 ? g[5] : g[1];
-    ctx.drawImage(art, r[0], r[1], r[2], r[3], -gx, -gy, r[2], r[3]);
+    ctx.drawImage(nat(r), 0, 0, r[2], r[3], -gx, -gy, r[2], r[3]);
     ctx.restore();
     return [hx, hy, dir === 2 ? Math.PI - want : want];
   }
@@ -7143,8 +7177,8 @@
     const dx = flip ? cx + w / 2 - (x0 + pw) * k : cx - w / 2 + x0 * k, dy = bottom - h + y0 * k;
     ctx.save();
     ctx.beginPath(); ctx.ellipse(dx + pw * k / 2, dy + phh * k / 2, pw * k / 2, phh * k / 2, 0, 0, Math.PI * 2); ctx.clip();
-    if (flip) { ctx.translate(dx + pw * k, dy); ctx.scale(-1, 1); ctx.drawImage(art, sr[0] + x0, sr[1] + y0, pw, phh, 0, 0, pw * k, phh * k); }
-    else ctx.drawImage(art, sr[0] + x0, sr[1] + y0, pw, phh, dx, dy, pw * k, phh * k);
+    if (flip) { ctx.translate(dx + pw * k, dy); ctx.scale(-1, 1); ctx.drawImage(nat(sr), x0, y0, pw, phh, 0, 0, pw * k, phh * k); }
+    else ctx.drawImage(nat(sr), x0, y0, pw, phh, dx, dy, pw * k, phh * k);
     ctx.restore();
   }
   // Capacete (folha capacete.png): encaixado no topo da cabeça de cada pose
@@ -7159,7 +7193,7 @@
     ctx.save();
     ctx.translate(hx, 0);
     if (dir === 2) ctx.scale(-1, 1);
-    ctx.drawImage(art, r[0], r[1], r[2], r[3], -hw / 2, top - hh * 0.22, hw, hh);
+    ctx.drawImage(nat(r), 0, 0, r[2], r[3], -hw / 2, top - hh * 0.22, hw, hh);
     ctx.restore();
     return true;
   }
@@ -7171,7 +7205,7 @@
     ctx.save();
     ctx.translate(at[0], at[1]);
     ctx.rotate(at[2] - Math.PI / 2);
-    ctx.drawImage(art, r[0], r[1], r[2], r[3], -w / 2, -h / 2, w, h);
+    ctx.drawImage(nat(r), 0, 0, r[2], r[3], -w / 2, -h / 2, w, h);
     ctx.restore();
     return true;
   }
@@ -7207,7 +7241,7 @@
     // de lado para a esquerda: espelha para a lâmina continuar virada para a frente
     if (flip) ctx.scale(1, -1);
     ctx.scale(s, s);
-    ctx.drawImage(art, r[0], r[1], r[2], r[3], -g[0], -g[1], r[2], r[3]);
+    ctx.drawImage(nat(r), 0, 0, r[2], r[3], -g[0], -g[1], r[2], r[3]);
     ctx.restore();
     return true;
   }
@@ -7227,7 +7261,7 @@
     ctx.rotate(Math.PI / 4);
     ctx.translate(-size * 0.18 + size / 2, -size * 0.92 + size / 2);
     if (tool === 'enxada') ctx.rotate(Math.PI);   // o ícone da enxada vem com a lâmina embaixo
-    ctx.drawImage(art, r[0], r[1], r[2], r[3], -size / 2, -size / 2, size, size);
+    ctx.drawImage(nat(r), 0, 0, r[2], r[3], -size / 2, -size / 2, size, size);
     ctx.restore();
     return true;
   }
@@ -8598,6 +8632,7 @@
   }
 
   function frame(now) {
+    escNovos = 0;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     update(dt, now);
