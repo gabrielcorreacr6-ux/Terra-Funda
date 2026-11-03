@@ -185,7 +185,13 @@
   }
   BUILDS.catapulta.img = 'catapulta_0';
   BUILDS.maq_petroleo.img = 'maq_petroleo_0'; BUILDS.maq_mina.img = 'maq_mina_0';
-  const PLACAS = /*PLACAS*/{"banca_feira":[0.303,0.042,0.214,0.19],"banca_loja":[0.093,0.508,0.142,0.15],"banca_petroleo":[0.519,0.193,0.227,0.244],"banca_joias":[0.578,0.177,0.28,0.269]}/*FIM_PLACAS*/;   // onde fica a placa em branco de cada banca (frações do desenho)
+  // máquinas e bancas em 3D: 4 ângulos (girar), largura do desenho e animação de cada uma
+  const TERRA3D = /*TERRA3D*/{"dw":{"maq_mina":3.78,"maq_petroleo":4.27,"banca_feira":4.44,"banca_loja":4.85,"banca_petroleo":4.15,"banca_joias":4.46}}/*FIM_TERRA3D*/;
+  const ANIM3D = { maq_petroleo: { seq: [0, 1, 0, 2], ms: 320 }, maq_mina: { seq: [0, 1, 2], ms: 110 } };
+  for (const [k, dw] of Object.entries(TERRA3D.dw || {})) if (BUILDS[k]) { const d = BUILDS[k]; d.dw = dw; d.gira = 1; d.img = d.tipo === 'maquina' ? k + '_r0_0' : k + '_r0'; }
+  function imgDe(b, quadro = 0) { const d = BUILDS[b.k]; if (!d.gira) return d.tipo === 'maquina' ? `${b.k}_${quadro}` : d.img; const r = (b.rot || 0) & 3; return d.tipo === 'maquina' ? `${b.k}_r${r}_${quadro}` : `${b.k}_r${r}`; }
+  function girarObj(o, k) { if (BUILDS[k] && BUILDS[k].gira) o.rot = ((o.rot || 0) + 1) & 3; else o.flip = !o.flip; }
+  const PLACAS = /*PLACAS*/{"banca_feira_r0":[0.359,0.049,0.297,0.102],"banca_petroleo_r0":[0.356,0.393,0.203,0.07],"banca_joias_r0":[0.41,0.392,0.26,0.068],"banca_loja_r0":[0.698,0.583,0.08,0.08]}/*FIM_PLACAS*/;   // onde fica a placa em branco de cada banca (frações do desenho)
   // fortalezas descontinuadas: quem tinha recebe o valor de volta ao abrir o jogo
   const DESCONTINUADAS = { muralha: 4000, muralha_vila: 5200, forte: 3000, forte_cidade: 6000, campo: 5500, colonia: 9000, cabana_vila: 0 };
   const SHOP_TABS = [['ferramentas', 'Ferramentas'], ['casas', 'Casas'], ['defesa', 'Defesa'], ['moveis', 'Móveis'], ['ajudantes', 'Ajudantes'], ['negocios', 'Negócios'], ['skins', 'Skins']];
@@ -1853,6 +1859,7 @@
   function addBuild(c) {
     const d = BUILDS[c.k];
     const b = { k: d.tipo === 'forte' && d.arte ? d.arte : c.k, x: c.x, y: c.y, dono: myId(), flip: !!c.flip };
+    if (d.gira) b.rot = (c.rot || 0) & 3;
     if (d.tipo === 'casa' || d.tipo === 'forte') b.acesso = 'so_eu';
     if (d.tipo === 'maquina') { b.ult = Date.now(); b.usado = 0; b.prontos = 0; b.est = {}; }
     if (d.tipo === 'banca') b.uid = Math.random().toString(36).slice(2, 10);
@@ -1877,7 +1884,7 @@
       S.kit[k]--; S.bots.push(newBot({ x: tg.x + 0.5, y: tg.y + 0.5, tipo: d.bot || 'mina' }));
       toast(d.bot === 'fazenda' ? 'Ajudante ligado. Ele colhe e replanta a plantação em volta.' : 'Robô ligado. Ele procura minério embaixo deste lugar.', 'leaf', 3500);
     } else {
-      const c = candidate(k); c.flip = !!S.sel.flip; const prob = placeProblem(c);
+      const c = candidate(k); c.flip = !!S.sel.flip; c.rot = S.sel.rot || 0; const prob = placeProblem(c);
       if (prob) { toast(prob, 'warn'); cooldown = 0.5; return; }
       S.kit[k]--;
       addBuild(c); sfx('construir');
@@ -5362,126 +5369,176 @@
     "forte_campo_frente":[0,1033,760,341],
     "casa_cabana":[762,1033,340,310],
     "casa_cabana_chao":[1104,1033,340,310],
-    "casa_saloon":[1446,1033,340,304],
-    "casa_saloon_chao":[1788,1033,340,304],
-    "casa_pedra":[2130,1033,340,302],
-    "casa_pedra_chao":[2472,1033,340,302],
-    "banca_loja":[2814,1033,289,301],
-    "casa_castelo":[3105,1033,340,295],
-    "casa_castelo_chao":[3447,1033,340,295],
-    "casa_tribal":[0,1376,340,289],
-    "casa_tribal_chao":[342,1376,340,289],
-    "banca_feira":[684,1376,290,284],
-    "maq_petroleo_0":[976,1376,300,280],
-    "maq_petroleo_1":[1278,1376,300,280],
-    "maq_petroleo_2":[1580,1376,300,280],
-    "casa_castelo_dentro":[1882,1376,340,278],
-    "casa_castelo_dentro_chao":[2224,1376,340,278],
-    "casa_tribal_dentro":[2566,1376,340,275],
-    "casa_tribal_dentro_chao":[2908,1376,340,275],
-    "casa_cabana_dentro":[3250,1376,340,274],
-    "casa_cabana_dentro_chao":[3592,1376,340,274],
-    "casa_saloon_dentro":[0,1667,340,274],
-    "casa_saloon_dentro_chao":[342,1667,340,274],
-    "banca_joias":[684,1667,289,271],
-    "casa_domo":[975,1667,340,268],
-    "casa_domo_chao":[1317,1667,340,268],
-    "casa_domo_dentro":[1659,1667,340,268],
-    "casa_domo_dentro_chao":[2001,1667,340,268],
-    "casa_pedra_dentro":[2343,1667,340,260],
-    "casa_pedra_dentro_chao":[2685,1667,340,260],
-    "banca_petroleo":[3027,1667,291,238],
-    "casa_choupana":[3320,1667,300,234],
-    "maq_mina_0":[3622,1667,300,233],
-    "maq_mina_1":[0,1943,300,233],
-    "maq_mina_2":[302,1943,300,233],
-    "torre_madeira":[604,1943,119,203],
-    "torre_cristal":[725,1943,114,203],
-    "torre_pedra":[841,1943,117,198],
-    "torre_balista_cristal":[960,1943,113,196],
-    "torre_canhao":[1075,1943,137,188],
-    "torre_balista":[1214,1943,131,185],
-    "iso_estante":[1347,1943,78,155],
-    "iso_cama_dossel":[1427,1943,138,154],
-    "forte_muralha":[1567,1943,180,154],
-    "iso_guarda_roupa":[1749,1943,83,145],
-    "iso_geladeira":[1834,1943,82,143],
-    "iso_espelho":[1918,1943,70,137],
-    "catapulta_0":[1990,1943,150,135],
-    "catapulta_1":[2142,1943,150,135],
-    "catapulta_2":[2294,1943,150,135],
-    "catapulta_3":[2446,1943,150,135],
-    "iso_luminaria":[2598,1943,82,134],
-    "iso_aquario":[2682,1943,88,134],
-    "movel_cama_dossel":[2772,1943,126,132],
-    "cristal_claro":[2900,1943,103,131],
-    "iso_cama_casal":[3005,1943,150,130],
-    "cristal_roxo":[3157,1943,103,129],
-    "iso_fogao":[3262,1943,97,125],
-    "catapulta_ferro":[3361,1943,161,124],
-    "iso_lareira":[3524,1943,113,122],
-    "iso_mesa":[3639,1943,144,119],
-    "iso_cofre":[3785,1943,91,117],
-    "movel_lareira":[3878,1943,63,117],
-    "iso_sofa":[3943,1943,136,116],
-    "muro_madeira_portao":[0,2178,112,114],
-    "muro_madeira_aberto":[114,2178,112,114],
-    "muro_madeira_h":[228,2178,96,112],
-    "muro_madeira_v":[326,2178,34,112],
-    "muro_fortaleza_v":[362,2178,14,112],
-    "iso_pia":[378,2178,153,111],
-    "movel_fogao":[533,2178,64,111],
-    "iso_cama":[599,2178,125,110],
-    "muro_fortaleza_portao":[726,2178,108,110],
-    "muro_fortaleza_aberto":[836,2178,108,110],
-    "iso_cadeira":[946,2178,58,109],
-    "muro_fortaleza_h":[1006,2178,96,108],
-    "iso_planta":[1104,2178,64,106],
-    "muro_tijolo_portao":[1170,2178,104,106],
-    "muro_tijolo_aberto":[1276,2178,104,106],
-    "iso_poltrona":[1382,2178,99,105],
-    "movel_cama_casal":[1483,2178,126,105],
-    "iso_barril":[1611,2178,71,104],
-    "muro_tijolo_h":[1684,2178,96,104],
-    "muro_tijolo_v":[1782,2178,31,104],
-    "muro_ferro_v":[1815,2178,14,104],
-    "espinhos":[1831,2178,120,103],
-    "muro_pedra_portao":[1953,2178,100,102],
-    "muro_pedra_aberto":[2055,2178,100,102],
-    "muro_ferro_portao":[2157,2178,100,102],
-    "muro_ferro_aberto":[2259,2178,100,102],
-    "muro_pedra_h":[2361,2178,96,100],
-    "muro_pedra_v":[2459,2178,30,100],
-    "muro_ferro_h":[2491,2178,96,100],
-    "movel_capsula":[2589,2178,112,100],
-    "iso_bau":[2703,2178,95,98],
-    "movel_cama":[2800,2178,102,95],
-    "iso_mesinha":[2904,2178,124,93],
-    "iso_criado":[3030,2178,67,92],
-    "forte_forte_cidade":[3099,2178,180,91],
-    "forte_colonia":[3281,2178,180,90],
-    "iso_quadro":[3463,2178,64,87],
-    "movel_fogueira":[3529,2178,68,85],
-    "forte_forte":[3599,2178,180,84],
-    "forte_campo":[3781,2178,180,81],
-    "movel_cofre":[3963,2178,63,78],
-    "movel_mesa":[0,2294,90,74],
-    "movel_cesto":[92,2294,70,73],
-    "iso_tapete":[164,2294,132,72],
-    "movel_bau_ferro":[298,2294,66,72],
-    "movel_bau":[366,2294,66,64],
-    "catapulta_impacto":[434,2294,86,63],
-    "movel_banco":[522,2294,81,62],
-    "movel_mesa_redonda":[605,2294,72,58],
-    "catapulta_pilha":[679,2294,62,42],
-    "catapulta_pedra":[743,2294,30,29]
+    "banca_loja_r3":[1446,1033,368,310],
+    "banca_joias_r0":[1816,1033,339,309],
+    "banca_joias_r1":[2157,1033,339,307],
+    "casa_saloon":[2498,1033,340,304],
+    "casa_saloon_chao":[2840,1033,340,304],
+    "casa_pedra":[3182,1033,340,302],
+    "casa_pedra_chao":[3524,1033,340,302],
+    "banca_joias_r2":[0,1376,339,300],
+    "banca_joias_r3":[341,1376,339,297],
+    "casa_castelo":[682,1376,340,295],
+    "casa_castelo_chao":[1024,1376,340,295],
+    "banca_loja_r1":[1366,1376,368,292],
+    "banca_feira_r1":[1736,1376,337,291],
+    "banca_feira_r3":[2075,1376,337,290],
+    "casa_tribal":[2414,1376,340,289],
+    "casa_tribal_chao":[2756,1376,340,289],
+    "maq_petroleo_r3_2":[3098,1376,324,289],
+    "maq_petroleo_r3_0":[3424,1376,324,287],
+    "casa_castelo_dentro":[3750,1376,340,278],
+    "casa_castelo_dentro_chao":[0,1678,340,278],
+    "maq_petroleo_r3_1":[342,1678,324,277],
+    "casa_tribal_dentro":[668,1678,340,275],
+    "casa_tribal_dentro_chao":[1010,1678,340,275],
+    "casa_cabana_dentro":[1352,1678,340,274],
+    "casa_cabana_dentro_chao":[1694,1678,340,274],
+    "casa_saloon_dentro":[2036,1678,340,274],
+    "casa_saloon_dentro_chao":[2378,1678,340,274],
+    "casa_domo":[2720,1678,340,268],
+    "casa_domo_chao":[3062,1678,340,268],
+    "casa_domo_dentro":[3404,1678,340,268],
+    "casa_domo_dentro_chao":[3746,1678,340,268],
+    "maq_petroleo_r0_2":[0,1958,324,264],
+    "casa_pedra_dentro":[326,1958,340,260],
+    "casa_pedra_dentro_chao":[668,1958,340,260],
+    "maq_petroleo_r1_1":[1010,1958,324,259],
+    "banca_loja_r0":[1336,1958,368,257],
+    "banca_loja_r2":[1706,1958,368,257],
+    "banca_petroleo_r0":[2076,1958,315,257],
+    "banca_feira_r2":[2393,1958,337,256],
+    "maq_petroleo_r0_0":[2732,1958,324,251],
+    "maq_petroleo_r1_0":[3058,1958,324,250],
+    "banca_feira_r0":[3384,1958,337,244],
+    "maq_petroleo_r1_2":[3723,1958,324,240],
+    "maq_petroleo_r0_1":[0,2224,324,238],
+    "casa_choupana":[326,2224,300,234],
+    "banca_petroleo_r2":[628,2224,315,234],
+    "maq_petroleo_r2_2":[945,2224,324,233],
+    "banca_petroleo_r3":[1271,2224,315,231],
+    "muro_tijolo_vu":[1588,2224,96,231],
+    "maq_mina_r1_0":[1686,2224,287,227],
+    "maq_mina_r1_1":[1975,2224,287,227],
+    "maq_mina_r1_2":[2264,2224,287,227],
+    "muro_fortaleza_aberto_v":[2553,2224,96,223],
+    "muro_fortaleza_portao_v":[2651,2224,96,223],
+    "muro_madeira_aberto_v":[2749,2224,96,223],
+    "muro_madeira_portao_v":[2847,2224,96,223],
+    "muro_pedra_vu":[2945,2224,96,223],
+    "maq_petroleo_r2_0":[3043,2224,324,221],
+    "muro_madeira_vu":[3369,2224,96,217],
+    "banca_petroleo_r1":[3467,2224,315,216],
+    "muro_fortaleza_vu":[3784,2224,96,215],
+    "muro_tijolo_aberto_v":[3882,2224,96,208],
+    "muro_tijolo_portao_v":[3980,2224,96,208],
+    "maq_petroleo_r2_1":[0,2464,324,207],
+    "muro_fortaleza_vd":[326,2464,96,207],
+    "torre_madeira":[424,2464,119,203],
+    "torre_cristal":[545,2464,114,203],
+    "muro_ferro_aberto_v":[661,2464,96,202],
+    "muro_ferro_portao_v":[759,2464,96,202],
+    "muro_pedra_aberto_v":[857,2464,96,201],
+    "muro_pedra_portao_v":[955,2464,96,201],
+    "torre_pedra":[1053,2464,117,198],
+    "torre_balista_cristal":[1172,2464,113,196],
+    "torre_canhao":[1287,2464,137,188],
+    "torre_balista":[1426,2464,131,185],
+    "muro_madeira_vd":[1559,2464,96,185],
+    "maq_mina_r3_1":[1657,2464,287,180],
+    "muro_ferro_aberto":[1946,2464,144,180],
+    "muro_ferro_portao":[2092,2464,144,180],
+    "muro_ferro_vu":[2238,2464,96,180],
+    "muro_fortaleza_aberto":[2336,2464,144,180],
+    "muro_fortaleza_portao":[2482,2464,144,180],
+    "maq_mina_r3_0":[2628,2464,287,179],
+    "maq_mina_r3_2":[2917,2464,287,179],
+    "muro_tijolo_aberto":[3206,2464,144,178],
+    "muro_tijolo_portao":[3352,2464,144,178],
+    "muro_pedra_aberto":[3498,2464,144,171],
+    "muro_pedra_portao":[3644,2464,144,171],
+    "muro_madeira_aberto":[3790,2464,152,169],
+    "muro_madeira_portao":[0,2673,152,169],
+    "muro_pedra_vd":[154,2673,96,160],
+    "maq_mina_r0_0":[252,2673,287,158],
+    "maq_mina_r0_1":[541,2673,287,158],
+    "maq_mina_r0_2":[830,2673,287,158],
+    "iso_estante":[1119,2673,78,155],
+    "iso_cama_dossel":[1199,2673,138,154],
+    "forte_muralha":[1339,2673,180,154],
+    "muro_tijolo_vd":[1521,2673,96,153],
+    "muro_ferro_vd":[1619,2673,96,149],
+    "muro_tijolo_poste":[1717,2673,96,146],
+    "iso_guarda_roupa":[1815,2673,83,145],
+    "maq_mina_r2_0":[1900,2673,287,145],
+    "maq_mina_r2_1":[2189,2673,287,145],
+    "maq_mina_r2_2":[2478,2673,287,145],
+    "iso_geladeira":[2767,2673,82,143],
+    "muro_tijolo_h":[2851,2673,96,142],
+    "muro_ferro_poste":[2949,2673,96,140],
+    "muro_madeira_poste":[3047,2673,96,140],
+    "muro_madeira_h":[3145,2673,96,138],
+    "iso_espelho":[3243,2673,70,137],
+    "muro_fortaleza_h":[3315,2673,96,137],
+    "muro_ferro_h":[3413,2673,96,136],
+    "muro_fortaleza_poste":[3511,2673,96,136],
+    "catapulta_0":[3609,2673,150,135],
+    "catapulta_1":[3761,2673,150,135],
+    "catapulta_2":[3913,2673,150,135],
+    "catapulta_3":[0,2844,150,135],
+    "iso_luminaria":[152,2844,82,134],
+    "iso_aquario":[236,2844,88,134],
+    "movel_cama_dossel":[326,2844,126,132],
+    "cristal_claro":[454,2844,103,131],
+    "iso_cama_casal":[559,2844,150,130],
+    "muro_pedra_poste":[711,2844,96,130],
+    "cristal_roxo":[809,2844,103,129],
+    "muro_pedra_h":[914,2844,96,129],
+    "iso_fogao":[1012,2844,97,125],
+    "catapulta_ferro":[1111,2844,161,124],
+    "iso_lareira":[1274,2844,113,122],
+    "iso_mesa":[1389,2844,144,119],
+    "iso_cofre":[1535,2844,91,117],
+    "movel_lareira":[1628,2844,63,117],
+    "iso_sofa":[1693,2844,136,116],
+    "iso_pia":[1831,2844,153,111],
+    "movel_fogao":[1986,2844,64,111],
+    "iso_cama":[2052,2844,125,110],
+    "iso_cadeira":[2179,2844,58,109],
+    "iso_planta":[2239,2844,64,106],
+    "iso_poltrona":[2305,2844,99,105],
+    "movel_cama_casal":[2406,2844,126,105],
+    "iso_barril":[2534,2844,71,104],
+    "espinhos":[2607,2844,120,103],
+    "movel_capsula":[2729,2844,112,100],
+    "iso_bau":[2843,2844,95,98],
+    "movel_cama":[2940,2844,102,95],
+    "iso_mesinha":[3044,2844,124,93],
+    "iso_criado":[3170,2844,67,92],
+    "forte_forte_cidade":[3239,2844,180,91],
+    "forte_colonia":[3421,2844,180,90],
+    "iso_quadro":[3603,2844,64,87],
+    "movel_fogueira":[3669,2844,68,85],
+    "forte_forte":[3739,2844,180,84],
+    "forte_campo":[0,2981,180,81],
+    "movel_cofre":[182,2981,63,78],
+    "movel_mesa":[247,2981,90,74],
+    "movel_cesto":[339,2981,70,73],
+    "iso_tapete":[411,2981,132,72],
+    "movel_bau_ferro":[545,2981,66,72],
+    "movel_bau":[613,2981,66,64],
+    "catapulta_impacto":[681,2981,86,63],
+    "movel_banco":[769,2981,81,62],
+    "movel_mesa_redonda":[852,2981,72,58],
+    "catapulta_pilha":[926,2981,62,42],
+    "catapulta_pedra":[990,2981,30,29]
   }/*FIM_ATLAS2*/;
   let art2 = null;
   (function loadArt2() {
     const img = new Image();
     img.onload = () => { art2 = img; thumbCache.clear(); invDirty = true; };
-    img.onerror = () => { const n = +(img.dataset.tent || 0); img.dataset.tent = n + 1; const alt = ['estruturas-v2.webp', 'assets/estruturas.webp', 'estruturas.webp'][n]; if (alt) img.src = alt; };
-    img.src = window.TERRA_ATLAS2 || 'assets/estruturas-v2.webp';
+    img.onerror = () => { const n = +(img.dataset.tent || 0); img.dataset.tent = n + 1; const alt = ['estruturas-v3.webp', 'assets/estruturas.webp', 'estruturas.webp'][n]; if (alt) img.src = alt; };
+    img.src = window.TERRA_ATLAS2 || 'assets/estruturas-v3.webp';
   })();
   const thumbCache = new Map();
   function thumb2(name, w = 56, h = 48) {
@@ -7524,7 +7581,7 @@
     if (alpha !== 1) ctx.globalAlpha = alpha;
     if (r) {
       const [x, y, w, h] = buildRect(b, name, camX, camY);
-      if (b.flip) { ctx.save(); ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(art2, r[0], r[1], r[2], r[3], 0, 0, w, h); ctx.restore(); }
+      if (b.flip && !d.gira) { ctx.save(); ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(art2, r[0], r[1], r[2], r[3], 0, 0, w, h); ctx.restore(); }
       else ctx.drawImage(art2, r[0], r[1], r[2], r[3], x, y, w, h);
     } else {   // sem a arte: só a forma, para continuar jogável
       const x0 = b.x * tp - camX, y0 = b.y * tp - camY, w = d.w * tp, h = d.h * tp;
@@ -7568,7 +7625,7 @@
         ents.push({ y: key, f: () => drawBuild(b, 'catapulta_' + fr, camX, camY) });
       }
       else if (d.tipo === 'maquina') ents.push({ y: key, f: () => desenharMaquina(b, camX, camY) });
-      else if (d.tipo === 'banca') ents.push({ y: key, f: () => { drawBuild(b, d.img, camX, camY); desenharPlaca(b, camX, camY); } });
+      else if (d.tipo === 'banca') ents.push({ y: key, f: () => { drawBuild(b, imgDe(b), camX, camY); desenharPlaca(b, camX, camY); } });
       else ents.push({ y: key, f: () => drawBuild(b, d.img, camX, camY) });
     }
     return fronts;
@@ -7586,7 +7643,7 @@
       if (!edit && ok && art2) {
         const mat = (WALL_MATS[(w || 0) & 15] || WALL_MATS[0]).id, gate = S.sel.k === 'portao' || (S.sel.carry && S.sel.carry.gate);
         const r = ATLAS2[`muro_${mat}_${gate ? 'portao' : 'h'}`];
-        if (r) { const k = tp / 96, ww = gate ? r[2] * k : tp, hh = r[3] * k; ctx.globalAlpha = 0.5; ctx.drawImage(art2, r[0], r[1], r[2], r[3], x0 + tp / 2 - ww / 2, y0 + tp * 1.04 - hh, ww, hh); ctx.globalAlpha = 1; }
+        if (r) { const k = tp / 96, ww = gate ? r[2] * k : tp, hh = r[3] * k; ctx.globalAlpha = 0.5; ctx.drawImage(art2, r[0], r[1], r[2], r[3], x0 + tp / 2 - ww / 2, y0 + tp * 1.1 - hh, ww, hh); ctx.globalAlpha = 1; }
       }
       ctx.strokeStyle = !ok ? 'rgba(235,80,60,0.95)' : S.sel.k === 'remover' ? 'rgba(240,120,60,0.95)' : 'rgba(140,230,120,0.95)';
       ctx.lineWidth = Math.max(2, tp / 16); ctx.strokeRect(x0 + 1, y0 + 1, tp - 2, tp - 2);
@@ -7596,9 +7653,9 @@
     const d = BUILDS[S.sel.id];
     if (d.tipo === 'robo') return;
     const c = candidate(S.sel.id), bad = placeProblem(c);
-    const show = { k: d.tipo === 'forte' && d.arte ? d.arte : c.k, x: c.x, y: c.y, flip: !!S.sel.flip };
+    const show = { k: d.tipo === 'forte' && d.arte ? d.arte : c.k, x: c.x, y: c.y, flip: !!S.sel.flip, rot: S.sel.rot || 0 };
     if (d.tipo === 'forte') { drawBuild(show, d.img + '_fundo', camX, camY, 0.5); drawBuild(show, d.img + '_frente', camX, camY, 0.5); }
-    else drawBuild(show, d.img, camX, camY, 0.5);
+    else drawBuild(show, d.gira ? imgDe(show) : d.img, camX, camY, 0.5);
     for (const [jk, ox, oy] of d.junto || []) drawBuild({ k: jk, x: c.x + ox, y: c.y + oy }, BUILDS[jk].img, camX, camY, 0.5);
     const x0 = c.x * tp - camX, y0 = c.y * tp - camY, w = d.w * tp, h = d.h * tp;
     ctx.strokeStyle = bad ? 'rgba(235,80,60,0.95)' : 'rgba(140,230,120,0.95)';
@@ -7614,28 +7671,32 @@
     const isW = (xx, yy) => { const q = tileAt(xx, yy, z); return q === T.WALL || q === T.GATE; };
     const L = isW(x - 1, y), R = isW(x + 1, y), U = isW(x, y - 1), Dn = isW(x, y + 1);
     return () => {
-      const k = tp / 96, bottom = sy + tp * 1.04, cx = sx + tp / 2;
-      const hr = ATLAS2[`muro_${mat}_h`], vr = ATLAS2[`muro_${mat}_v`];
+      // peças 3D: h (trecho deitado; metade esquerda/direita), vu/vd (trecho em pé, metade de cima/de baixo), poste, portão
+      const k = tp / 96, bottom = sy + tp * 1.1, cx = sx + tp / 2;
+      const spr = n => ATLAS2[`muro_${mat}_${n}`];
+      const peca = n => { const r = spr(n); if (!r) return; const w = r[2] * k, h = r[3] * k; ctx.drawImage(art2, r[0], r[1], r[2], r[3], cx - w / 2, bottom - h, w, h); };
       const half = side => {
-        const sw = hr[2] / 2, dh = hr[3] * k;
-        if (side === 'L') ctx.drawImage(art2, hr[0], hr[1], sw, hr[3], sx - 0.5, bottom - dh, tp / 2 + 1, dh);
-        else ctx.drawImage(art2, hr[0] + sw, hr[1], sw, hr[3], cx - 0.5, bottom - dh, tp / 2 + 1, dh);
+        const r = spr('h'); if (!r) return;
+        const sw = r[2] / 2, dh = r[3] * k;
+        if (side === 'L') ctx.drawImage(art2, r[0], r[1], sw, r[3], sx - 0.5, bottom - dh, tp / 2 + 1, dh);
+        else ctx.drawImage(art2, r[0] + sw, r[1], sw, r[3], cx - 0.5, bottom - dh, tp / 2 + 1, dh);
       };
-      const post = () => { const w = vr[2] * k, h = vr[3] * k; ctx.drawImage(art2, vr[0], vr[1], vr[2], vr[3], cx - w / 2, bottom - h, w, h); };
       if (t === T.GATE) {
-        if (L) half('L'); if (R) half('R');
+        const emPe = !(L || R) && (U || Dn);
         const open = S.p.z === z && Math.hypot(S.p.x - x - 0.5, S.p.y - y - 0.5) < 1.8;
-        const gr = ATLAS2[`muro_${mat}_${open ? 'aberto' : 'portao'}`], w = gr[2] * k, h = gr[3] * k;
-        ctx.drawImage(art2, gr[0], gr[1], gr[2], gr[3], cx - w / 2, bottom - h, w, h);
+        if (emPe) { if (U) peca('vu'); peca(open ? 'aberto_v' : 'portao_v'); if (Dn) peca('vd'); }
+        else { if (L) half('L'); if (R) half('R'); peca(open ? 'aberto' : 'portao'); }
         return;
       }
       if (rot === 1) { half('L'); half('R'); return; }   // girado: deitado
-      if (rot === 2) { const w = vr[2] * k, h = vr[3] * k; ctx.drawImage(art2, vr[0], vr[1], vr[2], vr[3], cx - w / 2, bottom - h - tp * 0.5, w, h); post(); return; }   // em pé
-      if (L && R && !U && !Dn) { half('L'); half('R'); return; }
+      if (rot === 2) { peca('vu'); peca('vd'); return; }   // em pé
+      const nH = L || R, nV = U || Dn, viz = L + R + U + Dn;
+      if (!viz) { half('L'); half('R'); return; }
+      if (U) peca('vu');
       if (L) half('L');
       if (R) half('R');
-      if (U) { const w = vr[2] * k, h = vr[3] * k; ctx.drawImage(art2, vr[0], vr[1], vr[2], vr[3], cx - w / 2, bottom - h - tp * 0.5, w, h); }   // emenda com o de cima
-      post();
+      if ((nH && nV) || viz === 1) peca('poste');   // quina, T ou ponta: poste esconde a emenda
+      if (Dn) peca('vd');
     };
   }
   const BOT_VIEW = ['front', 'back', 'side', 'side'];
@@ -7798,7 +7859,7 @@
     if (!bt) return;
     const a = bt.dataset.ed;
     if (a[0] === 'r' && interior && a !== 'remover') { roomEdit(a.slice(1)); editSig = ''; updateEditBar(); return; }
-    if (a === 'girarkit') { S.sel.flip = !S.sel.flip; sfx('toque'); }
+    if (a === 'girarkit') { girarObj(S.sel, S.sel.id); sfx('toque'); }
     else if (a === 'cancelar') { S.sel = { k: 'nada' }; toast('Guardado em Construir → Suas construções'); }
     else if (a === 'soltar') { dropCarry(); S.sel = { k: 'nada' }; }
     else if (a.startsWith('w')) {
@@ -7814,11 +7875,11 @@
         const kk = kitOfBot(f.bot), kb = BUILDS[kk];
         if (a === 'vender') { S.coins += Math.floor(kb.preco / 2); sfx('moeda'); toast(`${kb.nome} vendido: +${Math.floor(kb.preco / 2)} moedas`, 'gold'); }
         else { S.kit[kk] = (S.kit[kk] || 0) + 1; if (a === 'mover') { S.sel = { k: 'kit', id: kk }; toast('Escolha o novo lugar e use para colocar', 'leaf'); } else toast('Robô guardado', 'leaf'); }
-      } else if (a === 'girar') { f.b.flip = !f.b.flip; sfx('toque'); }
+      } else if (a === 'girar') { girarObj(f.b, f.b.k); sfx('toque'); }
       else {
-        const k = f.b.k, flip = f.b.flip, muralha = k === 'muralha';
+        const k = f.b.k, flip = f.b.flip, rot = f.b.rot, muralha = k === 'muralha';
         removeBuild(f.b, a === 'vender');
-        if (a === 'mover') { S.sel = { k: 'kit', id: muralha && !S.kit.muralha ? 'muralha_vila' : k, flip }; toast('Escolha o novo lugar e use para colocar', 'leaf'); }
+        if (a === 'mover') { S.sel = { k: 'kit', id: muralha && !S.kit.muralha ? 'muralha_vila' : k, flip, rot }; toast('Escolha o novo lugar e use para colocar', 'leaf'); }
       }
     }
     invDirty = true; save(); editSig = ''; updateEditBar();
@@ -9453,10 +9514,11 @@
   function desenharMaquina(b, camX, camY) {
     maqEstado(b);
     const c = eqCfg(), now = performance.now();
-    const anda = !b.quebrada && b.prontos < c.acumula;
-    const nm = `${b.k}_${anda ? Math.floor(now / 260) % 3 : 0}`;
+    const anda = !b.quebrada && b.prontos < c.acumula, an = ANIM3D[b.k];
+    const q = !anda ? 0 : BUILDS[b.k].gira && an ? an.seq[Math.floor(now / an.ms) % an.seq.length] : Math.floor(now / 260) % 3;
+    let nm = imgDe(b, q); if (!art2Rect(nm)) nm = imgDe(b, 0);
     drawBuild(b, art2Rect(nm) ? nm : BUILDS[b.k].img, camX, camY);
-    const [x, y, w, h] = buildRect(b, BUILDS[b.k].img, camX, camY);
+    const [x, y, w, h] = buildRect(b, art2Rect(nm) ? nm : BUILDS[b.k].img, camX, camY);
     if (b.quebrada) {   // fumaça escura saindo
       for (let k = 0; k < 4; k++) {
         const t = ((now / 1600 + k / 4) % 1), r = (0.12 + t * 0.3) * tp;
@@ -9474,9 +9536,9 @@
     }
   }
   function desenharPlaca(b, camX, camY) {
-    const pl = PLACAS[b.k];
-    if (!pl || !b.nome) return;
-    const [x, y, w, h] = buildRect(b, BUILDS[b.k].img, camX, camY);
+    const nm = imgDe(b), pl = PLACAS[BUILDS[b.k].gira ? nm : b.k];
+    if (!pl || !b.nome || !art2Rect(nm)) return;
+    const [x, y, w, h] = buildRect(b, nm, camX, camY);
     const px = x + pl[0] * w, py = y + pl[1] * h, pw = pl[2] * w, ph = pl[3] * h;
     ctx.save(); ctx.beginPath(); ctx.rect(px, py, pw, ph); ctx.clip();
     let fs = Math.round(ph * 0.62);
