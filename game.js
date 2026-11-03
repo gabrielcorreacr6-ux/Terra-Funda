@@ -166,6 +166,14 @@
     cristal_claro: { tipo: 'movel', nome: 'Cristal claro', preco: 350, arte: 'cristal_claro' },
     ajudante: { tipo: 'robo', bot: 'fazenda', nome: 'Ajudante de fazenda', preco: 2500, desc: 'Cuida da plantação em volta de onde você colocar (até 6 blocos): colhe o trigo maduro, guarda a colheita e replanta com as sementes que sobram.' },
     robo: { tipo: 'robo', nome: 'Robô minerador', preco: 3000, desc: 'Fica onde você colocar, procura minério embaixo da terra (até 6 blocos) e guarda para você. Os minérios que ele tira acabam de verdade.' },
+    // equipamentos (só na sua terra): produzem por ciclo mesmo com você fora; com o uso dão defeito e precisam ser trocados
+    maq_petroleo: { tipo: 'maquina', nome: 'Plataforma de petróleo', w: 3, h: 3, dw: 3.7, preco: 25000, desc: 'Tira em média 20 barris de petróleo por ciclo (30 min), mesmo com você fora. Com o uso dá defeito e precisa ser trocada.' },
+    maq_mina: { tipo: 'maquina', nome: 'Máquina de mineração', w: 3, h: 3, dw: 3.7, preco: 18000, desc: 'A cada ciclo (30 min) tira carvão, ferro, ouro e às vezes diamante, mesmo com você fora. Com o uso dá defeito e precisa ser trocada.' },
+    // bancas: vendem sozinhas no Mercado com o nome da sua loja
+    banca_feira: { tipo: 'banca', nome: 'Banca de feira', w: 3, h: 3, dw: 3.5, preco: 1500, desc: 'Põe até 5 ofertas no Mercado com o nome da sua loja: vende mesmo com você longe.' },
+    banca_loja: { tipo: 'banca', nome: 'Lojinha de pedra', w: 3, h: 3, dw: 3.5, preco: 3000, desc: 'Põe até 5 ofertas no Mercado com o nome da sua loja: vende mesmo com você longe.' },
+    banca_petroleo: { tipo: 'banca', nome: 'Armazém de petróleo', w: 3, h: 3, dw: 3.6, preco: 4000, desc: 'Põe até 5 ofertas no Mercado com o nome da sua loja: vende mesmo com você longe.' },
+    banca_joias: { tipo: 'banca', nome: 'Joalheria de minérios', w: 3, h: 3, dw: 3.5, preco: 5000, desc: 'Põe até 5 ofertas no Mercado com o nome da sua loja: vende mesmo com você longe.' },
   };
   for (const [k, d] of Object.entries(BUILDS)) {
     d.w = d.w || 1; d.h = d.h || 1;
@@ -176,10 +184,12 @@
     d.img = d.tipo === 'casa' ? 'casa_' + k : d.tipo === 'forte' ? 'forte_' + (d.arte || k) : d.tipo === 'movel' ? (d.arte || 'movel_' + k) : k;
   }
   BUILDS.catapulta.img = 'catapulta_0';
+  BUILDS.maq_petroleo.img = 'maq_petroleo_0'; BUILDS.maq_mina.img = 'maq_mina_0';
+  const PLACAS = /*PLACAS*/{"banca_feira":[0.303,0.042,0.214,0.19],"banca_loja":[0.093,0.508,0.142,0.15],"banca_petroleo":[0.519,0.193,0.227,0.244],"banca_joias":[0.578,0.177,0.28,0.269]}/*FIM_PLACAS*/;   // onde fica a placa em branco de cada banca (frações do desenho)
   // fortalezas descontinuadas: quem tinha recebe o valor de volta ao abrir o jogo
   const DESCONTINUADAS = { muralha: 4000, muralha_vila: 5200, forte: 3000, forte_cidade: 6000, campo: 5500, colonia: 9000, cabana_vila: 0 };
-  const SHOP_TABS = [['ferramentas', 'Ferramentas'], ['casas', 'Casas'], ['defesa', 'Defesa'], ['moveis', 'Móveis'], ['ajudantes', 'Ajudantes'], ['skins', 'Skins']];
-  const TAB_OF = d => d.tipo === 'casa' || d.tipo === 'forte' ? 'casas' : d.tipo === 'torre' || d.tipo === 'armadilha' ? 'defesa' : d.tipo === 'movel' ? 'moveis' : 'ajudantes';
+  const SHOP_TABS = [['ferramentas', 'Ferramentas'], ['casas', 'Casas'], ['defesa', 'Defesa'], ['moveis', 'Móveis'], ['ajudantes', 'Ajudantes'], ['negocios', 'Negócios'], ['skins', 'Skins']];
+  const TAB_OF = d => d.tipo === 'maquina' || d.tipo === 'banca' ? 'negocios' : d.tipo === 'casa' || d.tipo === 'forte' ? 'casas' : d.tipo === 'torre' || d.tipo === 'armadilha' ? 'defesa' : d.tipo === 'movel' ? 'moveis' : 'ajudantes';
   const ROBO_CAP = 30, ROBO_EVERY = 30, ROBO_R = 6;
 
   // Compradores que andam pelo mapa: acampam um tempo e depois partem para outro ponto
@@ -523,7 +533,7 @@
       p: S.p, inv: S.inv, coins: S.coins, owned: S.owned, time: S.time, tool: S.tool, hints: S.hints, catalog: S.catalog,
       npcs: S.npcs.map(n => ({ id: n.id, x: n.x, y: n.y })),
       home: S.home, homeReadyAt: S.homeReadyAt, deposits: S.deposits, char: S.char, skins: S.skins, skin: S.skin, skinCor: S.skinCor,
-      tirado: S.tirado, wmat: toB64(rle(S.wmat)), builds: S.builds, kit: S.kit, sel: S.sel, dur: S.dur, broken: S.broken,
+      tirado: S.tirado, murosV2: true, wmat: toB64(rle(S.wmat)), builds: S.builds, kit: S.kit, sel: S.sel, dur: S.dur, broken: S.broken,
       hp: S.hp, wxp: S.wxp, wbless: S.wbless, camps: S.camps, mundo: NET.enabled ? undefined : MUNDO, presentes: S.presentes, porto: S.porto, fugPegos: S.fugPegos, fugVisto: S.fugVisto, vilaEstado: S.vilaEstado, aura: S.aura, playMs: S.playMs, morte: S.morte, bichoMorto: S.bichoMorto,
       bots: S.bots.map(b => ({ x: b.x, y: b.y, hx: b.hx, hy: b.hy, store: b.store, t: b.t, tipo: b.tipo })),
     };
@@ -577,6 +587,17 @@
       }
       if (['arco', 'cetro', 'livro'].includes(TOOLS[s.tool].id) && !s.owned[TOOLS[s.tool].id]) s.tool = 0;
       if (d.wmat) { const wm = unrle(fromB64(d.wmat), s.wmat.length); if (wm) s.wmat = wm; }
+      if (!d.murosV2) {   // muros antigos saíram do jogo: some com eles e devolve o material
+        let n = 0;
+        for (let i = 0; i < s.tiles.length; i++) {
+          const t = s.tiles[i];
+          if (t !== T.WALL && t !== T.GATE) continue;
+          const c = wallCost(s.wmat[i] & 15, t === T.GATE);
+          for (const [k2, q] of Object.entries(c)) s.inv[k2] = (s.inv[k2] || 0) + q;
+          s.tiles[i] = i < W * H ? T.GRASS : T.AIR; s.wmat[i] = 0; n++;
+        }
+        if (n) s.devolvidoMuros = n;
+      }
       let devolve = 0;
       for (const b of Array.isArray(d.builds) ? d.builds : []) if (DESCONTINUADAS[b.k] !== undefined) devolve += DESCONTINUADAS[b.k];
       for (const [k, n] of Object.entries(d.kit || {})) if (DESCONTINUADAS[k] !== undefined && n > 0) { devolve += DESCONTINUADAS[k] * n; d.kit[k] = 0; }
@@ -1833,7 +1854,9 @@
     const d = BUILDS[c.k];
     const b = { k: d.tipo === 'forte' && d.arte ? d.arte : c.k, x: c.x, y: c.y, dono: myId(), flip: !!c.flip };
     if (d.tipo === 'casa' || d.tipo === 'forte') b.acesso = 'so_eu';
-    if (d.tipo === 'casa' || d.tipo === 'forte' || d.tipo === 'torre') {   // limpa o terreno embaixo
+    if (d.tipo === 'maquina') { b.ult = Date.now(); b.usado = 0; b.prontos = 0; b.est = {}; }
+    if (d.tipo === 'banca') b.uid = Math.random().toString(36).slice(2, 10);
+    if (d.tipo === 'casa' || d.tipo === 'forte' || d.tipo === 'torre' || d.tipo === 'maquina' || d.tipo === 'banca') {   // limpa o terreno embaixo
       for (let y = c.y; y < c.y + d.h; y++) for (let x = c.x; x < c.x + d.w; x++) {
         if (!shapeHit(b, x + 0.5, y + 0.5)) continue;
         const i = I(x, y, 0), t = S.tiles[i];
@@ -1905,6 +1928,7 @@
       toast('Robô guardado', 'leaf');
     } else {
       const b = r.b, d = BUILDS[b.k], gone = [b];
+      if (d.tipo === 'maquina') { toast('Equipamentos não podem ser guardados: colete a produção e, quando der defeito, faça a troca', 'warn', 4000); return; }
       if (d.tipo === 'casa') for (const o of S.builds) if (o !== b && nestOK(b, o) && shapeHit(b, o.x + 0.5, o.y + 0.5)) gone.push(o);
       for (const o of gone) { S.builds.splice(S.builds.indexOf(o), 1); S.kit[o.k] = (S.kit[o.k] || 0) + 1; }
       toast(gone.length > 1 ? `${d.nome} guardada com ${gone.length - 1} ${gone.length > 2 ? 'móveis' : 'móvel'}` : `${d.nome}: guardado. Coloque de novo com Construir.`, 'leaf', 3200);
@@ -2043,6 +2067,8 @@
       else toast('O baú está vazio');
       return;
     }
+    const eq = tool !== 'muro' && equipNaFrente(x, y);
+    if (eq) { actHeld = false; abrirEquip(eq); return; }
     const cat = tool !== 'muro' && catapultInFront();
     if (cat) { actHeld = false; fireCatapult(cat); return; }
     const bot = tool !== 'muro' && botNear(x, y);
@@ -5340,112 +5366,122 @@
     "casa_saloon_chao":[1788,1033,340,304],
     "casa_pedra":[2130,1033,340,302],
     "casa_pedra_chao":[2472,1033,340,302],
-    "casa_castelo":[2814,1033,340,295],
-    "casa_castelo_chao":[3156,1033,340,295],
-    "casa_tribal":[3498,1033,340,289],
-    "casa_tribal_chao":[0,1376,340,289],
-    "casa_castelo_dentro":[342,1376,340,278],
-    "casa_castelo_dentro_chao":[684,1376,340,278],
-    "casa_tribal_dentro":[1026,1376,340,275],
-    "casa_tribal_dentro_chao":[1368,1376,340,275],
-    "casa_cabana_dentro":[1710,1376,340,274],
-    "casa_cabana_dentro_chao":[2052,1376,340,274],
-    "casa_saloon_dentro":[2394,1376,340,274],
-    "casa_saloon_dentro_chao":[2736,1376,340,274],
-    "casa_domo":[3078,1376,340,268],
-    "casa_domo_chao":[3420,1376,340,268],
-    "casa_domo_dentro":[0,1667,340,268],
-    "casa_domo_dentro_chao":[342,1667,340,268],
-    "casa_pedra_dentro":[684,1667,340,260],
-    "casa_pedra_dentro_chao":[1026,1667,340,260],
-    "casa_choupana":[1368,1667,300,234],
-    "torre_madeira":[1670,1667,119,203],
-    "torre_cristal":[1791,1667,114,203],
-    "torre_pedra":[1907,1667,117,198],
-    "torre_balista_cristal":[2026,1667,113,196],
-    "torre_canhao":[2141,1667,137,188],
-    "torre_balista":[2280,1667,131,185],
-    "iso_estante":[2413,1667,78,155],
-    "iso_cama_dossel":[2493,1667,138,154],
-    "forte_muralha":[2633,1667,180,154],
-    "iso_guarda_roupa":[2815,1667,83,145],
-    "iso_geladeira":[2900,1667,82,143],
-    "iso_espelho":[2984,1667,70,137],
-    "catapulta_0":[3056,1667,150,135],
-    "catapulta_1":[3208,1667,150,135],
-    "catapulta_2":[3360,1667,150,135],
-    "catapulta_3":[3512,1667,150,135],
-    "iso_luminaria":[3664,1667,82,134],
-    "iso_aquario":[3748,1667,88,134],
-    "movel_cama_dossel":[3838,1667,126,132],
-    "cristal_claro":[3966,1667,103,131],
-    "iso_cama_casal":[0,1937,150,130],
-    "cristal_roxo":[152,1937,103,129],
-    "iso_fogao":[257,1937,97,125],
-    "catapulta_ferro":[356,1937,161,124],
-    "iso_lareira":[519,1937,113,122],
-    "iso_mesa":[634,1937,144,119],
-    "iso_cofre":[780,1937,91,117],
-    "movel_lareira":[873,1937,63,117],
-    "iso_sofa":[938,1937,136,116],
-    "muro_madeira_v":[1076,1937,31,112],
-    "iso_pia":[1109,1937,153,111],
-    "muro_tijolo_aberto":[1264,1937,85,111],
-    "movel_fogao":[1351,1937,64,111],
-    "iso_cama":[1417,1937,125,110],
-    "iso_cadeira":[1544,1937,58,109],
-    "iso_planta":[1604,1937,64,106],
-    "iso_poltrona":[1670,1937,99,105],
-    "movel_cama_casal":[1771,1937,126,105],
-    "iso_barril":[1899,1937,71,104],
-    "espinhos":[1972,1937,120,103],
-    "muro_tijolo_v":[2094,1937,30,100],
-    "movel_capsula":[2126,1937,112,100],
-    "muro_pedra_v":[2240,1937,29,99],
-    "iso_bau":[2271,1937,95,98],
-    "movel_cama":[2368,1937,102,95],
-    "iso_mesinha":[2472,1937,124,93],
-    "muro_madeira_aberto":[2598,1937,88,93],
-    "muro_pedra_aberto":[2688,1937,88,93],
-    "iso_criado":[2778,1937,67,92],
-    "forte_forte_cidade":[2847,1937,180,91],
-    "forte_colonia":[3029,1937,180,90],
-    "iso_quadro":[3211,1937,64,87],
-    "muro_tijolo_portao":[3277,1937,75,87],
-    "muro_fortaleza_v":[3354,1937,31,87],
-    "movel_fogueira":[3387,1937,68,85],
-    "muro_fortaleza_aberto":[3457,1937,90,84],
-    "forte_forte":[3549,1937,180,84],
-    "muro_madeira_h":[3731,1937,96,82],
-    "forte_campo":[3829,1937,180,81],
-    "movel_cofre":[4011,1937,63,78],
-    "muro_madeira_portao":[0,2069,76,77],
-    "muro_fortaleza_portao":[78,2069,79,75],
-    "movel_mesa":[159,2069,90,74],
-    "muro_ferro_aberto":[251,2069,87,73],
-    "movel_cesto":[340,2069,70,73],
-    "iso_tapete":[412,2069,132,72],
-    "movel_bau_ferro":[546,2069,66,72],
-    "muro_pedra_portao":[614,2069,80,71],
-    "muro_ferro_v":[696,2069,31,71],
-    "movel_bau":[729,2069,66,64],
-    "catapulta_impacto":[797,2069,86,63],
-    "muro_pedra_h":[885,2069,96,63],
-    "muro_ferro_portao":[983,2069,75,62],
-    "movel_banco":[1060,2069,81,62],
-    "movel_mesa_redonda":[1143,2069,72,58],
-    "muro_tijolo_h":[1217,2069,96,56],
-    "muro_fortaleza_h":[1315,2069,96,56],
-    "muro_ferro_h":[1413,2069,96,55],
-    "catapulta_pilha":[1511,2069,62,42],
-    "catapulta_pedra":[1575,2069,30,29]
+    "banca_loja":[2814,1033,289,301],
+    "casa_castelo":[3105,1033,340,295],
+    "casa_castelo_chao":[3447,1033,340,295],
+    "casa_tribal":[0,1376,340,289],
+    "casa_tribal_chao":[342,1376,340,289],
+    "banca_feira":[684,1376,290,284],
+    "maq_petroleo_0":[976,1376,300,280],
+    "maq_petroleo_1":[1278,1376,300,280],
+    "maq_petroleo_2":[1580,1376,300,280],
+    "casa_castelo_dentro":[1882,1376,340,278],
+    "casa_castelo_dentro_chao":[2224,1376,340,278],
+    "casa_tribal_dentro":[2566,1376,340,275],
+    "casa_tribal_dentro_chao":[2908,1376,340,275],
+    "casa_cabana_dentro":[3250,1376,340,274],
+    "casa_cabana_dentro_chao":[3592,1376,340,274],
+    "casa_saloon_dentro":[0,1667,340,274],
+    "casa_saloon_dentro_chao":[342,1667,340,274],
+    "banca_joias":[684,1667,289,271],
+    "casa_domo":[975,1667,340,268],
+    "casa_domo_chao":[1317,1667,340,268],
+    "casa_domo_dentro":[1659,1667,340,268],
+    "casa_domo_dentro_chao":[2001,1667,340,268],
+    "casa_pedra_dentro":[2343,1667,340,260],
+    "casa_pedra_dentro_chao":[2685,1667,340,260],
+    "banca_petroleo":[3027,1667,291,238],
+    "casa_choupana":[3320,1667,300,234],
+    "maq_mina_0":[3622,1667,300,233],
+    "maq_mina_1":[0,1943,300,233],
+    "maq_mina_2":[302,1943,300,233],
+    "torre_madeira":[604,1943,119,203],
+    "torre_cristal":[725,1943,114,203],
+    "torre_pedra":[841,1943,117,198],
+    "torre_balista_cristal":[960,1943,113,196],
+    "torre_canhao":[1075,1943,137,188],
+    "torre_balista":[1214,1943,131,185],
+    "iso_estante":[1347,1943,78,155],
+    "iso_cama_dossel":[1427,1943,138,154],
+    "forte_muralha":[1567,1943,180,154],
+    "iso_guarda_roupa":[1749,1943,83,145],
+    "iso_geladeira":[1834,1943,82,143],
+    "iso_espelho":[1918,1943,70,137],
+    "catapulta_0":[1990,1943,150,135],
+    "catapulta_1":[2142,1943,150,135],
+    "catapulta_2":[2294,1943,150,135],
+    "catapulta_3":[2446,1943,150,135],
+    "iso_luminaria":[2598,1943,82,134],
+    "iso_aquario":[2682,1943,88,134],
+    "movel_cama_dossel":[2772,1943,126,132],
+    "cristal_claro":[2900,1943,103,131],
+    "iso_cama_casal":[3005,1943,150,130],
+    "cristal_roxo":[3157,1943,103,129],
+    "iso_fogao":[3262,1943,97,125],
+    "catapulta_ferro":[3361,1943,161,124],
+    "iso_lareira":[3524,1943,113,122],
+    "iso_mesa":[3639,1943,144,119],
+    "iso_cofre":[3785,1943,91,117],
+    "movel_lareira":[3878,1943,63,117],
+    "iso_sofa":[3943,1943,136,116],
+    "muro_madeira_portao":[0,2178,112,114],
+    "muro_madeira_aberto":[114,2178,112,114],
+    "muro_madeira_h":[228,2178,96,112],
+    "muro_madeira_v":[326,2178,34,112],
+    "muro_fortaleza_v":[362,2178,14,112],
+    "iso_pia":[378,2178,153,111],
+    "movel_fogao":[533,2178,64,111],
+    "iso_cama":[599,2178,125,110],
+    "muro_fortaleza_portao":[726,2178,108,110],
+    "muro_fortaleza_aberto":[836,2178,108,110],
+    "iso_cadeira":[946,2178,58,109],
+    "muro_fortaleza_h":[1006,2178,96,108],
+    "iso_planta":[1104,2178,64,106],
+    "muro_tijolo_portao":[1170,2178,104,106],
+    "muro_tijolo_aberto":[1276,2178,104,106],
+    "iso_poltrona":[1382,2178,99,105],
+    "movel_cama_casal":[1483,2178,126,105],
+    "iso_barril":[1611,2178,71,104],
+    "muro_tijolo_h":[1684,2178,96,104],
+    "muro_tijolo_v":[1782,2178,31,104],
+    "muro_ferro_v":[1815,2178,14,104],
+    "espinhos":[1831,2178,120,103],
+    "muro_pedra_portao":[1953,2178,100,102],
+    "muro_pedra_aberto":[2055,2178,100,102],
+    "muro_ferro_portao":[2157,2178,100,102],
+    "muro_ferro_aberto":[2259,2178,100,102],
+    "muro_pedra_h":[2361,2178,96,100],
+    "muro_pedra_v":[2459,2178,30,100],
+    "muro_ferro_h":[2491,2178,96,100],
+    "movel_capsula":[2589,2178,112,100],
+    "iso_bau":[2703,2178,95,98],
+    "movel_cama":[2800,2178,102,95],
+    "iso_mesinha":[2904,2178,124,93],
+    "iso_criado":[3030,2178,67,92],
+    "forte_forte_cidade":[3099,2178,180,91],
+    "forte_colonia":[3281,2178,180,90],
+    "iso_quadro":[3463,2178,64,87],
+    "movel_fogueira":[3529,2178,68,85],
+    "forte_forte":[3599,2178,180,84],
+    "forte_campo":[3781,2178,180,81],
+    "movel_cofre":[3963,2178,63,78],
+    "movel_mesa":[0,2294,90,74],
+    "movel_cesto":[92,2294,70,73],
+    "iso_tapete":[164,2294,132,72],
+    "movel_bau_ferro":[298,2294,66,72],
+    "movel_bau":[366,2294,66,64],
+    "catapulta_impacto":[434,2294,86,63],
+    "movel_banco":[522,2294,81,62],
+    "movel_mesa_redonda":[605,2294,72,58],
+    "catapulta_pilha":[679,2294,62,42],
+    "catapulta_pedra":[743,2294,30,29]
   }/*FIM_ATLAS2*/;
   let art2 = null;
   (function loadArt2() {
     const img = new Image();
     img.onload = () => { art2 = img; thumbCache.clear(); invDirty = true; };
-    img.onerror = () => { if (!img.dataset.raiz) { img.dataset.raiz = 1; img.src = 'estruturas.webp'; } };
-    img.src = window.TERRA_ATLAS2 || 'assets/estruturas.webp';
+    img.onerror = () => { const n = +(img.dataset.tent || 0); img.dataset.tent = n + 1; const alt = ['estruturas-v2.webp', 'assets/estruturas.webp', 'estruturas.webp'][n]; if (alt) img.src = alt; };
+    img.src = window.TERRA_ATLAS2 || 'assets/estruturas-v2.webp';
   })();
   const thumbCache = new Map();
   function thumb2(name, w = 56, h = 48) {
@@ -5798,6 +5834,7 @@
   function buyersOf(item) { return MERCHANTS.filter(m => m.compra.includes(item)).map(m => m.nome).join(' ou '); }
 
   function renderShop() {
+    for (const k of ['maq_petroleo', 'maq_mina']) BUILDS[k].preco = eqCfg()[k].preco;
     $('shop-coins').textContent = S.coins;
     const m = trading && trading.def;
     $('shop-title').textContent = m ? m.nome : panelMode === 'bag' ? 'Mochila' : 'Loja';
@@ -6189,6 +6226,7 @@
         if (!b) return;
         const v = b.dataset.st;
         if (v === 'tp') { adminMove = 'tp'; renderAdmin(); return; }
+        if (v === 'equip') { adminEquipSalvar(); renderAdmin(); return; }
         if (v.startsWith('aura:')) { S.aura = v.slice(5) === 'off' ? null : v.slice(5); save(); renderAdmin(); return; }
         if (v.startsWith('bless:')) {
           const [, arma, nivel] = v.split(':');
@@ -6205,6 +6243,7 @@
       + `<button type="button" class="btn ${!S.aura ? 'btn-gold' : ''}" data-st="aura:off">Sem aura</button>`
       + cores.map(c => `<button type="button" class="btn ${S.aura === c ? 'btn-gold' : ''}" data-st="aura:${c}">${c[0].toUpperCase() + c.slice(1)}</button>`).join('') + '</div>';
     if (admin) {
+      html += adminEquipHtml();
       html += '<div class="section-label">Suas armas · experiência</div><div class="list">';
       for (const [w, nome] of Object.entries(ARMAS)) {
         const max = w === 'cetro' ? 5 : 4;
@@ -6219,7 +6258,7 @@
   // Com contas ligadas fica no servidor (tabela "mundo") e vale para todos; sem contas fica no próprio save.
   const MUNDO_PADRAO = () => ({
     zonas: [{ id: 1, nome: 'Praça do começo', x: SPAWN.x, y: SPAWN.y, r: 18, ativo: true }],
-    eventos: [], fugitivo: null, vilas: [], construtores: { premio: 'moedas:100', chance: 0.1 }, aviso: null, vendas: {},
+    eventos: [], fugitivo: null, vilas: [], construtores: { premio: 'moedas:100', chance: 0.1 }, aviso: null, vendas: {}, equip: null,
   });
   let MUNDO = MUNDO_PADRAO();
   const online = () => NET.enabled && NET.user;
@@ -6228,7 +6267,7 @@
       try {
         const o = await NET.mundoGet();
         const base = MUNDO_PADRAO();
-        MUNDO = { zonas: o.zonas || base.zonas, eventos: o.eventos || [], fugitivo: o.fugitivo || null, vilas: o.vilas || [], construtores: o.construtores || base.construtores, aviso: o.aviso || null, vendas: o.vendas || {} };
+        MUNDO = { zonas: o.zonas || base.zonas, eventos: o.eventos || [], fugitivo: o.fugitivo || null, vilas: o.vilas || [], construtores: o.construtores || base.construtores, aviso: o.aviso || null, vendas: o.vendas || {}, equip: o.equip || null };
         mostrarAviso(MUNDO.aviso); avisoFugitivo();
       } catch (e) { /* sem rede: fica com o que já tinha */ }
     } else MUNDO = S.mundo ? Object.assign(MUNDO_PADRAO(), S.mundo) : MUNDO_PADRAO();
@@ -7411,6 +7450,7 @@
     if (d.tipo === 'casa' || d.tipo === 'forte') { w = d.w * tp; cx = (b.x + d.w / 2) * tp - camX; bottom = (b.y + d.h + d.pad) * tp - camY; }
     else if (b.k.startsWith('catapulta')) { w = 2.6 * tp; cx = (b.x + 1) * tp - camX; bottom = (b.y + 2.1) * tp - camY; }
     else if (d.tipo === 'torre') { w = 2.35 * tp; cx = (b.x + 1) * tp - camX; bottom = (b.y + 2.1) * tp - camY; }
+    else if (d.tipo === 'maquina' || d.tipo === 'banca') { w = d.dw * tp; cx = (b.x + d.w / 2) * tp - camX; bottom = (b.y + d.h + 0.2) * tp - camY; }
     else { w = (d.dw || r[2] / 64) * tp; cx = (b.x + 0.5) * tp - camX; bottom = (b.y + 0.95) * tp - camY; }
     const h = w * r[3] / r[2];
     return [cx - w / 2, bottom - h, w, h];
@@ -7463,6 +7503,8 @@
         const fr = el < 150 ? 1 : el < 330 ? 2 : el < 700 ? 3 : 0;
         ents.push({ y: key, f: () => drawBuild(b, 'catapulta_' + fr, camX, camY) });
       }
+      else if (d.tipo === 'maquina') ents.push({ y: key, f: () => desenharMaquina(b, camX, camY) });
+      else if (d.tipo === 'banca') ents.push({ y: key, f: () => { drawBuild(b, d.img, camX, camY); desenharPlaca(b, camX, camY); } });
       else ents.push({ y: key, f: () => drawBuild(b, d.img, camX, camY) });
     }
     return fronts;
@@ -8580,6 +8622,7 @@
     interior = null;
     if (S.devolvidoSkins) { toast(`As skins antigas saíram do jogo: ${S.devolvidoSkins} moedas devolvidas`, 'gold', 7000); delete S.devolvidoSkins; }
     if (S.devolvido) { toast(`As fortalezas saíram do jogo: ${S.devolvido} moedas devolvidas`, 'gold', 6000); delete S.devolvido; }
+    if (S.devolvidoMuros) { toast(`Muros novos chegaram! Os ${S.devolvidoMuros} blocos de muro antigos foram retirados e o material voltou para a sua mochila.`, 'gold', 8000); delete S.devolvidoMuros; }
     for (const b of S.builds) clearUnderHouse(b);   // casas antigas: limpa o chão embaixo
     hits.clear();
     invDirty = true;
@@ -9159,7 +9202,7 @@
     if (MERC.aba === 'comprar') {
       const itens = [...new Set(MERC.lista.map(o => o.item))];
       h += `<label class="field">Filtrar<select id="merc-filtro"><option value="">Todos os itens</option>${Object.keys(ITEMS).map(k => `<option value="${k}" ${MERC.item === k ? 'selected' : ''}>${E(itemNome(k))}</option>`).join('')}</select></label><div class="list">`;
-      h += MERC.lista.length ? MERC.lista.map(o => `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${o.preco} moedas · ${(o.preco / o.qtd).toFixed(1)} cada · vendedor ${E(o.vendedor_nome || '—')}</small></span>
+      h += MERC.lista.length ? MERC.lista.map(o => `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${o.preco} moedas · ${(o.preco / o.qtd).toFixed(1)} cada · ${o.loja ? '🏪 ' + E(o.loja) : 'vendedor ' + E(o.vendedor_nome || '—')}</small></span>
         ${o.minha ? '<span class="owned">Sua oferta</span>' : `<button type="button" class="btn ${S.coins >= o.preco ? 'btn-gold' : ''}" data-merc="comprar" data-id="${o.id}" data-preco="${o.preco}" ${S.coins >= o.preco ? '' : 'disabled'}>Comprar</button>`}</div>`).join('')
         : `<div class="empty">Nenhuma oferta${MERC.item ? ' de ' + E(itemNome(MERC.item)) : ''} agora.</div>`;
       h += '</div>';
@@ -9172,7 +9215,7 @@
         <label class="field">Preço total (moedas)<input id="merc-preco" type="number" min="1" max="10000000" value="${v.preco}"></label></div>
         <p class="muted small-text">Os itens saem da sua mochila e ficam no Mercado até alguém comprar. Você pode cancelar e pegar de volta. Venda de referência na loja: ${ITEMS[v.item] ? ITEMS[v.item].valor : '?'} moedas cada.</p>
         <button type="button" class="btn btn-gold" data-merc="anunciar">Anunciar</button>`;
-      h += '<div class="cla-sec">Suas ofertas</div><div class="list">' + (MERC.meu.ofertas.length ? MERC.meu.ofertas.map(o => `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${o.preco} moedas</small></span><button type="button" class="btn" data-merc="cancelar" data-id="${o.id}">Cancelar</button></div>`).join('') : '<div class="empty">Nenhuma oferta sua no Mercado.</div>') + '</div>';
+      h += '<div class="cla-sec">Suas ofertas</div><div class="list">' + (MERC.meu.ofertas.length ? MERC.meu.ofertas.map(o => `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${o.preco} moedas${o.loja ? ' · ' + E(o.loja) : ''}</small></span><button type="button" class="btn" data-merc="cancelar" data-id="${o.id}">Cancelar</button></div>`).join('') : '<div class="empty">Nenhuma oferta sua no Mercado.</div>') + '</div>';
     } else {
       h += MERC.meu.saldo > 0 ? `<p>Você vendeu no Mercado e tem <b>${coinsTxt(MERC.meu.saldo)}</b> para retirar.</p><button type="button" class="btn btn-gold" data-merc="retirar">Retirar ${coinsTxt(MERC.meu.saldo)}</button>`
         : '<div class="empty">Nada para retirar. Quando alguém comprar uma oferta sua, as moedas aparecem aqui.</div>';
@@ -9222,6 +9265,182 @@
   async function mercadoAviso() {   // ao entrar: avisa se alguém comprou o que você anunciou
     if (!online() || !NET.mercadoMeu) return;
     try { const m = await NET.mercadoMeu(); if (m && m.saldo > 0) toast(`Você vendeu no Mercado: ${coinsTxt(m.saldo)} para retirar (Menu → Mercado)`, 'gold', 6000); } catch (e) {}
+  }
+
+  // ================= Equipamentos e bancas (só na sua terra) =================
+  // Plataforma de petróleo e máquina de mineração produzem pelo relógio de verdade (ciclo de 30 min, padrão),
+  // guardando até alguns ciclos com você fora. Cada ciclo gasta a durabilidade; no fim dá defeito e precisa de troca.
+  // O administrador ajusta ciclo, acúmulo, durabilidade, produção e preço no painel (MUNDO.equip).
+  const EQUIP_PADRAO = { ciclo: 30, acumula: 4,
+    maq_petroleo: { dur: 96, preco: 25000, petroleo: 20 },
+    maq_mina: { dur: 96, preco: 18000, carvao: 10, ferro: 5, ouro: 2, diamante: 25 } };   // diamante = % de chance por ciclo
+  function eqCfg() {
+    const e = MUNDO.equip || {};
+    return { ciclo: Math.max(1, +e.ciclo || EQUIP_PADRAO.ciclo), acumula: Math.max(1, +e.acumula || EQUIP_PADRAO.acumula),
+      maq_petroleo: Object.assign({}, EQUIP_PADRAO.maq_petroleo, e.maq_petroleo), maq_mina: Object.assign({}, EQUIP_PADRAO.maq_mina, e.maq_mina) };
+  }
+  const varia = n => Math.max(0, Math.round(n * (0.8 + Math.random() * 0.4)));
+  function maqEstado(b) {
+    const c = eqCfg(), cfg = c[b.k], ms = c.ciclo * 60000, agora = Date.now();
+    if (!cfg) return;
+    if (typeof b.ult !== 'number') { b.ult = agora; b.usado = b.usado || 0; b.prontos = b.prontos || 0; b.est = b.est || {}; }
+    if (b.quebrada || b.prontos >= c.acumula) { b.ult = agora; return; }   // parada: o relógio não corre
+    let n = Math.floor((agora - b.ult) / ms);
+    if (n <= 0) return;
+    b.ult += n * ms;
+    n = Math.min(n, c.acumula - b.prontos, Math.max(0, cfg.dur - b.usado));
+    for (let k = 0; k < n; k++) {
+      if (b.k === 'maq_petroleo') b.est.petroleo = (b.est.petroleo || 0) + varia(cfg.petroleo);
+      else {
+        for (const it of ['carvao', 'ferro', 'ouro']) if (cfg[it] > 0) b.est[it] = (b.est[it] || 0) + varia(cfg[it]);
+        if (Math.random() * 100 < cfg.diamante) b.est.diamante = (b.est.diamante || 0) + 1;
+      }
+    }
+    b.prontos += n; b.usado += n;
+    if (b.usado >= cfg.dur) { b.quebrada = true; b.ult = agora; }
+    if (b.prontos >= c.acumula) b.ult = agora;
+  }
+  function equipNaFrente(x, y) {
+    if (S.p.z !== 0 || modoClas) return null;
+    return S.builds.find(b => { const t = BUILDS[b.k].tipo; return (t === 'maquina' || t === 'banca') && (shapeHit(b, x + 0.5, y + 0.5) || shapeHit(b, S.p.x, S.p.y - 0.6)); }) || null;
+  }
+  let equipAberto = null;
+  function abrirEquip(b) { equipAberto = b; $('equip-titulo').textContent = BUILDS[b.k].nome; showSheet('sheet-equip'); renderEquip(); }
+  const estTxt = est => Object.entries(est || {}).filter(([, q]) => q > 0).map(([k, q]) => `${q} ${ITEMS[k] ? ITEMS[k].nome.toLowerCase() : k}`).join(', ');
+  async function renderEquip() {
+    const b = equipAberto, body = $('equip-body');
+    if (!b || !S.builds.includes(b)) { closeSheet(); return; }
+    const d = BUILDS[b.k], E = chatEsc;
+    let h = '';
+    if (d.tipo === 'maquina') {
+      maqEstado(b);
+      const c = eqCfg(), cfg = c[b.k], resta = Math.max(0, cfg.dur - b.usado), gasto = Math.min(1, b.usado / cfg.dur);
+      const prox = b.quebrada || b.prontos >= c.acumula ? null : Math.max(0, c.ciclo * 60000 - (Date.now() - b.ult));
+      h += `<p>${b.quebrada ? '<b style="color:var(--warn)">Deu defeito: precisa de troca.</b> A produção que já estava pronta continua aqui para coletar.'
+        : b.prontos >= c.acumula ? '<b>Depósito cheio:</b> colete para voltar a produzir.' : `Produzindo · próximo ciclo em ${Math.ceil(prox / 60000)} min.`}</p>`;
+      h += `<div class="cla-sec">Desgaste</div><div class="desgaste"><span style="width:${Math.round(gasto * 100)}%;background:${gasto > 0.85 ? '#e8794f' : gasto > 0.6 ? '#efb941' : '#86c35a'}"></span></div>
+        <p class="muted small-text">${b.quebrada ? 'Durabilidade esgotada.' : `Ainda trabalha mais ${resta} ${resta === 1 ? 'ciclo' : 'ciclos'} (cerca de ${Math.round(resta * c.ciclo / 60)} h) antes de dar defeito.`}</p>`;
+      h += `<div class="cla-sec">Produção guardada (${b.prontos}/${c.acumula} ciclos)</div><p>${estTxt(b.est) || 'Nada ainda.'}</p>`;
+      h += `<div class="list-actions">${estTxt(b.est) ? '<button type="button" class="btn btn-gold" data-eq="coletar">Coletar</button>' : ''}`;
+      if (b.quebrada) h += `<button type="button" class="btn ${S.coins >= cfg.preco ? 'btn-gold' : ''}" data-eq="trocar" ${S.coins >= cfg.preco ? '' : 'disabled'}>Trocar por uma nova (${cfg.preco} moedas)</button>`;
+      h += '</div>';
+      h += `<p class="muted small-text">Ciclo de ${c.ciclo} min · guarda até ${c.acumula} ciclos com você fora · ${b.k === 'maq_petroleo' ? `~${cfg.petroleo} barris por ciclo` : `~${cfg.carvao} carvão, ${cfg.ferro} ferro, ${cfg.ouro} ouro e ${cfg.diamante}% de chance de diamante por ciclo`}.</p>`;
+    } else {   // banca
+      h += `<label class="field">Nome da loja (aparece na placa e no Mercado)<input id="banca-nome" type="text" maxlength="20" value="${E(b.nome || '')}" placeholder="Ex.: Petróleo do Gabriel"></label>
+        <div class="list-actions"><button type="button" class="btn" data-eq="nome">Salvar nome</button></div>`;
+      if (!online()) h += '<div class="empty">As bancas vendem pelo Mercado: funcionam com a conta ligada (no site do jogo no GitHub).</div>';
+      else if (!b.nome) h += '<div class="empty">Dê um nome para a loja para começar a vender.</div>';
+      else {
+        body.innerHTML = h + '<div class="empty">Carregando…</div>';
+        let meu = { ofertas: [] };
+        try { meu = (await NET.mercadoMeu()) || meu; } catch (e) {}
+        if (equipAberto !== b || !openSheet || openSheet.id !== 'sheet-equip') return;
+        const minhas = meu.ofertas.filter(o => o.loja === b.nome);
+        h += `<div class="cla-sec">À venda nesta banca (${minhas.length}/5)</div><div class="list">` + (minhas.length ? minhas.map(o => `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${o.preco} moedas</small></span><button type="button" class="btn" data-eq="cancelar" data-id="${o.id}">Tirar</button></div>`).join('') : '<div class="empty">Nada à venda ainda.</div>') + '</div>';
+        const tem = Object.keys(ITEMS).filter(k => (S.inv[k] || 0) > 0);
+        if (minhas.length < 5 && tem.length) {
+          h += `<div class="cla-sec">Pôr à venda</div><label class="field">Item<select id="banca-item">${tem.map(k => `<option value="${k}">${E(itemNome(k))} (você tem ${S.inv[k]})</option>`).join('')}</select></label>
+            <div class="cla-linha"><label class="field">Quantidade<input id="banca-qtd" type="number" min="1" value="1"></label><label class="field">Preço total<input id="banca-preco" type="number" min="1" value="${ITEMS[tem[0]] ? ITEMS[tem[0]].valor : 10}"></label></div>
+            <div class="list-actions"><button type="button" class="btn btn-gold" data-eq="vender">Pôr na banca</button></div>`;
+        }
+        h += `<p class="muted small-text">Quem compra paga pelo Mercado; as moedas ficam em Menu → Mercado → Vendas para você retirar.${meu.saldo ? ` Você tem ${coinsTxt(meu.saldo)} para retirar.` : ''}</p>`;
+      }
+    }
+    body.innerHTML = h;
+  }
+  $('equip-body').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') closeSheet(); });
+  $('equip-body').addEventListener('click', async e => {
+    const bt = e.target.closest('[data-eq]'), b = equipAberto;
+    if (!bt || !b) return;
+    const a = bt.dataset.eq, cfg = eqCfg()[b.k];
+    if (a === 'coletar') {
+      maqEstado(b);
+      const t = estTxt(b.est);
+      for (const [k, q] of Object.entries(b.est || {})) if (q > 0) give(k, q);
+      b.est = {}; b.prontos = 0; if (!b.quebrada) b.ult = Date.now();
+      toast(`Coletou: ${t}`, 'gold', 4000); sfx('moeda'); save();
+    }
+    if (a === 'trocar') {
+      if (S.coins < cfg.preco) { toast('Moedas insuficientes', 'warn'); return; }
+      S.coins -= cfg.preco; b.quebrada = false; b.usado = 0; b.ult = Date.now();
+      toast(`${BUILDS[b.k].nome} nova instalada`, 'leaf'); sfx('construir'); save(true);
+    }
+    if (a === 'nome') {
+      const n = ($('banca-nome').value || '').replace(/\s+/g, ' ').trim().slice(0, 20);
+      if (n.length < 2) { toast('Escolha um nome com pelo menos 2 letras', 'warn'); return; }
+      b.nome = n; toast('Nome da loja salvo', 'leaf'); save();
+    }
+    const vale = async fn => { bt.disabled = true; try { return await fn(); } catch (err) { toast(err.message, 'warn', 3500); return null; } finally { bt.disabled = false; } };
+    if (a === 'vender') {
+      const item = $('banca-item').value, qtd = Math.max(1, Math.floor(+$('banca-qtd').value || 1)), preco = Math.max(1, Math.floor(+$('banca-preco').value || 1));
+      if ((S.inv[item] || 0) < qtd) { toast('Você não tem essa quantidade', 'warn'); return; }
+      if (!take(item, qtd)) return;
+      const r = await vale(() => NET.mercadoAnunciar(item, qtd, preco, b.nome));
+      if (r == null) give(item, qtd); else { toast(`${qtd} ${itemNome(item).toLowerCase()} à venda na ${b.nome}`, 'leaf'); save(true); }
+    }
+    if (a === 'cancelar') {
+      const r = await vale(() => NET.mercadoCancelar(+bt.dataset.id));
+      if (r) { give(r.item, r.qtd); toast('Voltou para a mochila', 'leaf'); save(true); }
+    }
+    renderEquip();
+  });
+  setInterval(() => { if (S && !modoClas) for (const b of S.builds) if (BUILDS[b.k] && BUILDS[b.k].tipo === 'maquina') maqEstado(b); }, 20000);
+  function desenharMaquina(b, camX, camY) {
+    maqEstado(b);
+    const c = eqCfg(), now = performance.now();
+    const anda = !b.quebrada && b.prontos < c.acumula;
+    const nm = `${b.k}_${anda ? Math.floor(now / 260) % 3 : 0}`;
+    drawBuild(b, art2Rect(nm) ? nm : BUILDS[b.k].img, camX, camY);
+    const [x, y, w, h] = buildRect(b, BUILDS[b.k].img, camX, camY);
+    if (b.quebrada) {   // fumaça escura saindo
+      for (let k = 0; k < 4; k++) {
+        const t = ((now / 1600 + k / 4) % 1), r = (0.12 + t * 0.3) * tp;
+        ctx.fillStyle = `rgba(60,60,60,${0.5 * (1 - t)})`;
+        ctx.beginPath(); ctx.arc(x + w * (0.45 + Math.sin(k * 2.3 + now / 900) * 0.08), y + h * 0.35 - t * 1.4 * tp, r, 0, 6.28); ctx.fill();
+      }
+    }
+    const pronto = Object.values(b.est || {}).some(q => q > 0);
+    if (pronto || b.quebrada) {   // aviso flutuando: produção pronta ou defeito
+      const bx = x + w / 2, by = y + h * 0.1 + Math.sin(now / 300) * 0.08 * tp;
+      ctx.fillStyle = b.quebrada ? '#e8794f' : '#efb941'; ctx.strokeStyle = 'rgba(20,17,15,0.9)'; ctx.lineWidth = Math.max(2, tp * 0.05);
+      ctx.beginPath(); ctx.arc(bx, by, 0.32 * tp, 0, 6.28); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#2b1a0c'; ctx.font = `700 ${Math.round(tp * 0.42)}px "Barlow", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(b.quebrada ? '!' : '✓', bx, by + 1); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    }
+  }
+  function desenharPlaca(b, camX, camY) {
+    const pl = PLACAS[b.k];
+    if (!pl || !b.nome) return;
+    const [x, y, w, h] = buildRect(b, BUILDS[b.k].img, camX, camY);
+    const px = x + pl[0] * w, py = y + pl[1] * h, pw = pl[2] * w, ph = pl[3] * h;
+    ctx.save(); ctx.beginPath(); ctx.rect(px, py, pw, ph); ctx.clip();
+    let fs = Math.round(ph * 0.62);
+    ctx.font = `700 ${fs}px "Barlow", sans-serif`;
+    while (fs > 6 && ctx.measureText(b.nome).width > pw * 0.92) { fs--; ctx.font = `700 ${fs}px "Barlow", sans-serif`; }
+    ctx.fillStyle = '#3a220e'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(b.nome, px + pw / 2, py + ph / 2 + 1);
+    ctx.restore(); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+  // painel do administrador: equipamentos
+  function adminEquipHtml() {
+    const c = eqCfg(), P = c.maq_petroleo, M = c.maq_mina;
+    const inp = (id, v, rot) => `<label class="field">${rot}<input id="${id}" type="number" min="0" value="${v}"></label>`;
+    return '<div class="section-label">Equipamentos (plataforma de petróleo e máquina de mineração)</div>'
+      + `<div class="cla-linha">${inp('eq-ciclo', c.ciclo, 'Ciclo (minutos)')}${inp('eq-acumula', c.acumula, 'Guarda até (ciclos)')}</div>`
+      + '<p class="muted small-text"><b>Plataforma de petróleo</b></p>'
+      + `<div class="cla-linha">${inp('eq-p-dur', P.dur, 'Dura (ciclos até o defeito)')}${inp('eq-p-prod', P.petroleo, 'Barris por ciclo')}${inp('eq-p-preco', P.preco, 'Preço / troca')}</div>`
+      + '<p class="muted small-text"><b>Máquina de mineração</b></p>'
+      + `<div class="cla-linha">${inp('eq-m-dur', M.dur, 'Dura (ciclos)')}${inp('eq-m-preco', M.preco, 'Preço / troca')}</div>`
+      + `<div class="cla-linha">${inp('eq-m-carvao', M.carvao, 'Carvão')}${inp('eq-m-ferro', M.ferro, 'Ferro')}${inp('eq-m-ouro', M.ouro, 'Ouro')}${inp('eq-m-diam', M.diamante, 'Diamante (% chance)')}</div>`
+      + `<p class="muted small-text">Com ciclo de ${c.ciclo} min, a plataforma dura ~${Math.round(P.dur * c.ciclo / 60)} h de trabalho e a máquina ~${Math.round(M.dur * c.ciclo / 60)} h.</p>`
+      + '<div class="confirm-row"><button type="button" class="btn btn-gold" data-st="equip">Salvar equipamentos</button></div>';
+  }
+  function adminEquipSalvar() {
+    const v = id => Math.max(0, Math.floor(+$(id).value || 0));
+    MUNDO.equip = { ciclo: Math.max(1, v('eq-ciclo')), acumula: Math.max(1, v('eq-acumula')),
+      maq_petroleo: { dur: Math.max(1, v('eq-p-dur')), petroleo: v('eq-p-prod'), preco: v('eq-p-preco') },
+      maq_mina: { dur: Math.max(1, v('eq-m-dur')), preco: v('eq-m-preco'), carvao: v('eq-m-carvao'), ferro: v('eq-m-ferro'), ouro: v('eq-m-ouro'), diamante: Math.min(100, v('eq-m-diam')) } };
+    mundoSalvar('equip'); toast('Equipamentos salvos: vale para todos os jogadores', 'leaf');
   }
 
   // balão sobre a cabeça de quem mandou a mensagem

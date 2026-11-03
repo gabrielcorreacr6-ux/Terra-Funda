@@ -406,3 +406,10 @@ kbd {
 @keyframes veu-balanca { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-6px) rotate(1deg); } }
 #mercado-body select, #mercado-body input[type=number] { width: 100%; }
 #mercado-body .cla-linha .field { flex: 1; }
+
+/* Equipamentos */
+.desgaste { height: 12px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line); overflow: hidden; }
+.desgaste span { display: block; height: 100%; }
+#equip-body select, #equip-body input[type=number], #admin-staff input[type=number] { width: 100%; }
+#equip-body .cla-linha .field, #admin-staff .cla-linha .field { flex: 1; min-width: 0; }
+#admin-staff .cla-linha { flex-wrap: wrap; }

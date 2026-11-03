@@ -201,7 +201,7 @@
   // ---- Mercado entre jogadores (regras no servidor: supabase/mercado.sql)
   T.mercadoListar = item => rpc('mercado_listar', { p_item: item || '' });
   T.mercadoMeu = () => rpc('mercado_meu', {});
-  T.mercadoAnunciar = (item, qtd, preco) => rpc('mercado_anunciar', { p_item: item, p_qtd: qtd, p_preco: preco });
+  T.mercadoAnunciar = (item, qtd, preco, loja) => rpc('mercado_anunciar', { p_item: item, p_qtd: qtd, p_preco: preco, p_loja: loja || null });
   T.mercadoComprar = id => rpc('mercado_comprar', { p_id: id });
   T.mercadoCancelar = id => rpc('mercado_cancelar', { p_id: id });
   T.mercadoRetirar = () => rpc('mercado_retirar', {});
