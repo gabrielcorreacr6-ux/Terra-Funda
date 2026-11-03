@@ -524,14 +524,19 @@
       npcs: S.npcs.map(n => ({ id: n.id, x: n.x, y: n.y })),
       home: S.home, homeReadyAt: S.homeReadyAt, deposits: S.deposits, char: S.char, skins: S.skins, skin: S.skin, skinCor: S.skinCor,
       tirado: S.tirado, wmat: toB64(rle(S.wmat)), builds: S.builds, kit: S.kit, sel: S.sel, dur: S.dur, broken: S.broken,
-      hp: S.hp, wxp: S.wxp, wbless: S.wbless, camps: S.camps, mundo: NET.enabled ? undefined : MUNDO, presentes: S.presentes, fugPegos: S.fugPegos, fugVisto: S.fugVisto, vilaEstado: S.vilaEstado, aura: S.aura, playMs: S.playMs, morte: S.morte, bichoMorto: S.bichoMorto,
+      hp: S.hp, wxp: S.wxp, wbless: S.wbless, camps: S.camps, mundo: NET.enabled ? undefined : MUNDO, presentes: S.presentes, porto: S.porto, fugPegos: S.fugPegos, fugVisto: S.fugVisto, vilaEstado: S.vilaEstado, aura: S.aura, playMs: S.playMs, morte: S.morte, bichoMorto: S.bichoMorto,
       bots: S.bots.map(b => ({ x: b.x, y: b.y, hx: b.hx, hy: b.hy, store: b.store, t: b.t, tipo: b.tipo })),
     };
   }
   // grava no navegador e, com conta, também na nuvem (no máximo a cada 20 s; já, quando immediate)
   function save(immediate) {
     if (!S || bootPending) return false;
-    const obj = serialize();
+    let obj;
+    if (modoClas && S_casa) {   // nas Terras dos Clãs: grava a sua terra (com moedas e mochila atualizadas)
+      for (const k of LEVA) S_casa[k] = S[k];
+      const cur = S; S = S_casa;
+      try { obj = serialize(); } finally { S = cur; }
+    } else obj = serialize();
     let ok = true;
     try { localStorage.setItem(saveKey(), JSON.stringify(obj)); } catch (e) { ok = false; }
     if (NET.enabled && NET.user) NET.queueSave(obj, immediate === true);
@@ -563,7 +568,7 @@
       s.homeReadyAt = d.homeReadyAt || 0;
       s.deposits = Array.isArray(d.deposits) ? d.deposits : [];
       s.char = CHARACTERS.some(c => c.id === d.char) ? d.char : 'menino';
-      s.skins = Array.isArray(d.skins) ? d.skins : []; s.skin = d.skin || null; s.skinCor = d.skinCor && typeof d.skinCor === 'object' ? d.skinCor : {};
+      if (d.porto && typeof d.porto.x === 'number') s.porto = d.porto; s.skins = Array.isArray(d.skins) ? d.skins : []; s.skin = d.skin || null; s.skinCor = d.skinCor && typeof d.skinCor === 'object' ? d.skinCor : {};
       { // skins antigas que saíram do jogo: devolve as moedas
         const fora = s.skins.filter(id => !SKINS.some(k => k.id === id));
         if (fora.length) { const PRECO_ANTIGO = {"guarda_azul":1400,"mecanico_vermelho":1400,"cacadora":2800,"policial":2800,"saqueador":2800,"pirata":3500,"rei_mascarado":3500,"samurai":6300,"pistoleira":6300,"cowboy_caveira":6300,"princesa":6300,"ceifador":8400,"exploradora":1400,"arqueiro_mata":2800,"arqueira_mata":2800,"guerreiro_tribal":3500,"sombra_tatica":6300,"carrasco":6300,"cacique":12600,"ciberpiloto":12600,"espectro":14000,"guardiao_cristal":17500,"rei_dourado":17500,"raposa":20000,"elfo_vermelho":20000,"elfo_verde":20000,
@@ -1840,6 +1845,7 @@
     return b;
   }
   function placeKit(k) {
+    if (modoClas) { toast('Nas Terras dos Clãs ainda não dá para construir', 'warn'); return; }
     const d = BUILDS[k];
     if (!(S.kit[k] > 0)) { toast(`Você não tem ${d.nome.toLowerCase()}. Compre na loja.`, 'warn'); return; }
     if (d.tipo === 'robo') {
@@ -2018,6 +2024,7 @@
     const { x, y, z } = target();
     const npc = npcInFront(x, y);
     if (npc) { actHeld = false; showSheet('sheet-shop', npc); return; }
+    if (portoPerto()) { abrirViagem(); return; }
     const chou = (tool === 'espada' || tool === 'machado') && choupanaNaFrente(x, y);   // choupana dos construtores: espada ou machado derrubam
     if (chou) { cooldown = 0.4; swing = SWING_TIME; baterChoupana(chou); return; }
     if (tool !== 'muro' && !interior && z === 0) {   // Usar de frente para a casa: entra
@@ -2040,6 +2047,9 @@
     if (cat) { actHeld = false; fireCatapult(cat); return; }
     const bot = tool !== 'muro' && botNear(x, y);
     if (bot) { actHeld = false; collectBot(bot); return; }
+    if (modoClas && ['picareta', 'machado', 'enxada', 'muro', 'rede'].includes(tool)) {
+      actHeld = false; toast('Nas Terras dos Clãs ainda não dá para coletar nem construir. Compre recursos no Mercado (Menu).', 'warn', 3500); return;
+    }
     if (!toolUsable(tool)) {
       actHeld = false;
       toast(`${BASIC[tool].nome} quebrou. Faça outra na Mochila ou compre uma melhor na loja.`, 'warn', 3500);
@@ -5739,7 +5749,7 @@
     const hh = String(Math.floor(mins / 60)).padStart(2, '0'), mm = String(Math.floor(mins % 60 / 10) * 10).padStart(2, '0');
     $('clock').textContent = `${hh}:${mm} · ${isDay() ? 'Dia' : 'Noite'}`;
     const here = BIOMES[S.biome[Math.floor(S.p.y) * W + Math.floor(S.p.x)]];
-    $('depth').textContent = S.p.z === 0 ? here.nome : layerName(S.p.z);
+    $('depth').textContent = S.p.z === 0 ? (typeof modoClas !== 'undefined' && modoClas ? '⚔ Terras dos Clãs · ' : '') + here.nome : layerName(S.p.z);
     if (lastBiome && lastBiome !== here && S.p.z === 0) toast(`Entrando: ${here.nome}`, 'leaf');
     lastBiome = here;
     if (openSheet && openSheet.id === 'sheet-admin') drawMinimap();
@@ -6791,7 +6801,7 @@
   $('btn-home').addEventListener('click', () => goHome());
   // o nome da ferramenta no meio da tela abre o modo construção
   $('toolname').addEventListener('click', () => { S.tool = TOOLS.findIndex(t => t.id === 'muro'); invDirty = true; showSheet('sheet-build'); });
-  $('btn-sethome').addEventListener('click', () => { closeSheet(); setHome(); });
+  $('btn-sethome').addEventListener('click', () => { closeSheet(); if (modoClas) { toast('Nas Terras dos Clãs a sua casa é o porto', 'warn'); return; } setHome(); });
   $('btn-menu').addEventListener('click', () => showSheet('sheet-menu'));
   $('btn-help').addEventListener('click', () => showSheet('sheet-help'));
   $('btn-char').addEventListener('click', () => showChars(false));
@@ -6800,7 +6810,7 @@
     toast(ok ? 'Jogo salvo' : 'Não foi possível salvar neste navegador', ok ? '' : 'warn');
     closeSheet();
   });
-  $('btn-new').addEventListener('click', () => { $('confirm-new').hidden = false; });
+  $('btn-new').addEventListener('click', () => { if (modoClas) { toast('Volte para a sua terra para criar um mundo novo', 'warn'); return; } $('confirm-new').hidden = false; });
   $('btn-new-no').addEventListener('click', () => { $('confirm-new').hidden = true; });
   $('btn-new-yes').addEventListener('click', () => { const keep = S.char; start(newWorld()); S.char = keep; save(); closeSheet(); toast('Mundo novo criado'); });
   $('sheet-shop').addEventListener('change', e => {   // seletor livre de cor das skins que tingem
@@ -7563,7 +7573,9 @@
   function drawNpcArrows(camX, camY, W2, H2) {
     const top = 78 * dpr, bottom = H2 - ($('touch').hidden ? 150 : 270) * dpr, side = 18 * dpr;
     const px0 = S.p.x * tp - camX, py0 = S.p.y * tp - camY;
-    for (const n of S.npcs) {
+    const alvos = S.npcs.map(n => ({ x: n.x, y: n.y, cor: n.def.cor, letra: n.def.nome.replace('Dona ', '')[0] }));
+    if (S.porto && S.p.z === 0) alvos.push({ x: S.porto.x + 2.5, y: S.porto.y + 1.5, cor: '#5fb3ff', letra: '⛵' });   // o porto também
+    for (const n of alvos) {
       const sx = n.x * tp - camX, sy = n.y * tp - camY;
       if (sx > 0 && sx < W2 && sy > top && sy < bottom) continue;
       const ang = Math.atan2(sy - py0, sx - px0);
@@ -7574,16 +7586,16 @@
       const ax = px0 + cosA * k, ay = py0 + sinA * k, r = 11 * dpr;
       ctx.save();
       ctx.translate(ax, ay); ctx.rotate(ang);
-      ctx.fillStyle = n.def.cor;
+      ctx.fillStyle = n.cor;
       ctx.beginPath(); ctx.moveTo(r + 8 * dpr, 0); ctx.lineTo(r - 2 * dpr, -7 * dpr); ctx.lineTo(r - 2 * dpr, 7 * dpr); ctx.closePath(); ctx.fill();
       ctx.restore();
       ctx.fillStyle = 'rgba(20,17,15,0.9)';
       ctx.beginPath(); ctx.arc(ax, ay, r, 0, Math.PI * 2); ctx.fill();
-      ctx.lineWidth = 2 * dpr; ctx.strokeStyle = n.def.cor; ctx.stroke();
+      ctx.lineWidth = 2 * dpr; ctx.strokeStyle = n.cor; ctx.stroke();
       ctx.fillStyle = '#f4eadb';
       ctx.font = `600 ${Math.round(12 * dpr)}px "Pixelify Sans", "Courier New", monospace`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(n.def.nome.replace('Dona ', '')[0], ax, ay + dpr);
+      ctx.fillText(n.letra, ax, ay + dpr);
       const dist = Math.round(Math.hypot(n.x - S.p.x, n.y - S.p.y));
       ctx.font = `${Math.round(10 * dpr)}px "Pixelify Sans", "Courier New", monospace`;
       const lx = clamp(ax, 24 * dpr, W2 - 24 * dpr), ly = ay + (ay > H2 / 2 ? -r - 8 * dpr : r + 9 * dpr);
@@ -8208,7 +8220,7 @@
           const i = layer + y * W + x, t = tl[i];
           const sx = x * tp - camX, sy = y * tp - camY;
           if (z === 0) tileObjs(t, x, y, sx, sy, objs);
-          if (t === T.SOURCE && z === 0) { wet.push(x, y, sx, sy, SOURCE_LEVEL); springs.push(sx, sy); }
+          if (t === T.SOURCE && z === 0) { wet.push(x, y, sx, sy, SOURCE_LEVEL); if (!(S.porto && x === S.porto.x + 2 && y === S.porto.y + 1)) springs.push(sx, sy); }   // a nascente do porto fica escondida
           else if (wt[i] > 0) wet.push(x, y, sx, sy, wt[i]);
         }
       }
@@ -8340,6 +8352,8 @@
     }
     const psx = p.x * tp - camX, psy = p.y * tp - camY;
     drawMobs(ents, camX, camY, W2, H2);
+    if (z === 0) desenharPorto(ents, camX, camY, u, now);
+    if (modoClas && z === 0) desenharRemotos(ents, camX, camY, W2, H2, u, now);
     if (z === 0) for (const n of evNpcs.values()) {
       const sx = n.x * tp - camX, sy = n.y * tp - camY;
       if (sx < -2 * tp || sy < -3 * tp || sx > W2 + 2 * tp || sy > H2 + 2 * tp) continue;
@@ -8560,6 +8574,7 @@
     for (let k = 0; k < 30; k++) spawnAnimal(false);
     for (let k = 0; k < 24; k++) waterTick();     // enche lagoas e valas existentes
     placeNpcs();
+    garantirPorto(S);
     homing = null;
     lastBiome = null;
     interior = null;
@@ -8678,6 +8693,7 @@
     if (!m || typeof m.texto !== 'string') return;
     if (m.tipo === 'amigos' && !CHAT.amigos.some(a => a.mutuo && a.codigo === m.de)) return;   // só amigos de verdade
     const tag = typeof m.tag === 'string' && /^[A-Z0-9]{2,4}$/.test(m.tag) ? m.tag : undefined;
+    if (modoClas && m.tipo !== 'privado' && REMOTOS.has(m.de)) REMOTOS.get(m.de).bolha = { texto: m.texto.slice(0, 200), ate: performance.now() + 5000, amarelo: m.tipo === 'amigos' };
     chatPush({ de: m.de, nome: String(m.nome || '?').slice(0, 20), tag, texto: m.texto.slice(0, 200), tipo: ['todos', 'privado', 'amigos', 'cla'].includes(m.tipo) ? m.tipo : 'todos', t: m.t }, false);
   }
   function renderChatLog() {
@@ -8771,6 +8787,7 @@
     NET.chatStart(chatOnMsg);
     NET.friends().then(l => { CHAT.amigos = l || []; }).catch(() => {});
     claCarregar();
+    mercadoAviso();
   }
   // ================= Clãs =================
   // Criar (custa moedas), convidar pelo código TF-, entrar em clãs abertos, cargos (líder, oficial, membro) e chat do clã.
@@ -8912,6 +8929,300 @@
     }
     renderCla();
   });
+
+  // ================= Terras dos Clãs =================
+  // Mapa compartilhado (mesma semente para todos) aonde se chega de barco pelo porto da sua terra.
+  // A sua terra continua salva como sempre; moedas, mochila, skins e armas vão junto na viagem.
+  // Lá ainda não dá para coletar nem construir (recursos vêm do Mercado); os outros jogadores aparecem ao vivo.
+  const SEED_CLAS = 777001;
+  const LEVA = ['inv', 'coins', 'owned', 'tool', 'char', 'skins', 'skin', 'skinCor', 'hp', 'wxp', 'wbless', 'dur', 'broken', 'playMs', 'aura', 'hints', 'catalog', 'presentes', 'time'];
+  let modoClas = false, S_casa = null, mundoClas = null, viajando = false;
+  // porto: lagoinha 5×3 com o barco, num gramado livre perto do começo do mapa (o mesmo lugar sempre)
+  function acharPorto(s) {
+    const livre = (x, y) => x > 3 && y > 3 && x < W - 4 && y < H - 4 && s.tiles[I(x, y, 0)] === T.GRASS && !(s.road && s.road[y * W + x])
+      && !s.builds.some(b => { const d = BUILDS[b.k]; return x >= b.x - 1 && x <= b.x + d.w && y >= b.y - 1 && y <= b.y + d.h; });
+    const x0 = SPAWN.x + 7, y0 = SPAWN.y + 5;
+    for (let r = 0; r < 60; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const x = x0 + dx, y = y0 + dy;
+      let ok = true;
+      for (let yy = -1; yy < 5 && ok; yy++) for (let xx = -2; xx < 7 && ok; xx++) if (!livre(x + xx, y + yy)) ok = false;
+      if (ok) return { x, y };
+    }
+    return { x: x0, y: y0 };
+  }
+  function garantirPorto(s) {
+    if (!s.porto || typeof s.porto.x !== 'number') s.porto = acharPorto(s);
+    const { x, y } = s.porto;
+    // vala cheia de água com uma nascente no meio (escondida embaixo do barco)
+    for (let yy = 0; yy < 3; yy++) for (let xx = 0; xx < 5; xx++) {
+      const i = I(x + xx, y + yy, 0), centro = xx === 2 && yy === 1;
+      s.tiles[i] = centro ? T.SOURCE : T.VALA; s.aux[(y + yy) * W + x + xx] = 0; s.water[i] = Math.max(s.water[i], SOURCE_LEVEL - 1 - Math.abs(xx - 2) - Math.abs(yy - 1));
+    }
+    if (typeof chunkCache !== 'undefined') chunkCache.clear();
+  }
+  const barcoPos = () => ({ x: S.porto.x + 2.5, y: S.porto.y + 1.6 });
+  const portoPerto = () => S.porto && S.p.z === 0 && !interior && (Math.hypot(S.p.x - (S.porto.x - 0.6), S.p.y - (S.porto.y + 1.5)) < 1.8
+    || Math.hypot(S.p.x - barcoPos().x, S.p.y - barcoPos().y) < 2.6);
+  function desenharPorto(ents, camX, camY, u, now) {
+    if (!S.porto) return;
+    const { x, y } = S.porto, b = barcoPos(), bx = b.x * tp - camX, by = b.y * tp - camY;
+    if (bx < -6 * tp || by < -6 * tp || bx > canvas.width + 6 * tp || by > canvas.height + 6 * tp) return;
+    // píer de madeira saindo da margem até o barco
+    ents.push({ y: (y + 1) * tp - camY, f: () => {
+      const px = (x - 1) * tp - camX, py = (y + 1.15) * tp - camY;
+      ctx.fillStyle = '#5a3a20'; ctx.fillRect(px, py + 0.62 * tp, 2.35 * tp, 0.16 * tp);
+      for (let k = 0; k < 7; k++) { ctx.fillStyle = k % 2 ? '#9a6a3c' : '#8a5a32'; ctx.fillRect(px + k * 0.34 * tp, py, 0.32 * tp, 0.68 * tp); }
+      ctx.fillStyle = '#4a2e18'; for (const k of [0, 2.2]) ctx.fillRect(px + k * tp, py + 0.6 * tp, 0.14 * tp, 0.42 * tp);
+      // placa
+      const sx = (x - 1.6) * tp - camX, sy = (y + 0.2) * tp - camY;
+      ctx.fillStyle = '#4a2e18'; ctx.fillRect(sx - 0.05 * tp, sy, 0.1 * tp, 0.9 * tp);
+      ctx.fillStyle = '#b07a44'; ctx.strokeStyle = '#4a2e18'; ctx.lineWidth = Math.max(1, u * 0.6);
+      const tw = 2.6 * tp, th = 0.5 * tp; ctx.fillRect(sx - tw / 2, sy - th, tw, th); ctx.strokeRect(sx - tw / 2, sy - th, tw, th);
+      ctx.fillStyle = '#2b1a0c'; ctx.font = `600 ${Math.round(tp * 0.26)}px "Barlow", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(modoClas ? '⛵ Voltar para casa' : '⛵ Terras dos Clãs', sx, sy - th / 2); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    } });
+    ents.push({ y: by + 0.4 * tp, f: () => desenharBarco(bx, by + Math.sin(now / 520) * 0.05 * tp, now) });
+  }
+  function desenharBarco(cx, cy, now) {
+    const L = 2.6 * tp, A = 0.75 * tp;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.sin(now / 700) * 0.025);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(0, A * 0.55, L * 0.52, A * 0.32, 0, 0, 6.28); ctx.fill();
+    // casco
+    ctx.beginPath(); ctx.moveTo(-L / 2, -A * 0.15); ctx.quadraticCurveTo(-L * 0.42, A * 0.55, 0, A * 0.6); ctx.quadraticCurveTo(L * 0.42, A * 0.55, L / 2, -A * 0.25);
+    ctx.lineTo(L * 0.42, -A * 0.05); ctx.lineTo(-L * 0.45, 0); ctx.closePath();
+    ctx.fillStyle = '#7a4a26'; ctx.fill(); ctx.strokeStyle = '#3d2412'; ctx.lineWidth = Math.max(1.5, tp * 0.05); ctx.stroke();
+    ctx.strokeStyle = 'rgba(40,22,10,0.45)'; ctx.lineWidth = Math.max(1, tp * 0.025);
+    for (const k of [0.2, 0.38]) { ctx.beginPath(); ctx.moveTo(-L * 0.47, A * k); ctx.quadraticCurveTo(0, A * (k + 0.32), L * 0.46, A * (k - 0.2)); ctx.stroke(); }
+    ctx.fillStyle = '#c99a5b'; ctx.beginPath(); ctx.ellipse(0, -A * 0.08, L * 0.42, A * 0.17, -0.02, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#5a3a20'; ctx.fillRect(-L * 0.18, -A * 0.16, L * 0.06, A * 0.2); ctx.fillRect(L * 0.12, -A * 0.18, L * 0.06, A * 0.2);
+    // mastro e vela (balança com o vento)
+    ctx.fillStyle = '#4a2e18'; ctx.fillRect(-tp * 0.04, -A * 2.6, tp * 0.08, A * 2.55);
+    const v = Math.sin(now / 900) * 0.08;
+    ctx.beginPath(); ctx.moveTo(tp * 0.06, -A * 2.5); ctx.quadraticCurveTo(L * (0.4 + v), -A * 1.6, tp * 0.06, -A * 0.35); ctx.closePath();
+    ctx.fillStyle = '#f1e7cf'; ctx.fill(); ctx.strokeStyle = '#9b8a66'; ctx.lineWidth = Math.max(1, tp * 0.03); ctx.stroke();
+    const cor = CLA.dados ? CLA.dados.cor : '#c0392b';
+    ctx.fillStyle = cor; ctx.beginPath(); ctx.moveTo(-tp * 0.04, -A * 2.6); ctx.lineTo(-tp * 0.42, -A * 2.45); ctx.lineTo(-tp * 0.04, -A * 2.3); ctx.fill();
+    ctx.restore();
+  }
+  function abrirViagem() {
+    actHeld = false;
+    const ida = !modoClas;
+    $('viagem-titulo').textContent = ida ? 'Terras dos Clãs' : 'Voltar para casa';
+    $('viagem-texto').innerHTML = ida
+      ? 'Um mapa só, onde todos os jogadores se encontram ao vivo. Suas moedas, mochila, skins e armas vão com você; sua terra fica guardada.<br><br>Por enquanto lá <b>não dá para coletar nem construir</b>: compre recursos no <b>Mercado</b> (Menu). Cuidado com os saqueadores.'
+        + (online() ? '' : '<br><br><i>Sem conta ligada você vai sozinho: os outros jogadores só aparecem no site do jogo com a conta.</i>')
+      : 'O barco leva você de volta ao porto da sua terra.';
+    $('viagem-ir').textContent = ida ? '⛵ Embarcar' : '⛵ Voltar';
+    showSheet('sheet-viagem');
+  }
+  function transicao(texto) {
+    const v = $('viagem-veu'); v.querySelector('span').textContent = texto; v.hidden = false;
+    requestAnimationFrame(() => v.classList.add('on'));
+    return new Promise(r => setTimeout(r, 900));
+  }
+  function fimTransicao() { const v = $('viagem-veu'); v.classList.remove('on'); setTimeout(() => { v.hidden = true; }, 700); }
+  async function viajar() {
+    if (viajando) return;
+    viajando = true; closeSheet();
+    const ida = !modoClas;
+    sfx('construir');
+    await transicao(ida ? '⛵ Navegando para as Terras dos Clãs…' : '⛵ Voltando para casa…');
+    try {
+      if (ida) {
+        save(true);
+        S_casa = S;
+        if (!mundoClas) { mundoClas = emptyState(SEED_CLAS); genWorld(mundoClas); }
+        const t = mundoClas;
+        for (const k of LEVA) t[k] = S_casa[k];
+        modoClas = true;
+        garantirPorto(t);
+        t.home = { x: t.porto.x - 1.2, y: t.porto.y + 1.5 };
+        t.p = { x: t.home.x, y: t.home.y, z: 0, dir: 3 };
+        start(t);
+        terrasLigar();
+        toast('Terras dos Clãs: aqui todos se encontram. Para voltar, pegue o barco no porto.', 'gold', 5000);
+      } else {
+        terrasDesligar();
+        for (const k of LEVA) S_casa[k] = S[k];
+        const c = S_casa; S_casa = null; modoClas = false;
+        start(c);
+        S.p.x = S.porto.x - 1.2; S.p.y = S.porto.y + 1.5; S.p.z = 0; S.p.dir = 2;
+        save(true);
+        toast('De volta à sua terra', 'leaf');
+      }
+    } catch (e) { toast('A viagem falhou: ' + e.message, 'warn', 5000); }
+    viajando = false;
+    fimTransicao();
+  }
+  $('viagem-ir').addEventListener('click', viajar);
+
+  // ---- outros jogadores ao vivo
+  const REMOTOS = new Map();   // código TF- → jogador
+  let golpesN = 0, swingAnt = 0, ultimoEnvio = 0, ultimoPos = '';
+  function terrasLigar() { REMOTOS.clear(); if (online() && NET.terrasEntrar) NET.terrasEntrar(terrasEvento); }
+  function terrasDesligar() { if (NET.terrasSair) NET.terrasSair(); REMOTOS.clear(); }
+  const corOk = c => (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c) ? c : null);
+  function terrasEvento(ev, d) {
+    if (ev === 'ok') { NET.terrasEnviar('oi', {}); enviarPos(true); return; }
+    if (ev === 'oi') { setTimeout(() => enviarPos(true), 150 + Math.random() * 400); return; }
+    if (!d || typeof d.c !== 'string' || !/^TF-[A-Z0-9]{6}$/.test(d.c)) return;
+    if (ev === 'sai') { REMOTOS.delete(d.c); return; }
+    if (NET.profile && d.c === NET.profile.codigo) return;
+    const x = +d.x, y = +d.y;
+    if (!isFinite(x) || !isFinite(y) || x < 0 || y < 0 || x > W || y > H) return;
+    let r = REMOTOS.get(d.c);
+    if (!r) { r = { x, y, phase: 0, gT: 0, g: d.g, bolha: null }; REMOTOS.set(d.c, r); }
+    Object.assign(r, { tx: x, ty: y, dir: (d.d | 0) & 3, mov: !!d.m, nome: String(d.n || '?').slice(0, 20), tag: typeof d.tg === 'string' && /^[A-Z0-9]{2,4}$/.test(d.tg) ? d.tg : null,
+      tc: corOk(d.tc), l: String(d.l || ''), sc: corOk(d.sc), tool: String(d.t || ''), e: d.e === 'um' || d.e === 'dois' ? d.e : null, visto: performance.now() });
+    if (d.g !== r.g) { r.g = d.g; r.gT = performance.now(); }
+    if (r.tag && r.tc) CLA.cores[r.tag] = r.tc;
+  }
+  function enviarPos(forcar) {
+    if (!modoClas || !online() || !NET.profile || NET.isAdmin || !NET.terrasEnviar) return;   // o administrador continua invisível
+    const p = S.p, sk = skinAtual();
+    const d = { c: NET.profile.codigo, n: NET.profile.username, tg: NET.claTag || undefined, tc: CLA.dados ? CLA.dados.cor : undefined, l: look(),
+      sc: sk && sk.tinge ? corSkin(sk.id) : undefined, x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100, d: p.dir, m: moving ? 1 : 0,
+      t: TOOLS[S.tool].id, g: golpesN, e: S.p.emote && performance.now() < S.p.emote.ate ? S.p.emote.tipo : undefined };
+    const chave = JSON.stringify(d), agora = performance.now();
+    if (!forcar && (agora - ultimoEnvio < 200 || (chave === ultimoPos && agora - ultimoEnvio < 4000))) return;
+    ultimoPos = chave; ultimoEnvio = agora;
+    NET.terrasEnviar('p', d);
+  }
+  setInterval(() => enviarPos(false), 220);
+  const SEGURA = ['picareta', 'machado', 'enxada', 'espada'];
+  const lookValido = l => ((/^sk_g_[a-z]+$/.test(l) || CHARACTERS.some(c => c.id === l)) && ATLAS[l + '_front_idle'] ? l : 'menino');
+  let remAnt = 0;
+  function desenharRemotos(ents, camX, camY, W2, H2, u, now) {
+    if (swing > swingAnt + 0.01) golpesN++;   // começou um golpe: avisa os outros
+    swingAnt = swing;
+    const dt = Math.min(0.1, (now - (remAnt || now)) / 1000); remAnt = now;
+    for (const [cod, r] of REMOTOS) {
+      if (now - r.visto > 12000) { REMOTOS.delete(cod); continue; }
+      const k = Math.min(1, dt * 9);
+      r.x += (r.tx - r.x) * k; r.y += (r.ty - r.y) * k;
+      if (r.mov || Math.hypot(r.tx - r.x, r.ty - r.y) > 0.05) r.phase += dt * 12;
+      const sx = r.x * tp - camX, sy = r.y * tp - camY;
+      if (sx < -2 * tp || sy < -3 * tp || sx > W2 + 2 * tp || sy > H2 + 2 * tp) continue;
+      ents.push({ y: sy + 6 * u, wx: r.x, wy: r.y, f: () => drawRemoto(r, sx, sy, u, now) });
+    }
+  }
+  function drawRemoto(r, sx, sy, u, now) {
+    const c = lookValido(r.l), v = r.dir === 0 ? 'front' : r.dir === 1 ? 'back' : 'side', flip = r.dir === 2, d3 = !!ATLAS['d3_' + c];
+    const andando = r.mov || Math.hypot(r.tx - r.x, r.ty - r.y) > 0.05;
+    const golpe = now - r.gT < SWING_TIME * 1000 && SEGURA.includes(r.tool);
+    let name = null;
+    if (golpe && d3) { const n = framesOf(c, 'golpe_' + v); if (n) name = `${c}_golpe_${v}_${Math.min(n - 1, Math.floor((now - r.gT) / (SWING_TIME * 1000) * n))}`; }
+    const gesto = !name && r.e && !andando && ATLAS[`${c}_swing_gesto_${r.e}_${v}`] ? `${c}_swing_gesto_${r.e}_${v}` : null;
+    if (gesto) name = gesto;
+    if (!name) { const n = framesOf(c, v + '_walk'); name = andando && n ? `${c}_${v}_walk_${Math.floor(r.phase / 1.4) % n}` : `${c}_${v}_idle`; }
+    const rr = artRect(name);
+    if (!rr) return;
+    const ph = 1.5 * tp * rr[3] / 104, bottom = sy + 6 * u;
+    shadow(sx, sy + 5.6 * u, 4.4 * u, 1.5 * u);
+    const segura = SEGURA.includes(r.tool) && !gesto;
+    const at = golpe && ATLAS['tip_' + name] ? maoTela(name, sx, bottom, ph, flip) : null;
+    const arma = antes => {
+      if (!segura) return;
+      if (at) { if ((r.dir === 1) === antes) drawGolpe3d(r.tool, name, at, flip); }
+      else if (!golpe && (r.dir !== 0) === antes) drawHeld(r.tool, name, sx, bottom, ph, flip, r.dir, andando, r.phase);
+    };
+    arma(true);
+    drawObj(name, sx, bottom, ph, flip);
+    if (c.startsWith('sk_') && r.sc) drawTinta(name, sx, bottom, ph, flip, r.sc);
+    arma(false);
+    if (segura && d3 && r.dir !== 1) drawHandOver(name, sx, bottom, ph, flip);
+    // nome (e sigla do clã) em cima da cabeça
+    const ty = bottom - ph - 3 * u;
+    ctx.font = `600 ${Math.round(tp * 0.26)}px "Barlow", sans-serif`; ctx.textBaseline = 'middle';
+    const tagW = r.tag ? ctx.measureText(r.tag).width + 6 * u : 0, nw = ctx.measureText(r.nome).width, tot = tagW + (tagW ? 2 * u : 0) + nw;
+    let x0 = sx - tot / 2;
+    if (r.tag) { ctx.fillStyle = r.tc || '#6d4c2f'; ctx.fillRect(x0, ty - 0.16 * tp, tagW, 0.32 * tp); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(r.tag, x0 + tagW / 2, ty); x0 += tagW + 2 * u; }
+    ctx.textAlign = 'left'; ctx.lineWidth = Math.max(2, u * 0.9); ctx.strokeStyle = 'rgba(20,17,15,0.85)'; ctx.strokeText(r.nome, x0, ty); ctx.fillStyle = '#f4eadb'; ctx.fillText(r.nome, x0, ty);
+    ctx.textBaseline = 'alphabetic';
+    if (r.bolha) drawBubble(sx, ty - 0.25 * tp, r.bolha);
+  }
+
+  // ---- Mercado entre jogadores (as duas terras): anunciar tira da mochila; o servidor guarda até alguém comprar
+  const MERC = { aba: 'comprar', item: '', lista: [], meu: { saldo: 0, ofertas: [] }, vender: { item: '', qtd: 1, preco: 10 } };
+  const itemNome = k => (ITEMS[k] ? ITEMS[k].nome : k);
+  async function renderMercado() {
+    const body = $('mercado-body');
+    if (!online()) { body.innerHTML = '<div class="empty">O Mercado funciona com a conta ligada (no site do jogo no GitHub).</div>'; return; }
+    body.innerHTML = '<div class="empty">Carregando…</div>';
+    try { MERC.meu = (await NET.mercadoMeu()) || { saldo: 0, ofertas: [] }; } catch (e) { MERC.meu = { saldo: 0, ofertas: [] }; }
+    if (MERC.aba === 'comprar') try { MERC.lista = (await NET.mercadoListar(MERC.item)) || []; } catch (e) { MERC.lista = []; toast(e.message, 'warn'); }
+    if (!openSheet || openSheet.id !== 'sheet-mercado') return;
+    const E = chatEsc;
+    let h = `<div class="shop-tabs">${[['comprar', 'Comprar'], ['vender', 'Vender'], ['saldo', `Vendas${MERC.meu.saldo ? ' (' + MERC.meu.saldo + ')' : ''}`]].map(([k, t]) => `<button type="button" class="btn ${MERC.aba === k ? 'btn-gold' : ''}" data-merc="aba" data-v="${k}">${t}</button>`).join('')}</div>`;
+    h += `<p class="muted small-text">Você tem ${coinsTxt(S.coins)}.</p>`;
+    if (MERC.aba === 'comprar') {
+      const itens = [...new Set(MERC.lista.map(o => o.item))];
+      h += `<label class="field">Filtrar<select id="merc-filtro"><option value="">Todos os itens</option>${Object.keys(ITEMS).map(k => `<option value="${k}" ${MERC.item === k ? 'selected' : ''}>${E(itemNome(k))}</option>`).join('')}</select></label><div class="list">`;
+      h += MERC.lista.length ? MERC.lista.map(o => `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${o.preco} moedas · ${(o.preco / o.qtd).toFixed(1)} cada · vendedor ${E(o.vendedor_nome || '—')}</small></span>
+        ${o.minha ? '<span class="owned">Sua oferta</span>' : `<button type="button" class="btn ${S.coins >= o.preco ? 'btn-gold' : ''}" data-merc="comprar" data-id="${o.id}" data-preco="${o.preco}" ${S.coins >= o.preco ? '' : 'disabled'}>Comprar</button>`}</div>`).join('')
+        : `<div class="empty">Nenhuma oferta${MERC.item ? ' de ' + E(itemNome(MERC.item)) : ''} agora.</div>`;
+      h += '</div>';
+    } else if (MERC.aba === 'vender') {
+      const tem = Object.keys(ITEMS).filter(k => (S.inv[k] || 0) > 0), v = MERC.vender;
+      if (!tem.includes(v.item)) v.item = tem[0] || '';
+      if (!tem.length) h += '<div class="empty">Sua mochila está vazia. Colete recursos na sua terra para vender aqui.</div>';
+      else h += `<label class="field">Item<select id="merc-item">${tem.map(k => `<option value="${k}" ${v.item === k ? 'selected' : ''}>${E(itemNome(k))} (você tem ${S.inv[k]})</option>`).join('')}</select></label>
+        <div class="cla-linha"><label class="field">Quantidade<input id="merc-qtd" type="number" min="1" max="${S.inv[v.item] || 1}" value="${Math.min(v.qtd, S.inv[v.item] || 1)}"></label>
+        <label class="field">Preço total (moedas)<input id="merc-preco" type="number" min="1" max="10000000" value="${v.preco}"></label></div>
+        <p class="muted small-text">Os itens saem da sua mochila e ficam no Mercado até alguém comprar. Você pode cancelar e pegar de volta. Venda de referência na loja: ${ITEMS[v.item] ? ITEMS[v.item].valor : '?'} moedas cada.</p>
+        <button type="button" class="btn btn-gold" data-merc="anunciar">Anunciar</button>`;
+      h += '<div class="cla-sec">Suas ofertas</div><div class="list">' + (MERC.meu.ofertas.length ? MERC.meu.ofertas.map(o => `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${o.preco} moedas</small></span><button type="button" class="btn" data-merc="cancelar" data-id="${o.id}">Cancelar</button></div>`).join('') : '<div class="empty">Nenhuma oferta sua no Mercado.</div>') + '</div>';
+    } else {
+      h += MERC.meu.saldo > 0 ? `<p>Você vendeu no Mercado e tem <b>${coinsTxt(MERC.meu.saldo)}</b> para retirar.</p><button type="button" class="btn btn-gold" data-merc="retirar">Retirar ${coinsTxt(MERC.meu.saldo)}</button>`
+        : '<div class="empty">Nada para retirar. Quando alguém comprar uma oferta sua, as moedas aparecem aqui.</div>';
+    }
+    body.innerHTML = h;
+  }
+  function mercLer() {
+    if ($('merc-item')) { MERC.vender.item = $('merc-item').value; MERC.vender.qtd = Math.max(1, Math.floor(+$('merc-qtd').value || 1)); MERC.vender.preco = Math.max(1, Math.floor(+$('merc-preco').value || 1)); }
+  }
+  $('btn-mercado').addEventListener('click', () => { showSheet('sheet-mercado'); renderMercado(); });
+  $('mercado-body').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') closeSheet(); });
+  $('mercado-body').addEventListener('change', e => {
+    if (e.target.id === 'merc-filtro') { MERC.item = e.target.value; renderMercado(); }
+    if (e.target.id === 'merc-item') { mercLer(); MERC.vender.qtd = 1; renderMercado(); }
+  });
+  $('mercado-body').addEventListener('click', async e => {
+    const b = e.target.closest('[data-merc]');
+    if (!b) return;
+    mercLer();
+    const a = b.dataset.merc;
+    const vale = async fn => { b.disabled = true; try { return await fn(); } catch (err) { toast(err.message, 'warn', 3500); return null; } finally { b.disabled = false; } };
+    if (a === 'aba') { MERC.aba = b.dataset.v; renderMercado(); return; }
+    if (a === 'comprar') {
+      const preco = +b.dataset.preco;
+      if (S.coins < preco) { toast('Moedas insuficientes', 'warn'); return; }
+      const r = await vale(() => NET.mercadoComprar(+b.dataset.id));
+      if (r) { S.coins -= r.preco; give(r.item, r.qtd); sfx('moeda'); toast(`Comprou ${r.qtd} ${itemNome(r.item).toLowerCase()} por ${r.preco} moedas`, 'gold'); save(true); }
+    }
+    if (a === 'anunciar') {
+      const v = MERC.vender;
+      if (!ITEMS[v.item] || (S.inv[v.item] || 0) < v.qtd) { toast('Você não tem essa quantidade', 'warn'); return; }
+      if (!take(v.item, v.qtd)) return;
+      const r = await vale(() => NET.mercadoAnunciar(v.item, v.qtd, v.preco));
+      if (r == null) give(v.item, v.qtd);   // não anunciou: devolve
+      else { toast(`${v.qtd} ${itemNome(v.item).toLowerCase()} à venda por ${v.preco} moedas`, 'leaf'); save(true); }
+    }
+    if (a === 'cancelar') {
+      const r = await vale(() => NET.mercadoCancelar(+b.dataset.id));
+      if (r) { give(r.item, r.qtd); toast(`Oferta cancelada: ${r.qtd} ${itemNome(r.item).toLowerCase()} de volta na mochila`, 'leaf'); save(true); }
+    }
+    if (a === 'retirar') {
+      const r = await vale(() => NET.mercadoRetirar());
+      if (r) { S.coins += +r; sfx('moeda'); toast(`+${r} moedas das suas vendas no Mercado`, 'gold'); save(true); }
+    }
+    renderMercado();
+  });
+  async function mercadoAviso() {   // ao entrar: avisa se alguém comprou o que você anunciou
+    if (!online() || !NET.mercadoMeu) return;
+    try { const m = await NET.mercadoMeu(); if (m && m.saldo > 0) toast(`Você vendeu no Mercado: ${coinsTxt(m.saldo)} para retirar (Menu → Mercado)`, 'gold', 6000); } catch (e) {}
+  }
 
   // balão sobre a cabeça de quem mandou a mensagem
   function drawBubble(x, y, b) {

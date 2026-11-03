@@ -198,6 +198,31 @@
     chat.claId = id;
     chat.cla = sb.channel('tf-cla-' + id, { config: { broadcast: { self: false } } }).on('broadcast', { event: 'msg' }, ({ payload }) => chat.onMsg(Object.assign({}, payload, { tipo: 'cla' }))).subscribe();
   };
+  // ---- Mercado entre jogadores (regras no servidor: supabase/mercado.sql)
+  T.mercadoListar = item => rpc('mercado_listar', { p_item: item || '' });
+  T.mercadoMeu = () => rpc('mercado_meu', {});
+  T.mercadoAnunciar = (item, qtd, preco) => rpc('mercado_anunciar', { p_item: item, p_qtd: qtd, p_preco: preco });
+  T.mercadoComprar = id => rpc('mercado_comprar', { p_id: id });
+  T.mercadoCancelar = id => rpc('mercado_cancelar', { p_id: id });
+  T.mercadoRetirar = () => rpc('mercado_retirar', {});
+  // ---- Terras dos Clãs: um canal em tempo real com a posição e o visual de quem está lá
+  const terras = { ch: null };
+  T.terrasEntrar = function (onEvento) {
+    if (!enabled || !T.user) return;
+    T.terrasSair(true);
+    terras.ch = sb.channel('tf-terras-1', { config: { broadcast: { self: false } } })
+      .on('broadcast', { event: 'p' }, ({ payload }) => onEvento('p', payload))
+      .on('broadcast', { event: 'oi' }, ({ payload }) => onEvento('oi', payload))
+      .on('broadcast', { event: 'sai' }, ({ payload }) => onEvento('sai', payload))
+      .subscribe(st => { if (st === 'SUBSCRIBED') onEvento('ok'); });
+  };
+  T.terrasEnviar = (ev, payload) => { if (terras.ch) terras.ch.send({ type: 'broadcast', event: ev, payload }).catch(() => {}); };
+  T.terrasSair = function (calado) {
+    if (!terras.ch) return;
+    if (!calado && T.profile) T.terrasEnviar('sai', { c: T.profile.codigo });
+    const ch = terras.ch; terras.ch = null;
+    setTimeout(() => sb.removeChannel(ch), 300);
+  };
   T.addFriend = codigo => rpc('adicionar_amigo', { codigo });
   T.removeFriend = alvo => rpc('remover_amigo', { alvo });
   T.friends = () => rpc('meus_amigos', {});

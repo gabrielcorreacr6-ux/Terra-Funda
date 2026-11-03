@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Pixelify+Sans:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=74">
+<link rel="stylesheet" href="style.css?v=75">
 </head>
 <body>
 <div id="app">
@@ -101,6 +101,29 @@
     </div>
   </div>
 
+  <div class="sheet" id="sheet-viagem" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="viagem-titulo">
+      <div class="panel-head">
+        <h2 id="viagem-titulo">Terras dos Clãs</h2>
+        <button type="button" class="btn" data-close>Fechar</button>
+      </div>
+      <p id="viagem-texto"></p>
+      <div class="list-actions"><button type="button" class="btn" data-close>Ficar</button> <button type="button" class="btn btn-gold" id="viagem-ir">⛵ Embarcar</button></div>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-mercado" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="mercado-title">
+      <div class="panel-head">
+        <h2 id="mercado-title">Mercado</h2>
+        <button type="button" class="btn" data-close>Fechar</button>
+      </div>
+      <div id="mercado-body"></div>
+    </div>
+  </div>
+
+  <div class="viagem-veu" id="viagem-veu" hidden><span></span></div>
+
   <div class="sheet" id="sheet-cla" hidden>
     <div class="panel" role="dialog" aria-modal="true" aria-labelledby="cla-title">
       <div class="panel-head">
@@ -121,6 +144,7 @@
         <p class="account" id="account-line" hidden></p>
         <button type="button" class="btn btn-gold" id="btn-staff" hidden>Painel da equipe</button>
         <button type="button" class="btn" id="btn-cla">Clã</button>
+        <button type="button" class="btn" id="btn-mercado">Mercado</button>
         <button type="button" class="btn" id="btn-char">Trocar personagem</button>
         <button type="button" class="btn" id="btn-sethome">Definir casa aqui</button>
         <button type="button" class="btn" id="btn-help">Como jogar</button>
@@ -248,7 +272,7 @@
 </div>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="online.js?v=74"></script>
-<script src="game.js?v=74"></script>
+<script src="online.js?v=75"></script>
+<script src="game.js?v=75"></script>
 </body>
 </html>
