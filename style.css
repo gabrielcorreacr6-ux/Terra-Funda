@@ -265,7 +265,7 @@ kbd {
 .auth-tabs { display: flex; gap: 8px; }
 .auth-tabs .btn { flex: 1; }
 .field { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
-.field input, .field select, .search-row input {
+.field input, .field select, .field textarea, .search-row input {
   font: 16px var(--f-body); color: var(--fg); background: var(--panel-2);
   border: 2px solid var(--line); border-radius: 6px; padding: 9px 10px; min-width: 0;
   -webkit-user-select: text; user-select: text;
@@ -413,3 +413,4 @@ kbd {
 #equip-body select, #equip-body input[type=number], #admin-staff input[type=number] { width: 100%; }
 #equip-body .cla-linha .field, #admin-staff .cla-linha .field { flex: 1; min-width: 0; }
 #admin-staff .cla-linha { flex-wrap: wrap; }
+.field textarea { resize: vertical; font: inherit; }

@@ -498,9 +498,11 @@
     }
   }
 
+  const MOEDAS_INICIAIS = 10000;   // todo jogador começa com pelo menos isso (recursos vêm do Mercado)
   function newWorld() {
     const s = emptyState((Math.random() * 2 ** 31) | 0);
     genWorld(s);
+    s.coins = MOEDAS_INICIAIS; s.bonusInicial = 1;
     return s;
   }
 
@@ -541,7 +543,7 @@
   function serialize() {
     return {
       v: 2, savedAt: Date.now(), seed: S.seed, tiles: toB64(rle(S.tiles)), aux: toB64(rle(S.aux)), road: S.road ? toB64(rle(S.road)) : undefined,
-      p: S.p, inv: S.inv, coins: S.coins, owned: S.owned, time: S.time, tool: S.tool, hints: S.hints, catalog: S.catalog,
+      p: S.p, inv: S.inv, coins: S.coins, bonusInicial: S.bonusInicial || 0, owned: S.owned, time: S.time, tool: S.tool, hints: S.hints, catalog: S.catalog,
       npcs: S.npcs.map(n => ({ id: n.id, x: n.x, y: n.y })),
       home: S.home, homeReadyAt: S.homeReadyAt, deposits: S.deposits, char: S.char, skins: S.skins, skin: S.skin, skinCor: S.skinCor,
       tirado: S.tirado, murosV2: true, wmat: toB64(rle(S.wmat)), builds: S.builds, kit: S.kit, sel: S.sel, dur: S.dur, broken: S.broken,
@@ -583,6 +585,7 @@
       genBiomes(s);
       Object.assign(s.p, d.p);
       s.inv = d.inv || {}; s.coins = d.coins || 0; s.owned = d.owned || {};
+      s.bonusInicial = 1; if (!d.bonusInicial && s.coins < MOEDAS_INICIAIS) { s.ganhouInicial = MOEDAS_INICIAIS - s.coins; s.coins = MOEDAS_INICIAIS; }   // quem já jogava fica com pelo menos 10.000
       s.time = d.time || 0; s.tool = (d.tool || 0) % TOOLS.length; s.hints = d.hints || {}; s.catalog = d.catalog || {};
       s.savedNpcs = Array.isArray(d.npcs) ? d.npcs : [];
       if (d.home && typeof d.home.x === 'number') s.home = d.home;
@@ -6485,18 +6488,22 @@
     box.innerHTML = list.map(p => {
       const banned = p.banned_until && (p.banned_until === 'infinity' || new Date(p.banned_until) > new Date());
       const tags = (p.role !== 'player' ? `<span class="role-tag ${p.role}">${p.role === 'admin' ? 'Admin' : 'Moderador'}</span>` : '')
-        + (banned ? `<span class="role-tag ban">Banido${p.banned_until === 'infinity' ? '' : ' até ' + fmt(p.banned_until)}</span>` : '');
+        + (banned ? `<span class="role-tag ban">Banido${p.banned_until === 'infinity' ? '' : ' até ' + fmt(p.banned_until)}</span>` : '')
+        + (p.imune ? '<span class="role-tag moderator">Imune a ban</span>' : '') + (p.beta ? `<span class="role-tag admin">Beta · ${p.beta}/semana</span>` : '');
       const self = NET.user && p.id === NET.user.id;
       let btns = '';
       if (!self && p.role !== 'admin') {
         btns += banned ? `<button type="button" class="btn" data-pl="unban" data-id="${p.id}">Desbanir</button>`
-          : `<button type="button" class="btn" data-pl="ban1" data-id="${p.id}">Banir 1 dia</button>
+          : p.imune ? '' : `<button type="button" class="btn" data-pl="ban1" data-id="${p.id}">Banir 1 dia</button>
              <button type="button" class="btn" data-pl="ban7" data-id="${p.id}">7 dias</button>
              <button type="button" class="btn btn-danger" data-pl="banp" data-id="${p.id}">Permanente</button>`;
         if (NET.isAdmin) {
           btns += p.role === 'moderator' ? `<button type="button" class="btn" data-pl="demote" data-id="${p.id}">Remover moderador</button>`
             : `<button type="button" class="btn" data-pl="promote" data-id="${p.id}">Tornar moderador</button>`;
           btns += `<button type="button" class="btn btn-gold" data-pl="coins" data-id="${p.id}">+500 moedas</button>`;
+          btns += `<button type="button" class="btn" data-pl="${p.imune ? 'imune0' : 'imune1'}" data-id="${p.id}">${p.imune ? 'Tirar imunidade' : 'Dar imunidade a ban'}</button>`;
+          btns += `<span class="bless-form"><input type="number" min="0" max="1000000" value="${p.beta || 1000}" data-beta="${p.id}" aria-label="Moedas por semana" style="width:6em">
+            <button type="button" class="btn" data-pl="beta" data-id="${p.id}">${p.beta ? 'Mudar beta' : 'Tornar testador beta'}</button>${p.beta ? `<button type="button" class="btn" data-pl="beta0" data-id="${p.id}">Tirar do beta</button>` : ''}</span>`;
           btns += `<span class="bless-form"><select data-bl-arma="${p.id}" aria-label="Arma">${Object.entries(ARMAS).map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select>
             <select data-bl-nivel="${p.id}" aria-label="Nível">${WLV_NOME.slice(1).map((n, i) => `<option value="${i + 1}">${n}</option>`).join('')}</select>
             <select data-bl-horas="${p.id}" aria-label="Duração"><option value="0">Para sempre</option><option value="24">24 horas</option><option value="168">7 dias</option></select>
@@ -6509,10 +6516,15 @@
     }).join('');
   }
   const escapeHtml = t => String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  let filtroJog = '';
   async function refreshPlayers() {
     if (!NET.enabled || !NET.isStaff) return;
     $('admin-players').innerHTML = '<div class="empty">Carregando…</div>';
-    try { renderPlayers(await NET.listPlayers($('admin-search').value.trim())); }
+    for (const b of document.querySelectorAll('#admin-filtros [data-filtro]')) b.classList.toggle('btn-gold', b.dataset.filtro === filtroJog);
+    try {
+      if (filtroJog === '#denuncias') renderDenuncias(await NET.denuncias() || []);
+      else renderPlayers(await NET.listPlayers(filtroJog || $('admin-search').value.trim()));
+    }
     catch (e) { $('admin-players').innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`; }
   }
   // confirmação dentro da página (o navegador do artefato não mostra confirm())
@@ -6530,6 +6542,9 @@
       else if (action === 'promote') await NET.setRole(id, 'moderator');
       else if (action === 'demote') await NET.setRole(id, 'player');
       else if (action === 'coins') await NET.giveCoins(id, 500);
+      else if (action === 'imune1' || action === 'imune0') await NET.imunidade(id, action === 'imune1');
+      else if (action === 'beta') await NET.beta(id, Math.max(0, Math.floor(+document.querySelector(`[data-beta="${id}"]`).value || 0)));
+      else if (action === 'beta0') await NET.beta(id, 0);
       else if (action === 'bless') {
         const q = sel => document.querySelector(`[${sel}="${id}"]`).value;
         await NET.bless(id, q('data-bl-arma'), +q('data-bl-nivel'), +q('data-bl-horas'));
@@ -6542,7 +6557,30 @@
     const b = e.target.closest('[data-pl]');
     if (b) playerAction(b.dataset.pl, b.dataset.id, b);
   });
-  $('admin-search-btn').addEventListener('click', refreshPlayers);
+  $('admin-search-btn').addEventListener('click', () => { filtroJog = ''; refreshPlayers(); });
+  $('admin-filtros').addEventListener('click', e => { const b = e.target.closest('[data-filtro]'); if (!b) return; filtroJog = b.dataset.filtro; refreshPlayers(); });
+  // denúncias abertas: a equipe bane (o servidor confere a imunidade) ou ignora
+  function renderDenuncias(list) {
+    const box = $('admin-players'), fmt = d => new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+    if (!list.length) { box.innerHTML = '<div class="empty">Nenhuma denúncia aberta.</div>'; return; }
+    box.innerHTML = list.map(d => `<div class="row player-row"><span class="name"><b>${escapeHtml(d.alvo_nome)}</b> <code class="pcode">${escapeHtml(d.alvo_codigo || '')}</code>${d.alvo_banido ? '<span class="role-tag ban">Já banido</span>' : ''}${d.alvo_imune ? '<span class="role-tag moderator">Imune a ban</span>' : ''}${d.contra > 1 ? `<span class="role-tag ban">${d.contra} denúncias</span>` : ''}
+      <small><b>${escapeHtml(d.motivo)}</b>${d.texto ? ' · ' + escapeHtml(d.texto) : ''}<br>por ${escapeHtml(d.autor_nome)} (${escapeHtml(d.autor_codigo || '')}) · ${fmt(d.criado)}</small></span>
+      <span class="admin-btns">${d.alvo_imune ? '' : `<button type="button" class="btn" data-den="ban1" data-id="${d.alvo}">Banir 1 dia</button><button type="button" class="btn" data-den="ban7" data-id="${d.alvo}">7 dias</button><button type="button" class="btn btn-danger" data-den="banp" data-id="${d.alvo}">Permanente</button>`}
+      <button type="button" class="btn" data-den="ignorar" data-id="${d.alvo}">Ignorar</button></span></div>`).join('');
+  }
+  $('admin-players').addEventListener('click', async e => {
+    const b = e.target.closest('[data-den]');
+    if (!b) return;
+    const a = b.dataset.den, id = b.dataset.id;
+    if (a === 'banp' && !b.dataset.ok) { b.dataset.ok = 1; b.textContent = 'Confirmar?'; return; }
+    b.disabled = true;
+    try {
+      if (a !== 'ignorar') await NET.ban(id, a === 'ban1' ? 1 : a === 'ban7' ? 7 : -1, a === 'ban1' ? 'Denúncia: suspensão de 1 dia' : a === 'ban7' ? 'Denúncia: suspensão de 7 dias' : 'Denúncia: banimento permanente');
+      await NET.denunciaResolver(id, a === 'ignorar' ? 'ignorada' : 'banido');
+      toast(a === 'ignorar' ? 'Denúncia ignorada' : 'Jogador banido', 'leaf');
+    } catch (err) { toast(err.message, 'warn', 4000); }
+    refreshPlayers();
+  });
   $('admin-search').addEventListener('keydown', e => { if (e.key === 'Enter') refreshPlayers(); e.stopPropagation(); });
 
   function staffExtras() {
@@ -9009,6 +9047,7 @@
     lastBiome = null;
     interior = null;
     if (S.devolvidoSkins) { toast(`As skins antigas saíram do jogo: ${S.devolvidoSkins} moedas devolvidas`, 'gold', 7000); delete S.devolvidoSkins; }
+    if (S.ganhouInicial) { toast(`Presente de começo: suas moedas subiram para ${MOEDAS_INICIAIS.toLocaleString('pt-BR')}`, 'gold', 6000); delete S.ganhouInicial; }
     if (S.devolvido) { toast(`As fortalezas saíram do jogo: ${S.devolvido} moedas devolvidas`, 'gold', 6000); delete S.devolvido; }
     if (S.devolvidoMuros) { toast(`Muros novos chegaram! Os ${S.devolvidoMuros} blocos de muro antigos foram retirados e o material voltou para a sua mochila.`, 'gold', 8000); delete S.devolvidoMuros; }
     for (const b of S.builds) clearUnderHouse(b);   // casas antigas: limpa o chão embaixo
@@ -9134,7 +9173,8 @@
       const hora = new Date(m.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       if (m.sistema) return `<div class="chat-msg aviso"><span class="chat-hora">${hora}</span> <b>Moderação</b>${m.titulo ? ` · <i>${chatEsc(m.titulo)}</i>` : ''}: ${chatEsc(m.texto)}</div>`;
       const quem = m.minha ? 'Você' + (m.tipo === 'privado' && m.para ? ' → ' + m.para.join(', ') : '') : m.nome;
-      const responder = !m.minha && m.de && m.tipo !== 'amigos' ? ` <button type="button" class="linkbtn" data-reply="${chatEsc(m.de)}">responder</button>` : '';
+      const responder = (!m.minha && m.de && m.tipo !== 'amigos' ? ` <button type="button" class="linkbtn" data-reply="${chatEsc(m.de)}">responder</button>` : '')
+        + (!m.minha && m.de && m.nome !== 'Equipe' ? ` <button type="button" class="linkbtn" data-denunciar="${chatEsc(m.de)}">denunciar</button>` : '');
       const tag = m.tag && m.tipo !== 'cla' ? `<span class="chat-tag" style="background:${CLA.cores[m.tag] || '#6d4c2f'}">${chatEsc(m.tag)}</span>` : '';
       return `<div class="chat-msg ${m.tipo}${m.minha ? ' minha' : ''}"><span class="chat-hora">${hora}</span> ${tag}<b>${chatEsc(quem)}</b>${m.tipo !== 'todos' ? ` <small>(${m.tipo === 'cla' ? 'clã' : m.tipo})</small>` : ''}: ${chatEsc(m.texto)}${responder}</div>`;
     }).join('') : '<div class="empty">Nenhuma mensagem ainda nesta partida.</div>';
@@ -9193,7 +9233,36 @@
   $('chat-log').addEventListener('click', e => {
     const r = e.target.closest('[data-reply]');
     if (r) { CHAT.para = r.dataset.reply; chatTab('privado'); $('chat-input').focus(); }
+    const dn = e.target.closest('[data-denunciar]');
+    if (dn) abrirDenuncia(dn.dataset.denunciar);
   });
+  // ---- Denunciar jogador (vai para a equipe; quem foi denunciado não sabe quem denunciou)
+  function abrirDenuncia(codigo) {
+    if (!online()) { toast('Denunciar precisa da conta ligada', 'warn'); return; }
+    showSheet('sheet-denuncia');
+    $('den-codigo').value = codigo || ''; $('den-texto').value = '';
+    (codigo ? $('den-texto') : $('den-codigo')).focus();
+  }
+  $('btn-denunciar').addEventListener('click', () => abrirDenuncia(''));
+  $('den-body').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') closeSheet(); });
+  $('den-enviar').addEventListener('click', async () => {
+    const c = ($('den-codigo').value || '').trim().toUpperCase();
+    if (!/^TF-[A-Z0-9]{6}$/.test(c)) { toast('Digite o código no formato TF-XXXXXX', 'warn'); return; }
+    if (NET.profile && c === NET.profile.codigo) { toast('Esse é o seu código', 'warn'); return; }
+    $('den-enviar').disabled = true;
+    try { const nome = await NET.denunciar(c, $('den-motivo').value, ($('den-texto').value || '').trim()); closeSheet(); toast(`Denúncia contra ${nome} enviada para a equipe. Obrigado!`, 'leaf', 4000); }
+    catch (err) { toast(err.message, 'warn', 4000); }
+    $('den-enviar').disabled = false;
+  });
+  // ---- Testadores beta: moedas da semana (o servidor só paga uma vez a cada 7 dias)
+  async function betaReceber() {
+    if (!online() || !NET.betaReceber || !S || bootPending) return;
+    try {
+      const n = await NET.betaReceber();
+      if (n > 0) { S.coins += n; invDirty = true; save(true); sfx('moeda'); toast(`Testador beta: +${n.toLocaleString('pt-BR')} moedas da semana`, 'gold', 6000); }
+    } catch (e) { /* sem o equipe2.sql ou sem rede: tenta depois */ }
+  }
+  setTimeout(betaReceber, 8000); setInterval(betaReceber, 10 * 60000);
   $('chat-form').addEventListener('submit', async e => {
     e.preventDefault();
     const inp = $('chat-input'), texto = inp.value;

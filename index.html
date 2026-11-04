@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Pixelify+Sans:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=83">
+<link rel="stylesheet" href="style.css?v=84">
 </head>
 <body>
 <div id="app">
@@ -134,6 +134,23 @@
 
   <div class="viagem-veu" id="viagem-veu" hidden><span></span></div>
 
+  <div class="sheet" id="sheet-denuncia" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="den-title">
+      <div class="panel-head">
+        <h2 id="den-title">Denunciar jogador</h2>
+        <button type="button" class="btn" data-close>Fechar</button>
+      </div>
+      <div id="den-body">
+        <p class="muted small-text">A denúncia vai para a equipe (moderadores e administrador), que decide se bane ou não. Quem foi denunciado não fica sabendo quem denunciou.</p>
+        <label class="field">Código do jogador<input id="den-codigo" type="text" maxlength="12" placeholder="TF-XXXXXX" style="text-transform:uppercase"></label>
+        <label class="field">Motivo<select id="den-motivo">
+          <option>Xingamento ou ofensa</option><option>Trapaça ou hack</option><option>Golpe no Mercado</option><option>Nome impróprio</option><option>Spam no chat</option><option>Outro</option>
+        </select></label>
+        <label class="field">O que aconteceu<textarea id="den-texto" maxlength="300" rows="4" placeholder="Conte o que aconteceu (opcional)"></textarea></label>
+        <div class="list-actions"><button type="button" class="btn btn-gold" id="den-enviar">Enviar denúncia</button></div>
+      </div>
+    </div>
+  </div>
   <div class="sheet" id="sheet-cla" hidden>
     <div class="panel" role="dialog" aria-modal="true" aria-labelledby="cla-title">
       <div class="panel-head">
@@ -155,6 +172,7 @@
         <button type="button" class="btn btn-gold" id="btn-staff" hidden>Painel da equipe</button>
         <button type="button" class="btn" id="btn-cla">Clã</button>
         <button type="button" class="btn" id="btn-mercado">Mercado</button>
+        <button type="button" class="btn" id="btn-denunciar">Denunciar jogador</button>
         <button type="button" class="btn" id="btn-char">Trocar personagem</button>
         <button type="button" class="btn" id="btn-sethome">Definir casa aqui</button>
         <button type="button" class="btn" id="btn-help">Como jogar</button>
@@ -231,6 +249,12 @@
           <input id="admin-search" type="search" placeholder="Nome ou código (TF-…)" aria-label="Buscar jogador">
           <button type="button" class="btn" id="admin-search-btn">Buscar</button>
         </div>
+        <div class="cla-linha" id="admin-filtros">
+          <button type="button" class="btn btn-gold" data-filtro="">Todos</button>
+          <button type="button" class="btn" data-filtro="#banidos">Banidos</button>
+          <button type="button" class="btn" data-filtro="#beta">Testadores beta</button>
+          <button type="button" class="btn" data-filtro="#denuncias">Denúncias</button>
+        </div>
         <div class="list" id="admin-players"></div>
       </div>
       <div id="admin-world">
@@ -282,7 +306,7 @@
 </div>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="online.js?v=83"></script>
-<script src="game.js?v=83"></script>
+<script src="online.js?v=84"></script>
+<script src="game.js?v=84"></script>
 </body>
 </html>

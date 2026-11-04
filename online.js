@@ -133,6 +133,13 @@
   T.giveCoins = (target, quantidade) => rpc('admin_give_coins', { target, quantidade });
   T.giftSkin = (codigo, skin) => rpc('presentear_skin', { codigo, skin });
   T.bless = (target, arma, nivel, horas) => rpc('admin_bless', { target, arma, nivel, horas });
+  // testadores beta, imunidade e denúncias (supabase/equipe2.sql)
+  T.imunidade = (target, valor) => rpc('admin_imunidade', { target, valor });
+  T.beta = (target, moedas) => rpc('admin_beta', { target, moedas });
+  T.betaReceber = () => rpc('beta_receber', {});
+  T.denunciar = (codigo, motivo, texto) => rpc('denunciar', { p_codigo: codigo, p_motivo: motivo, p_texto: texto });
+  T.denuncias = () => rpc('staff_denuncias', {});
+  T.denunciaResolver = (alvo, status) => rpc('staff_denuncia_resolver', { p_alvo: alvo, p_status: status });
 
 
   // ---- Chat ao vivo (Supabase Realtime). Nada fica guardado: a mensagem só passa por quem está conectado.
