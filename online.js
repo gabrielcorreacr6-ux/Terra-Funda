@@ -203,6 +203,7 @@
   T.mercadoMeu = () => rpc('mercado_meu', {});
   T.mercadoAnunciar = (item, qtd, preco, loja) => rpc('mercado_anunciar', { p_item: item, p_qtd: qtd, p_preco: preco, p_loja: loja || null });
   T.mercadoComprar = id => rpc('mercado_comprar', { p_id: id });
+  T.mercadoComprarQtd = (id, qtd) => rpc('mercado_comprar_qtd', { p_id: id, p_qtd: qtd });   // supabase/mercado3.sql: compra só uma parte
   T.mercadoCancelar = id => rpc('mercado_cancelar', { p_id: id });
   T.mercadoRetirar = () => rpc('mercado_retirar', {});
   // ---- Terras dos Clãs: um canal em tempo real com a posição e o visual de quem está lá
@@ -214,6 +215,12 @@
       .on('broadcast', { event: 'p' }, ({ payload }) => onEvento('p', payload))
       .on('broadcast', { event: 'oi' }, ({ payload }) => onEvento('oi', payload))
       .on('broadcast', { event: 'sai' }, ({ payload }) => onEvento('sai', payload))
+      .on('broadcast', { event: 't' }, ({ payload }) => onEvento('t', payload))
+      .on('broadcast', { event: 'o' }, ({ payload }) => onEvento('o', payload))
+      .on('broadcast', { event: 'm' }, ({ payload }) => onEvento('m', payload))
+      .on('broadcast', { event: 'mh' }, ({ payload }) => onEvento('mh', payload))
+      .on('broadcast', { event: 'og' }, ({ payload }) => onEvento('og', payload))
+      .on('broadcast', { event: 'rb' }, ({ payload }) => onEvento('rb', payload))
       .subscribe(st => { if (st === 'SUBSCRIBED') onEvento('ok'); });
   };
   T.terrasEnviar = (ev, payload) => { if (terras.ch) terras.ch.send({ type: 'broadcast', event: ev, payload }).catch(() => {}); };
@@ -223,6 +230,20 @@
     const ch = terras.ch; terras.ch = null;
     setTimeout(() => sb.removeChannel(ch), 300);
   };
+  // terreno derrubado, bases e construções dos clãs (regras no servidor: supabase/terras.sql)
+  T.terrasEstado = () => rpc('terras_estado', {});
+  T.terrasLimpar = (x, y) => rpc('terras_limpar', { p_x: x, p_y: y });
+  T.claBaseMarcar = (x, y) => rpc('cla_base_marcar', { p_x: x, p_y: y });
+  T.claBaseAbandonar = () => rpc('cla_base_abandonar', {});
+  T.terrasConstruir = (k, x, y, rot) => rpc('terras_construir', { p_k: k, p_x: x, p_y: y, p_rot: rot || 0 });
+  T.terrasGirar = (id, rot) => rpc('terras_girar', { p_id: id, p_rot: rot });
+  T.terrasRemover = id => rpc('terras_remover', { p_id: id });
+  // guerra (supabase/guerra.sql): golpes em construções de outros clãs, conserto, torre de transmissão e robôs
+  T.terrasGolpear = (id, ferramenta) => rpc('terras_golpear', { p_id: id, p_ferramenta: ferramenta });
+  T.terrasConsertar = id => rpc('terras_consertar', { p_id: id });
+  T.txAbastecer = (petroleo, ferro) => rpc('cla_tx_abastecer', { p_petroleo: petroleo, p_ferro: ferro });
+  T.roboLancar = tipo => rpc('robo_lancar', { p_tipo: tipo });
+  T.roboExplodir = (id, x, y) => rpc('robo_explodir', { p_id: id, p_x: x, p_y: y });
   T.addFriend = codigo => rpc('adicionar_amigo', { codigo });
   T.removeFriend = alvo => rpc('remover_amigo', { alvo });
   T.friends = () => rpc('meus_amigos', {});

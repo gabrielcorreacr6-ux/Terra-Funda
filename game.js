@@ -126,6 +126,7 @@
     { id: 'tijolo', nome: 'Muro de tijolos', custo: { pedra: 2, carvao: 1 }, golpes: 5 },
     { id: 'ferro', nome: 'Muro reforçado', custo: { pedra: 3, ferro: 1 }, golpes: 7 },
     { id: 'fortaleza', nome: 'Muralha de ferro', custo: { pedra: 4, ferro: 2 }, golpes: 9 },
+    { id: 'cla', nome: 'Muralha do clã', custo: { pedra: 6, ferro: 2 }, golpes: 12, soClas: true },   // só nas Terras dos Clãs
   ];
   const GATE_EXTRA = { madeira: 2 };
   // Prontas da loja. casa e forte ocupam um losango w × h (h = w / 2); porta = ponto da borda de baixo
@@ -173,6 +174,10 @@
     banca_feira: { tipo: 'banca', nome: 'Banca de feira', w: 3, h: 3, dw: 3.5, preco: 1500, desc: 'Põe até 5 ofertas no Mercado com o nome da sua loja: vende mesmo com você longe.' },
     banca_loja: { tipo: 'banca', nome: 'Lojinha de pedra', w: 3, h: 3, dw: 3.5, preco: 3000, desc: 'Põe até 5 ofertas no Mercado com o nome da sua loja: vende mesmo com você longe.' },
     banca_petroleo: { tipo: 'banca', nome: 'Armazém de petróleo', w: 3, h: 3, dw: 3.6, preco: 4000, desc: 'Põe até 5 ofertas no Mercado com o nome da sua loja: vende mesmo com você longe.' },
+    // Terras dos Clãs: só dentro da base do clã, pagas com material (ficam no servidor e todos veem)
+    cla_torre: { tipo: 'cla', nome: 'Torre do clã', w: 3, h: 3, dw: 4.7, preco: 0, custo: { pedra: 40, ferro: 8, madeira: 12 }, desc: 'Torre de pedra com um pedaço de muralha em L. A bandeira fica na cor do clã.' },
+    cla_transmissao: { tipo: 'clatx', nome: 'Torre de transmissão', w: 2, h: 2, preco: 0, custo: { ferro: 30, pedra: 20, petroleo: 10 }, desc: 'Uma por clã. Guarda petróleo e ferro e lança os robôs (saqueador e explosivo). Mostra onde estão as outras bases.' },
+    cla_estandarte: { tipo: 'clabandeira', nome: 'Estandarte do clã', preco: 0, custo: { madeira: 3 }, desc: 'Mastro com o pano na cor do clã e o brasão.' },
     banca_joias: { tipo: 'banca', nome: 'Joalheria de minérios', w: 3, h: 3, dw: 3.5, preco: 5000, desc: 'Põe até 5 ofertas no Mercado com o nome da sua loja: vende mesmo com você longe.' },
   };
   for (const [k, d] of Object.entries(BUILDS)) {
@@ -186,7 +191,7 @@
   BUILDS.catapulta.img = 'catapulta_0';
   BUILDS.maq_petroleo.img = 'maq_petroleo_0'; BUILDS.maq_mina.img = 'maq_mina_0';
   // máquinas e bancas em 3D: 4 ângulos (girar), largura do desenho e animação de cada uma
-  const TERRA3D = /*TERRA3D*/{"dw":{"maq_mina":3.78,"maq_petroleo":4.27,"banca_feira":4.44,"banca_loja":4.85,"banca_petroleo":4.15,"banca_joias":4.46}}/*FIM_TERRA3D*/;
+  const TERRA3D = /*TERRA3D*/{"dw":{"cla_torre":4.76,"maq_mina":3.78,"maq_petroleo":4.27,"banca_feira":4.44,"banca_loja":4.85,"banca_petroleo":4.15,"banca_joias":4.46}}/*FIM_TERRA3D*/;
   const ANIM3D = { maq_petroleo: { seq: [0, 1, 0, 2], ms: 320 }, maq_mina: { seq: [0, 1, 2], ms: 110 } };
   for (const [k, dw] of Object.entries(TERRA3D.dw || {})) if (BUILDS[k]) { const d = BUILDS[k]; d.dw = dw; d.gira = 1; d.img = d.tipo === 'maquina' ? k + '_r0_0' : k + '_r0'; }
   function imgDe(b, quadro = 0) { const d = BUILDS[b.k]; if (!d.gira) return d.tipo === 'maquina' ? `${b.k}_${quadro}` : d.img; const r = (b.rot || 0) & 3; return d.tipo === 'maquina' ? `${b.k}_r${r}_${quadro}` : `${b.k}_r${r}`; }
@@ -195,7 +200,7 @@
   // fortalezas descontinuadas: quem tinha recebe o valor de volta ao abrir o jogo
   const DESCONTINUADAS = { muralha: 4000, muralha_vila: 5200, forte: 3000, forte_cidade: 6000, campo: 5500, colonia: 9000, cabana_vila: 0 };
   const SHOP_TABS = [['ferramentas', 'Ferramentas'], ['casas', 'Casas'], ['defesa', 'Defesa'], ['moveis', 'Móveis'], ['ajudantes', 'Ajudantes'], ['negocios', 'Negócios'], ['skins', 'Skins']];
-  const TAB_OF = d => d.tipo === 'maquina' || d.tipo === 'banca' ? 'negocios' : d.tipo === 'casa' || d.tipo === 'forte' ? 'casas' : d.tipo === 'torre' || d.tipo === 'armadilha' ? 'defesa' : d.tipo === 'movel' ? 'moveis' : 'ajudantes';
+  const TAB_OF = d => d.tipo === 'cla' || d.tipo === 'clabandeira' || d.tipo === 'clatx' ? null : d.tipo === 'maquina' || d.tipo === 'banca' ? 'negocios' : d.tipo === 'casa' || d.tipo === 'forte' ? 'casas' : d.tipo === 'torre' || d.tipo === 'armadilha' ? 'defesa' : d.tipo === 'movel' ? 'moveis' : 'ajudantes';
   const ROBO_CAP = 30, ROBO_EVERY = 30, ROBO_R = 6;
 
   // Compradores que andam pelo mapa: acampam um tempo e depois partem para outro ponto
@@ -633,6 +638,7 @@
   function canStand(px, py, z, r, quem) {
     const pts = [[px - r, py - r], [px + r, py - r], [px - r, py + r], [px + r, py + r]];
     for (const [x, y] of pts) if (!walkable(tileAt(Math.floor(x), Math.floor(y), z), z)) return false;
+    if (modoClas && z === 0 && (quem === 'jogador' || quem === 'robo')) for (const [x, y] of pts) if (portaoFechado(Math.floor(x), Math.floor(y))) return false;
     if (z === 0 && S.builds.length) for (const [x, y] of pts) if (buildBlocks(x, y, quem !== 'jogador')) return false;
     return true;
   }
@@ -979,6 +985,8 @@
     chefe: { nome: 'Chefe dos saqueadores', hp: 260, dano: 17, cad: 1.6, vel: 3.2, ve: 5, segue: 12, volta: 8 * 60000, xp: 70 },
     fugitivo: { nome: 'Fugitivo', hp: 140, dano: 0, cad: 9, vel: 4.3, ve: 9, segue: 0, volta: 0, xp: 40 },
     construtor: { nome: 'Construtor', hp: 50, dano: 0, cad: 9, vel: 2.2, ve: 3, segue: 0, volta: 0, xp: 10 },
+    robo_scout: { nome: 'Robô saqueador', hp: 60, dano: 0, cad: 9, vel: 4.4, ve: 0, segue: 0, volta: 0, xp: 25 },
+    robo_sentinela: { nome: 'Robô explosivo', hp: 90, dano: 0, cad: 9, vel: 2.9, ve: 0, segue: 0, volta: 0, xp: 35 },
     bicho: { nome: 'Bicho do petróleo', hp: 300, dano: 20, cad: 1.4, vel: 3.2, ve: 3, segue: 10, volta: 7 * 60000, xp: 60, moedas: 100 },
   };
   const LENDA_MS = 10000 * 3600 * 1000;
@@ -1066,13 +1074,18 @@
   }
   function mobsTick(dt, now) {
     const p = S.p, day = Math.floor(S.time / DAY_MS);
+    // Terras dos Clãs com conta: os saqueadores são os mesmos para todos. Um jogador (o "anfitrião") simula
+    // e manda as posições; os outros só mostram e mandam os golpes que deram (terrasMobs / terrasGolpeMob).
+    const rede = modoClas && online() && !!NET.profile, host = !rede || terrasSouHost();
+    const jogs = rede && host ? terrasJogadores() : null;
+    if (modoClas) robosTick(dt, now);
     // acampamentos: repõem o bando 8 min depois de cada morte; o baú ganha 10 moedas por dia
     for (const c of S.camps) {
       if (c.dia !== day) { if (c.ativo) c.bau += 10 * Math.max(0, day - c.dia); c.dia = day; }
-      if (!c.ativo) continue;
+      if (!c.ativo || !host) continue;
       c.mortos = c.mortos.filter(t => t > S.time);
       const vivos = S.mobs.filter(m => m.camp === c.id).length;
-      if (vivos + c.mortos.length < c.n && Math.hypot(c.x - p.x, c.y - p.y) < 70) {
+      if (vivos + c.mortos.length < c.n && (jogs ? jogs.some(j => Math.hypot(c.x - j.x, c.y - j.y) < 70) : Math.hypot(c.x - p.x, c.y - p.y) < 70)) {
         const a = Math.random() * 6.28;
         const temChefe = S.mobs.some(m => m.camp === c.id && m.kind === 'chefe') || (c.chefeVolta || 0) > S.time;
         S.mobs.push(newMob(temChefe ? 'saqueador' : 'chefe', c.x + 0.5 + Math.cos(a) * 2, c.y + 0.5 + Math.sin(a) * 2, 0, { camp: c.id, hx: c.x + 0.5, hy: c.y + 0.5 }));
@@ -1089,11 +1102,16 @@
       S.mobs.push(newMob('bicho', d.x + 0.5 + Math.cos(a) * r, d.y + 0.5 + Math.sin(a) * r, d.z, { dep: d.id, hx: d.x + 0.5, hy: d.y + 0.5 }));
     }
     for (let k = S.mobs.length - 1; k >= 0; k--) {
-      const m = S.mobs[k], def = MOB[m.kind];
+      const m = S.mobs[k], def = MOB[m.kind], comp = rede && m.camp !== undefined;
+      if (m.robo) continue;   // robôs dos clãs: robosTick
+      if (comp && !host) { seguirMob(m, dt); continue; }   // quem mexe é o anfitrião
+      if (comp && !m.id) m.id = 1 + Math.floor(Math.random() * 2e9);
       if (m.burn > now) { m.hp -= m.burnDps * dt; if (m.hp <= 0) { killMob(m, k); continue; } }
-      if (Math.hypot(m.x - p.x, m.y - p.y) > 90) { S.mobs.splice(k, 1); continue; }   // longe demais: some (volta quando chegar perto)
-      const dist = Math.hypot(m.x - p.x, m.y - p.y), same = m.z === p.z && S.hp > 0 && now > invulnTil;
-      const inHouse = !!interior || !!insideOf(p.x, p.y, 'casa') || (p.z === 0 && !!zonaEm(p.x, p.y));   // área segura conta como casa
+      let p = S.p, remoto = null;   // alvo: você ou (nas Terras) o jogador mais perto
+      if (comp) { const a = alvoMob(m, jogs); if (a.cod) { p = a; remoto = a; } }
+      if (comp ? !jogs.some(j => Math.hypot(m.x - j.x, m.y - j.y) < 90) : Math.hypot(m.x - p.x, m.y - p.y) > 90) { S.mobs.splice(k, 1); continue; }   // longe demais: some (volta quando chegar perto)
+      const dist = Math.hypot(m.x - p.x, m.y - p.y), same = remoto ? m.z === 0 : m.z === p.z && S.hp > 0 && now > invulnTil;
+      const inHouse = remoto ? !!zonaEm(p.x, p.y) : !!interior || !!insideOf(p.x, p.y, 'casa') || (p.z === 0 && !!zonaEm(p.x, p.y));   // área segura conta como casa
       const fromHome = Math.hypot(m.x - m.hx, m.y - m.hy);
       if (m.kind === 'fugitivo' || m.kind === 'construtor') {   // não atacam: fogem de quem chega perto
         let tx, ty, sp = def.vel;
@@ -1144,8 +1162,10 @@
         m.moving = false;
         if (m.atk <= 0) {
           const furia = m.hp < m.max * 0.3;
-          m.atk = def.cad * (furia ? 0.65 : 1); m.swing = now; hurt(def.dano * (m.charge ? 1.5 : 1), m);
-          if (m.kind !== 'saqueador') { fxAnim(['fx_impacto'], S.p.x, S.p.y + 0.2, m.z, 1.4, 380); shake(220, tp * 0.08); }
+          m.atk = def.cad * (furia ? 0.65 : 1); m.swing = now;
+          if (remoto) TER.golpes.push([remoto.cod, Math.round(def.dano * (m.charge ? 1.5 : 1)), m.id]);   // o outro jogador leva o golpe na tela dele
+          else hurt(def.dano * (m.charge ? 1.5 : 1), m);
+          if (m.kind !== 'saqueador' && !remoto) { fxAnim(['fx_impacto'], S.p.x, S.p.y + 0.2, m.z, 1.4, 380); shake(220, tp * 0.08); }
         }
       } else if (L > 0.1) {
         const st = Math.min(L, sp * dt), nx = m.x + dx / L * st, ny = m.y + dy / L * st;
@@ -1162,6 +1182,21 @@
     if (idx < 0) return;
     if (m.under) return;   // debaixo da terra não leva dano
     n = Math.round(n);
+    if (m.robo) {   // robô de clã: quem lançou aplica o dano
+      if (m.meu || (m.cla != null && m.cla === meuClaId())) return;
+      m.flash = now + 120; m.hitT = now;
+      effects.push({ txt: String(n), x: m.x, y: m.y - 1.3, z: m.z, t0: now, dur: 650, cor: '#ffffff' });
+      addXp(arma, 4); sfx('acerto');
+      if (online() && NET.profile) NET.terrasEnviar('rb', { e: 'hit', id: m.id, n: Math.min(400, n), c: NET.profile.codigo });
+      return;
+    }
+    if (m.camp !== undefined && m.id && modoClas && online() && NET.profile && !terrasSouHost()) {   // saqueador compartilhado: o anfitrião aplica
+      m.flash = now + 120; m.hitT = now; m.minhaArma = arma;
+      effects.push({ txt: String(n), x: m.x, y: m.y - 1.3, z: m.z, t0: now, dur: 650, cor: opt.burn ? '#ffb347' : '#ffffff' });
+      addXp(arma, 4); sfx(arma === 'espada' ? 'espada_acerto' : arma === 'arco' ? 'flecha_acerto' : arma === 'cetro' ? 'magia_acerto' : 'acerto');
+      NET.terrasEnviar('mh', { c: NET.profile.codigo, id: m.id, n: Math.min(400, n) });
+      return;
+    }
     m.hp -= n; m.flash = now + 120; m.hitT = now; m.aggro = true;
     if (opt.burn) { m.burn = now + 4000; m.burnDps = 4; }
     const hitFx = arma === 'cetro' ? ['fx_magia_hit_0', 'fx_magia_hit_1', 'fx_magia_hit_2'] : arma === 'arco' ? ['fx_lascas'] : ['fx_faisca_0', 'fx_faisca_1', 'fx_faisca_2'];
@@ -1180,6 +1215,7 @@
   function killMob(m, idx, arma) {
     const def = MOB[m.kind];
     S.mobs.splice(idx, 1);
+    if (m.id && m.camp !== undefined && modoClas && online() && NET.profile) TER.mortes.push([m.id, NET.profile.codigo]);
     sfx(m.kind === 'bicho' ? 'bicho_morre' : 'inimigo');
     if (arma) addXp(arma, def.xp);
     corpses.push({ kind: m.kind, x: m.x, y: m.y, z: m.z, flip: m.dir === 2, t0: performance.now() });
@@ -1205,7 +1241,7 @@
   function aimAt(range) {
     let best = null, bd = range;
     for (const m of S.mobs) {
-      if (m.z !== S.p.z) continue;
+      if (m.z !== S.p.z || (m.robo && (m.meu || (m.cla != null && m.cla === meuClaId())))) continue;
       const d = Math.hypot(m.x - S.p.x, m.y - S.p.y);
       if (d < bd) { bd = d; best = m; }
     }
@@ -1274,9 +1310,9 @@
   }
   // ---- desenho
   // Inimigos e ajudantes em 3D (tools/render3d): andam, ficam parados e golpeiam com a arma na mão
-  const MOB3D = { saqueador: 'mob_saqueador', chefe: 'mob_chefe', fugitivo: 'mob_fugitivo', construtor: 'mob_construtor' };
+  const MOB3D = { saqueador: 'mob_saqueador', chefe: 'mob_chefe', fugitivo: 'mob_fugitivo', construtor: 'mob_construtor', robo_scout: 'mob_robo_scout', robo_sentinela: 'mob_robo_sentinela' };
   const MOB3D_ARMA = { saqueador: 'espada', chefe: 'machado' };
-  const MOB3D_ALT = { saqueador: 1.5, chefe: 1.75, fugitivo: 1.45, construtor: 1.45 };
+  const MOB3D_ALT = { saqueador: 1.5, chefe: 1.75, fugitivo: 1.45, construtor: 1.45, robo_scout: 1.3, robo_sentinela: 1.55 };
   function drawMob3d(m, pid, sx, sy, u, view, flip, now, atk) {
     const arma = MOB3D_ARMA[m.kind], bottom = sy + 6 * u;
     let name;
@@ -1351,7 +1387,11 @@
         // barra de vida
         const k = clamp(m.hp / m.max, 0, 1), bw = 14 * u;
         ctx.fillStyle = 'rgba(20,17,15,0.8)'; ctx.fillRect(sx - bw / 2, sy - 22 * u, bw, 2.2 * u);
-        ctx.fillStyle = m.kind === 'bicho' ? '#b05cff' : m.kind === 'chefe' ? '#ffb347' : m.kind === 'fugitivo' ? '#ffd24a' : m.kind === 'construtor' ? '#7fd16a' : '#e0573f'; ctx.fillRect(sx - bw / 2, sy - 22 * u, bw * k, 2.2 * u);
+        ctx.fillStyle = m.robo ? (m.meu || (m.cla != null && m.cla === meuClaId()) ? '#7fd16a' : '#e0573f') : m.kind === 'bicho' ? '#b05cff' : m.kind === 'chefe' ? '#ffb347' : m.kind === 'fugitivo' ? '#ffd24a' : m.kind === 'construtor' ? '#7fd16a' : '#e0573f'; ctx.fillRect(sx - bw / 2, sy - 22 * u, bw * k, 2.2 * u);
+        if (m.robo) {   // cor do clã do robô e o saco de moedas
+          ctx.fillStyle = corOk(m.cor) || '#888888'; ctx.fillRect(sx - bw / 2 - 3.2 * u, sy - 22.4 * u, 2.6 * u, 3 * u);
+          if (m.carga > 0) { ctx.font = `${Math.round(tp * 0.32)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('💰', sx + bw / 2 + 4 * u, sy - 20 * u); ctx.textAlign = 'left'; }
+        }
       } });
     }
     for (let k = corpses.length - 1; k >= 0; k--) {   // corpo caído some aos poucos
@@ -1761,6 +1801,7 @@
     toast(`${gate ? 'Portão' : mat.nome} desmontado: ${costTxt(back)} de volta`);
   }
   function placeWall(x, y, z, t, i) {
+    if (modoClas) { terrasMuro(x, y, z, t, i); return; }
     const gate = S.sel.k === 'portao', m = S.sel.m || 0, cost = wallCost(m, gate);
     const isWall = t === T.WALL || t === T.GATE;
     const free = z === 0 ? (t === T.GRASS || t === T.TILLED) : t === T.AIR;
@@ -1781,6 +1822,7 @@
   const isWallT = t => t === T.WALL || t === T.GATE;
   function wallEdit(x, y, z, t, i) {
     const mode = S.sel.k;
+    if (modoClas) { terrasAjustar(mode, x, y, z, t, i); return; }
     if (mode === 'mover' && S.sel.carry) {          // segundo toque: solta onde estiver olhando
       const free = z === 0 ? (t === T.GRASS || t === T.TILLED) : t === T.AIR;
       if (!free || (playerInTile(x, y) && !S.sel.carry.gate)) { toast('Escolha um lugar livre', 'warn'); return; }
@@ -1875,7 +1917,7 @@
     return b;
   }
   function placeKit(k) {
-    if (modoClas) { toast('Nas Terras dos Clãs ainda não dá para construir', 'warn'); return; }
+    if (modoClas) { terrasColocar(k); return; }
     const d = BUILDS[k];
     if (!(S.kit[k] > 0)) { toast(`Você não tem ${d.nome.toLowerCase()}. Compre na loja.`, 'warn'); return; }
     if (d.tipo === 'robo') {
@@ -1927,6 +1969,7 @@
     invDirty = true; save();
   }
   function pickUp() {
+    if (modoClas) { toast('Nas Terras: use Construir → Remover', 'warn'); return; }
     const r = pickupTarget();
     if (!r) { toast('Fique de frente para o que quer guardar', 'warn'); return; }
     if (r.bot) {
@@ -2080,8 +2123,10 @@
     if (cat) { actHeld = false; fireCatapult(cat); return; }
     const bot = tool !== 'muro' && botNear(x, y);
     if (bot) { actHeld = false; collectBot(bot); return; }
-    if (modoClas && ['picareta', 'machado', 'enxada', 'muro', 'rede'].includes(tool)) {
-      actHeld = false; toast('Nas Terras dos Clãs ainda não dá para coletar nem construir. Compre recursos no Mercado (Menu).', 'warn', 3500); return;
+    const txb = tool !== 'muro' && txNaFrente(x, y);
+    if (txb) { actHeld = false; abrirTransmissao(); return; }
+    if (modoClas && (tool === 'enxada' || tool === 'rede')) {
+      actHeld = false; toast('Nas Terras dos Clãs não dá para plantar nem caçar. Compre recursos no Mercado (Menu).', 'warn', 3500); return;
     }
     if (!toolUsable(tool)) {
       actHeld = false;
@@ -2095,6 +2140,7 @@
     const i = I(x, y, z);
 
     if (tool === 'maos') { swing = 0; return; }   // mãos livres: só conversa com compradores
+    if (modoClas && (tool === 'picareta' || tool === 'machado')) { terrasGolpe(tool, x, y, z, t, i); return; }
     switch (tool) {
       case 'picareta': {
         if (t === T.WALL || t === T.GATE) { hitWall(i, z, 'picareta'); return; }
@@ -2224,6 +2270,7 @@
 
   function upDown() {
     if (interior) { toast('Saia da casa para cavar', 'warn'); return; }
+    if (modoClas) { toast('Nas Terras dos Clãs não dá para cavar nem minerar', 'warn'); return; }
     const p = S.p, x = Math.floor(p.x), y = Math.floor(p.y), z = p.z;
     if (z > 0 && tileAt(x, y, z - 1) === T.HOLE) {
       p.z--; centerPlayer(); toast(layerName(p.z)); return;
@@ -2820,1091 +2867,1147 @@
     "sk_g_sentinela_swing_gesto_dois_back":[2662,772,131,112],
     "mob_chefe_back_walk_1":[2795,772,137,112],
     "mob_fugitivo_back_walk_1":[2934,772,133,112],
-    "bicho_dig_1":[3069,772,172,112],
-    "noel_front_0":[3243,772,70,112],
-    "noel_front_2":[3315,772,69,112],
-    "noel_front_4":[3386,772,68,112],
-    "coelhao_front_0":[3456,772,67,112],
-    "coelhao_front_4":[3525,772,68,112],
-    "sk_g_bravo_swing_gesto_dois_side":[3595,772,140,111],
-    "sk_g_po_side_walk_0":[3737,772,139,111],
-    "sk_g_po_side_walk_1":[3878,772,148,111],
-    "sk_g_sentinela_golpe_back_1":[0,893,132,111],
-    "mob_chefe_back_idle":[134,893,135,111],
-    "mob_chefe_back_walk_2":[271,893,137,111],
-    "mob_chefe_back_walk_5":[410,893,136,111],
-    "mob_chefe_back_walk_6":[548,893,135,111],
-    "mob_chefe_back_walk_7":[685,893,134,111],
-    "mob_chefe_golpe_back_0":[821,893,136,111],
-    "mob_chefe_golpe_back_4":[959,893,136,111],
-    "mob_chefe_side_walk_0":[1097,893,136,111],
-    "mob_chefe_side_walk_1":[1235,893,141,111],
-    "mob_chefe_side_walk_4":[1378,893,138,111],
-    "mob_tiao_side_walk_0":[1518,893,143,111],
-    "mob_tiao_side_walk_1":[1663,893,144,111],
-    "menino_back_walk_2":[1809,893,136,111],
-    "coelhao_front_3":[1947,893,68,111],
-    "coelhao_front_5":[2017,893,67,111],
-    "sk_g_po_back_walk_7":[2086,893,133,110],
-    "sk_g_po_side_walk_4":[2221,893,134,110],
-    "sk_g_guardiao_golpe_back_1":[2357,893,131,110],
-    "sk_g_guardiao_golpe_back_2":[2490,893,130,110],
-    "sk_g_guardiao_swing_gesto_um_back":[2622,893,136,110],
-    "sk_g_andarilho_side_walk_1":[2760,893,141,110],
-    "sk_g_sentinela_swing_gesto_um_back":[2903,893,141,110],
-    "sk_g_retalhos_side_walk_0":[3046,893,140,110],
-    "sk_g_retalhos_side_walk_1":[3188,893,150,110],
-    "mob_chefe_back_walk_0":[3340,893,134,110],
-    "mob_chefe_back_walk_3":[3476,893,135,110],
-    "mob_chefe_side_walk_2":[3613,893,140,110],
-    "mob_fugitivo_back_walk_5":[3755,893,135,110],
-    "menino_back_walk_0":[3892,893,133,110],
-    "menino_back_walk_1":[0,1006,136,110],
-    "menino_back_walk_3":[138,1006,135,110],
-    "menino_back_walk_6":[275,1006,133,110],
-    "menino_back_walk_7":[410,1006,133,110],
-    "menino_side_walk_0":[545,1006,138,110],
-    "menino_side_walk_1":[685,1006,141,110],
-    "menino_side_walk_4":[828,1006,135,110],
-    "cetro_mao":[965,1006,107,110],
-    "cetro_brilho":[1074,1006,105,110],
-    "noel_front_1":[1181,1006,69,110],
-    "noel_front_3":[1252,1006,68,110],
-    "noel_front_5":[1322,1006,68,110],
-    "noel_pose_1":[1392,1006,96,110],
-    "noel_pose_2":[1490,1006,61,110],
-    "noel_pose_3":[1553,1006,89,110],
-    "sk_g_po_back_idle":[1644,1006,133,109],
-    "sk_g_po_back_walk_1":[1779,1006,134,109],
-    "sk_g_po_back_walk_2":[1915,1006,134,109],
-    "sk_g_po_back_walk_3":[2051,1006,133,109],
-    "sk_g_po_back_walk_5":[2186,1006,132,109],
-    "sk_g_po_back_walk_6":[2320,1006,131,109],
-    "sk_g_po_golpe_back_0":[2453,1006,134,109],
-    "sk_g_po_golpe_back_1":[2589,1006,133,109],
-    "sk_g_po_golpe_back_2":[2724,1006,133,109],
-    "sk_g_po_golpe_back_3":[2859,1006,136,109],
-    "sk_g_po_golpe_back_4":[2997,1006,136,109],
-    "sk_g_po_swing_gesto_um_back":[3135,1006,132,109],
-    "sk_g_po_swing_gesto_dois_back":[3269,1006,137,109],
-    "sk_g_po_side_idle":[3408,1006,137,109],
-    "sk_g_po_side_walk_2":[3547,1006,140,109],
-    "sk_g_po_golpe_side_0":[3689,1006,142,109],
-    "sk_g_po_golpe_side_1":[3833,1006,137,109],
-    "sk_g_po_golpe_side_2":[0,1118,148,109],
-    "sk_g_po_golpe_side_3":[150,1118,158,109],
-    "sk_g_po_golpe_side_4":[310,1118,148,109],
-    "sk_g_po_swing_gesto_um_side":[460,1118,137,109],
-    "sk_g_andarilho_back_walk_7":[599,1118,133,109],
-    "sk_g_andarilho_side_walk_0":[734,1118,139,109],
-    "sk_g_andarilho_side_walk_2":[875,1118,137,109],
-    "sk_g_andarilho_side_walk_4":[1014,1118,134,109],
-    "sk_g_sentinela_golpe_front_0":[1150,1118,132,109],
-    "sk_g_retalhos_side_walk_4":[1284,1118,135,109],
-    "mob_chefe_front_walk_0":[1421,1118,134,109],
-    "mob_chefe_front_walk_4":[1557,1118,136,109],
-    "mob_chefe_front_walk_5":[1695,1118,136,109],
-    "mob_fugitivo_back_walk_4":[1833,1118,135,109],
-    "mob_tiao_back_idle":[1970,1118,134,109],
-    "mob_tiao_back_walk_1":[2106,1118,135,109],
-    "mob_tiao_back_walk_2":[2243,1118,135,109],
-    "mob_tiao_back_walk_5":[2380,1118,136,109],
-    "mob_tiao_back_walk_6":[2518,1118,136,109],
-    "mob_tiao_back_walk_7":[2656,1118,136,109],
-    "mob_tiao_side_walk_2":[2794,1118,138,109],
-    "mob_tiao_side_walk_4":[2934,1118,138,109],
-    "menino_back_idle":[3074,1118,133,109],
-    "menino_back_walk_4":[3209,1118,136,109],
-    "menino_back_walk_5":[3347,1118,133,109],
-    "menino_golpe_back_0":[3482,1118,135,109],
-    "menino_golpe_back_1":[3619,1118,133,109],
-    "menino_golpe_back_2":[3754,1118,134,109],
-    "menino_golpe_back_3":[3890,1118,135,109],
-    "menino_golpe_back_4":[0,1229,135,109],
-    "menino_swing_gesto_um_back":[137,1229,143,109],
-    "menino_side_walk_2":[282,1229,137,109],
-    "noel_pose_0":[421,1229,82,109],
-    "coelhao_back_1":[505,1229,57,109],
-    "coelhao_back_5":[564,1229,55,109],
-    "sk_g_po_golpe_front_1":[621,1229,132,108],
-    "sk_g_po_side_walk_7":[755,1229,132,108],
-    "sk_g_andarilho_back_idle":[889,1229,132,108],
-    "sk_g_andarilho_back_walk_1":[1023,1229,135,108],
-    "sk_g_andarilho_back_walk_2":[1160,1229,135,108],
-    "sk_g_andarilho_back_walk_3":[1297,1229,134,108],
-    "sk_g_andarilho_back_walk_6":[1433,1229,134,108],
-    "sk_g_andarilho_golpe_back_0":[1569,1229,133,108],
-    "sk_g_andarilho_golpe_back_1":[1704,1229,133,108],
-    "sk_g_andarilho_golpe_back_2":[1839,1229,132,108],
-    "sk_g_andarilho_golpe_back_3":[1973,1229,134,108],
-    "sk_g_andarilho_golpe_back_4":[2109,1229,136,108],
-    "sk_g_andarilho_swing_gesto_um_back":[2247,1229,136,108],
-    "sk_g_andarilho_swing_gesto_dois_back":[2385,1229,134,108],
-    "sk_g_sentinela_front_walk_5":[2521,1229,132,108],
-    "sk_g_sentinela_swing_gesto_um_front":[2655,1229,141,108],
-    "sk_g_sentinela_swing_gesto_dois_front":[2798,1229,132,108],
-    "sk_g_retalhos_front_walk_4":[2932,1229,134,108],
-    "sk_g_retalhos_front_walk_5":[3068,1229,133,108],
-    "sk_g_retalhos_side_walk_2":[3203,1229,143,108],
-    "sk_g_retalhos_side_walk_3":[3348,1229,130,108],
-    "mob_saqueador_front_walk_1":[3480,1229,135,108],
-    "mob_saqueador_front_walk_3":[3617,1229,134,108],
-    "mob_saqueador_front_walk_4":[3753,1229,135,108],
-    "mob_saqueador_front_walk_5":[3890,1229,132,108],
-    "mob_saqueador_front_walk_7":[0,1340,133,108],
-    "mob_saqueador_golpe_front_1":[135,1340,133,108],
-    "mob_saqueador_back_walk_1":[270,1340,134,108],
-    "mob_saqueador_back_walk_6":[406,1340,132,108],
-    "mob_saqueador_side_walk_0":[540,1340,136,108],
-    "mob_saqueador_side_walk_1":[678,1340,139,108],
-    "mob_chefe_front_walk_1":[819,1340,138,108],
-    "mob_chefe_front_walk_3":[959,1340,136,108],
-    "mob_chefe_back_walk_4":[1097,1340,136,108],
-    "mob_chefe_side_walk_3":[1235,1340,135,108],
-    "mob_chefe_side_walk_5":[1372,1340,147,108],
-    "mob_chefe_side_walk_6":[1521,1340,148,108],
-    "mob_chefe_side_walk_7":[1671,1340,144,108],
-    "mob_chefe_golpe_side_0":[1817,1340,149,108],
-    "mob_fugitivo_back_walk_0":[1968,1340,134,108],
-    "mob_tiao_front_walk_0":[2104,1340,134,108],
-    "mob_tiao_back_walk_3":[2240,1340,134,108],
-    "menino_front_walk_4":[2376,1340,136,108],
-    "menino_front_walk_5":[2514,1340,133,108],
-    "menino_side_walk_3":[2649,1340,137,108],
-    "noel_back_4":[2788,1340,60,108],
-    "coelhao_back_0":[2850,1340,64,108],
-    "coelhao_back_2":[2916,1340,55,108],
-    "coelhao_back_4":[2973,1340,61,108],
-    "sk_g_enfaixado_front_walk_4":[3036,1340,134,107],
-    "sk_g_enfaixado_side_walk_0":[3172,1340,139,107],
-    "sk_g_enfaixado_side_walk_1":[3313,1340,150,107],
-    "sk_g_bravo_back_walk_1":[3465,1340,132,107],
-    "sk_g_bravo_back_walk_2":[3599,1340,133,107],
-    "sk_g_bravo_side_walk_0":[3734,1340,141,107],
-    "sk_g_bravo_side_walk_1":[3877,1340,150,107],
-    "sk_g_po_front_walk_1":[0,1450,134,107],
-    "sk_g_po_front_walk_4":[136,1450,135,107],
-    "sk_g_po_front_walk_5":[273,1450,133,107],
-    "sk_g_po_back_walk_0":[408,1450,131,107],
-    "sk_g_po_side_walk_3":[541,1450,133,107],
-    "sk_g_po_side_walk_5":[676,1450,143,107],
-    "sk_g_po_side_walk_6":[821,1450,137,107],
-    "sk_g_guardiao_side_walk_0":[960,1450,130,107],
-    "sk_g_guardiao_side_walk_1":[1092,1450,140,107],
-    "sk_g_andarilho_front_walk_1":[1234,1450,135,107],
-    "sk_g_andarilho_front_walk_3":[1371,1450,134,107],
-    "sk_g_andarilho_front_walk_4":[1507,1450,134,107],
-    "sk_g_andarilho_front_walk_5":[1643,1450,132,107],
-    "sk_g_andarilho_front_walk_7":[1777,1450,132,107],
-    "sk_g_andarilho_back_walk_5":[1911,1450,133,107],
-    "sk_g_andarilho_side_walk_3":[2046,1450,136,107],
-    "sk_g_andarilho_side_walk_7":[2184,1450,133,107],
-    "sk_g_sentinela_front_walk_0":[2319,1450,130,107],
-    "sk_g_sentinela_front_walk_1":[2451,1450,134,107],
-    "sk_g_sentinela_front_walk_3":[2587,1450,132,107],
-    "sk_g_sentinela_front_walk_4":[2721,1450,131,107],
-    "sk_g_sentinela_back_walk_1":[2854,1450,133,107],
-    "sk_g_sentinela_back_walk_2":[2989,1450,133,107],
-    "sk_g_sentinela_back_walk_5":[3124,1450,133,107],
-    "sk_g_sentinela_back_walk_6":[3259,1450,134,107],
-    "sk_g_sentinela_back_walk_7":[3395,1450,132,107],
-    "sk_g_sentinela_side_walk_0":[3529,1450,137,107],
-    "sk_g_sentinela_side_walk_1":[3668,1450,141,107],
-    "sk_g_sentinela_side_walk_2":[3811,1450,135,107],
-    "sk_g_retalhos_front_walk_0":[3948,1450,131,107],
-    "sk_g_retalhos_front_walk_1":[0,1559,133,107],
-    "sk_g_retalhos_front_walk_3":[135,1559,133,107],
-    "sk_g_retalhos_golpe_front_1":[270,1559,131,107],
-    "sk_g_retalhos_back_walk_7":[403,1559,132,107],
-    "sk_g_retalhos_swing_gesto_dois_back":[537,1559,134,107],
-    "sk_g_retalhos_side_idle":[673,1559,136,107],
-    "sk_g_retalhos_side_walk_7":[811,1559,131,107],
-    "sk_g_retalhos_golpe_side_0":[944,1559,144,107],
-    "sk_g_retalhos_golpe_side_1":[1090,1559,136,107],
-    "sk_g_retalhos_golpe_side_2":[1228,1559,149,107],
-    "sk_g_retalhos_golpe_side_3":[1379,1559,158,107],
-    "sk_g_retalhos_golpe_side_4":[1539,1559,150,107],
-    "sk_g_retalhos_swing_gesto_um_side":[1691,1559,136,107],
-    "sk_g_ava_front_walk_4":[1829,1559,128,107],
-    "mob_saqueador_front_walk_0":[1959,1559,133,107],
-    "mob_saqueador_front_walk_2":[2094,1559,135,107],
-    "mob_saqueador_front_walk_6":[2231,1559,131,107],
-    "mob_saqueador_back_idle":[2364,1559,132,107],
-    "mob_saqueador_back_walk_2":[2498,1559,135,107],
-    "mob_saqueador_back_walk_5":[2635,1559,132,107],
-    "mob_saqueador_back_walk_7":[2769,1559,132,107],
-    "mob_saqueador_golpe_back_0":[2903,1559,132,107],
-    "mob_saqueador_golpe_back_1":[3037,1559,134,107],
-    "mob_saqueador_golpe_back_2":[3173,1559,134,107],
-    "mob_saqueador_golpe_back_3":[3309,1559,136,107],
-    "mob_saqueador_golpe_back_4":[3447,1559,136,107],
-    "mob_saqueador_side_walk_2":[3585,1559,133,107],
-    "mob_chefe_front_walk_2":[3720,1559,138,107],
-    "mob_chefe_front_walk_6":[3860,1559,136,107],
-    "mob_chefe_front_walk_7":[0,1668,135,107],
-    "mob_chefe_side_idle":[137,1668,136,107],
-    "mob_chefe_golpe_side_3":[275,1668,177,107],
-    "mob_chefe_golpe_side_4":[454,1668,165,107],
-    "mob_fugitivo_back_idle":[621,1668,133,107],
-    "mob_fugitivo_side_idle":[756,1668,142,107],
-    "mob_construtor_front_walk_4":[900,1668,129,107],
-    "mob_construtor_side_walk_1":[1031,1668,137,107],
-    "mob_construtor_side_walk_4":[1170,1668,129,107],
-    "mob_tiao_front_walk_3":[1301,1668,134,107],
-    "mob_tiao_front_walk_4":[1437,1668,135,107],
-    "mob_tiao_front_walk_5":[1574,1668,136,107],
-    "mob_tiao_front_walk_7":[1712,1668,137,107],
-    "mob_tiao_back_walk_0":[1851,1668,134,107],
-    "mob_tiao_side_idle":[1987,1668,144,107],
-    "mob_tiao_side_walk_3":[2133,1668,138,107],
-    "mob_tiao_side_walk_7":[2273,1668,135,107],
-    "menino_front_walk_0":[2410,1668,133,107],
-    "menino_front_walk_1":[2545,1668,136,107],
-    "menino_front_walk_2":[2683,1668,136,107],
-    "menino_front_walk_3":[2821,1668,136,107],
-    "menino_front_walk_6":[2959,1668,133,107],
-    "menino_front_walk_7":[3094,1668,133,107],
-    "menino_side_idle":[3229,1668,137,107],
-    "menino_side_walk_5":[3368,1668,137,107],
-    "menino_side_walk_6":[3507,1668,136,107],
-    "menino_side_walk_7":[3645,1668,135,107],
-    "menino_golpe_side_0":[3782,1668,142,107],
-    "menino_golpe_side_1":[3926,1668,137,107],
-    "menino_golpe_side_2":[0,1777,144,107],
-    "menino_golpe_side_3":[146,1777,151,107],
-    "menino_golpe_side_4":[299,1777,144,107],
-    "menino_swing_gesto_um_side":[445,1777,137,107],
-    "menina_negra_side_idle":[584,1777,131,107],
-    "menina_negra_side_walk_0":[717,1777,137,107],
-    "menina_negra_golpe_side_0":[856,1777,132,107],
-    "menina_negra_golpe_side_1":[990,1777,131,107],
-    "menina_negra_golpe_side_2":[1123,1777,131,107],
-    "menina_negra_golpe_side_3":[1256,1777,128,107],
-    "menina_negra_golpe_side_4":[1386,1777,131,107],
-    "menina_negra_swing_gesto_um_side":[1519,1777,131,107],
-    "noel_back_0":[1652,1777,64,107],
-    "noel_back_1":[1718,1777,63,107],
-    "noel_back_2":[1783,1777,60,107],
-    "noel_back_3":[1845,1777,63,107],
-    "noel_back_5":[1910,1777,63,107],
-    "sk_g_enfaixado_front_walk_0":[1975,1777,135,106],
-    "sk_g_enfaixado_front_walk_1":[2112,1777,131,106],
-    "sk_g_enfaixado_front_walk_5":[2245,1777,136,106],
-    "sk_g_enfaixado_side_idle":[2383,1777,137,106],
-    "sk_g_enfaixado_side_walk_2":[2522,1777,145,106],
-    "sk_g_enfaixado_golpe_side_0":[2669,1777,137,106],
-    "sk_g_enfaixado_golpe_side_1":[2808,1777,137,106],
-    "sk_g_enfaixado_golpe_side_2":[2947,1777,149,106],
-    "sk_g_enfaixado_golpe_side_3":[3098,1777,158,106],
-    "sk_g_enfaixado_golpe_side_4":[3258,1777,148,106],
-    "sk_g_enfaixado_swing_gesto_um_side":[3408,1777,137,106],
-    "sk_g_bravo_front_walk_0":[3547,1777,131,106],
-    "sk_g_bravo_front_walk_1":[3680,1777,133,106],
-    "sk_g_bravo_front_walk_3":[3815,1777,133,106],
-    "sk_g_bravo_front_walk_4":[3950,1777,134,106],
-    "sk_g_bravo_front_walk_5":[0,1886,132,106],
-    "sk_g_bravo_back_idle":[134,1886,132,106],
-    "sk_g_bravo_back_walk_5":[268,1886,131,106],
-    "sk_g_bravo_back_walk_6":[401,1886,131,106],
-    "sk_g_bravo_golpe_back_0":[534,1886,131,106],
-    "sk_g_bravo_golpe_back_1":[667,1886,132,106],
-    "sk_g_bravo_golpe_back_2":[801,1886,132,106],
-    "sk_g_bravo_golpe_back_3":[935,1886,132,106],
-    "sk_g_bravo_golpe_back_4":[1069,1886,133,106],
-    "sk_g_bravo_swing_gesto_um_back":[1204,1886,136,106],
-    "sk_g_bravo_swing_gesto_dois_back":[1342,1886,132,106],
-    "sk_g_bravo_side_walk_2":[1476,1886,141,106],
-    "sk_g_po_front_walk_0":[1619,1886,132,106],
-    "sk_g_po_front_walk_2":[1753,1886,135,106],
-    "sk_g_po_front_walk_3":[1890,1886,133,106],
-    "sk_g_po_front_walk_6":[2025,1886,131,106],
-    "sk_g_po_front_walk_7":[2158,1886,133,106],
-    "sk_g_po_back_walk_4":[2293,1886,135,106],
-    "sk_g_guardiao_front_walk_4":[2430,1886,131,106],
-    "sk_g_guardiao_front_walk_5":[2563,1886,131,106],
-    "sk_g_guardiao_back_idle":[2696,1886,130,106],
-    "sk_g_guardiao_back_walk_1":[2828,1886,134,106],
-    "sk_g_guardiao_back_walk_2":[2964,1886,134,106],
-    "sk_g_guardiao_back_walk_5":[3100,1886,132,106],
-    "sk_g_guardiao_back_walk_6":[3234,1886,132,106],
-    "sk_g_guardiao_golpe_back_0":[3368,1886,133,106],
-    "sk_g_guardiao_golpe_back_3":[3503,1886,133,106],
-    "sk_g_guardiao_golpe_back_4":[3638,1886,135,106],
-    "sk_g_guardiao_side_walk_2":[3775,1886,137,106],
-    "sk_g_andarilho_front_walk_0":[3914,1886,132,106],
-    "sk_g_andarilho_front_walk_2":[0,1994,136,106],
-    "sk_g_andarilho_front_walk_6":[138,1994,133,106],
-    "sk_g_andarilho_back_walk_0":[273,1994,133,106],
-    "sk_g_andarilho_side_idle":[408,1994,139,106],
-    "sk_g_andarilho_side_walk_5":[549,1994,138,106],
-    "sk_g_andarilho_side_walk_6":[689,1994,135,106],
-    "sk_g_andarilho_golpe_side_0":[826,1994,144,106],
-    "sk_g_andarilho_golpe_side_1":[972,1994,139,106],
-    "sk_g_andarilho_golpe_side_2":[1113,1994,147,106],
-    "sk_g_andarilho_golpe_side_3":[1262,1994,155,106],
-    "sk_g_andarilho_golpe_side_4":[1419,1994,147,106],
-    "sk_g_andarilho_swing_gesto_um_side":[1568,1994,139,106],
-    "sk_g_sentinela_front_walk_2":[1709,1994,134,106],
-    "sk_g_sentinela_front_walk_6":[1845,1994,133,106],
-    "sk_g_sentinela_front_walk_7":[1980,1994,131,106],
-    "sk_g_sentinela_back_idle":[2113,1994,133,106],
-    "sk_g_sentinela_back_walk_3":[2248,1994,131,106],
-    "sk_g_sentinela_golpe_back_0":[2381,1994,132,106],
-    "sk_g_sentinela_golpe_back_3":[2515,1994,130,106],
-    "sk_g_sentinela_golpe_back_4":[2647,1994,131,106],
-    "sk_g_retalhos_front_walk_2":[2780,1994,134,106],
-    "sk_g_retalhos_front_walk_6":[2916,1994,132,106],
-    "sk_g_retalhos_front_walk_7":[3050,1994,133,106],
-    "sk_g_retalhos_back_idle":[3185,1994,132,106],
-    "sk_g_retalhos_back_walk_2":[3319,1994,133,106],
-    "sk_g_retalhos_back_walk_3":[3454,1994,132,106],
-    "sk_g_retalhos_back_walk_5":[3588,1994,132,106],
-    "sk_g_retalhos_back_walk_6":[3722,1994,131,106],
-    "sk_g_retalhos_golpe_back_0":[3855,1994,132,106],
-    "sk_g_retalhos_golpe_back_1":[0,2102,132,106],
-    "sk_g_retalhos_golpe_back_2":[134,2102,132,106],
-    "sk_g_retalhos_golpe_back_3":[268,2102,132,106],
-    "sk_g_retalhos_golpe_back_4":[402,2102,132,106],
-    "sk_g_retalhos_swing_gesto_um_back":[536,2102,133,106],
-    "sk_g_retalhos_side_walk_5":[671,2102,146,106],
-    "sk_g_retalhos_side_walk_6":[819,2102,138,106],
-    "sk_g_ava_front_walk_0":[959,2102,128,106],
-    "sk_g_ava_front_walk_1":[1089,2102,129,106],
-    "sk_g_ava_front_walk_5":[1220,2102,128,106],
-    "mob_saqueador_back_walk_0":[1350,2102,132,106],
-    "mob_saqueador_back_walk_3":[1484,2102,133,106],
-    "mob_saqueador_side_idle":[1619,2102,142,106],
-    "mob_saqueador_side_walk_4":[1763,2102,132,106],
-    "mob_saqueador_golpe_side_0":[1897,2102,137,106],
-    "mob_saqueador_golpe_side_1":[2036,2102,142,106],
-    "mob_saqueador_golpe_side_2":[2180,2102,151,106],
-    "mob_saqueador_golpe_side_3":[2333,2102,160,106],
-    "mob_saqueador_golpe_side_4":[2495,2102,151,106],
-    "mob_fugitivo_side_walk_0":[2648,2102,152,106],
-    "mob_fugitivo_side_walk_5":[2802,2102,133,106],
-    "mob_fugitivo_side_walk_7":[2937,2102,137,106],
-    "mob_construtor_front_walk_0":[3076,2102,126,106],
-    "mob_construtor_front_walk_3":[3204,2102,130,106],
-    "mob_construtor_front_walk_5":[3336,2102,128,106],
-    "mob_construtor_back_idle":[3466,2102,129,106],
-    "mob_construtor_back_walk_7":[3597,2102,128,106],
-    "mob_construtor_side_walk_0":[3727,2102,128,106],
-    "mob_construtor_side_walk_2":[3857,2102,131,106],
-    "mob_construtor_side_walk_3":[0,2210,129,106],
-    "mob_tiao_front_walk_1":[131,2210,134,106],
-    "mob_tiao_front_walk_2":[267,2210,134,106],
-    "mob_tiao_front_walk_6":[403,2210,137,106],
-    "mob_tiao_back_walk_4":[542,2210,134,106],
-    "menino_negro_side_walk_0":[678,2210,132,106],
-    "menino_negro_side_walk_1":[812,2210,132,106],
-    "menino_negro_side_walk_4":[946,2210,129,106],
-    "menina_negra_back_walk_6":[1077,2210,129,106],
-    "menina_negra_side_walk_1":[1208,2210,137,106],
-    "menina_negra_side_walk_4":[1347,2210,130,106],
-    "robo_dig_0":[1479,2210,111,106],
-    "robo_dig_1":[1592,2210,113,106],
-    "robo_dig_2":[1707,2210,85,106],
-    "bicho_back_4":[1794,2210,111,106],
-    "noel_side_0":[1907,2210,72,106],
-    "noel_side_1":[1981,2210,72,106],
-    "noel_side_2":[2055,2210,69,106],
-    "noel_side_3":[2126,2210,73,106],
-    "noel_side_4":[2201,2210,71,106],
-    "noel_side_5":[2274,2210,73,106],
-    "coelhao_back_3":[2349,2210,61,106],
-    "sk_g_enfaixado_front_walk_2":[2412,2210,131,105],
-    "sk_g_enfaixado_front_walk_3":[2545,2210,132,105],
-    "sk_g_enfaixado_front_walk_6":[2679,2210,136,105],
-    "sk_g_enfaixado_front_walk_7":[2817,2210,136,105],
-    "sk_g_enfaixado_golpe_front_1":[2955,2210,132,105],
-    "sk_g_enfaixado_back_idle":[3089,2210,132,105],
-    "sk_g_enfaixado_back_walk_1":[3223,2210,131,105],
-    "sk_g_enfaixado_back_walk_2":[3356,2210,131,105],
-    "sk_g_enfaixado_back_walk_6":[3489,2210,136,105],
-    "sk_g_enfaixado_golpe_back_0":[3627,2210,130,105],
-    "sk_g_enfaixado_golpe_back_1":[3759,2210,132,105],
-    "sk_g_enfaixado_golpe_back_2":[3893,2210,134,105],
-    "sk_g_enfaixado_golpe_back_3":[0,2318,130,105],
-    "sk_g_enfaixado_golpe_back_4":[132,2318,130,105],
-    "sk_g_enfaixado_swing_gesto_um_back":[264,2318,136,105],
-    "sk_g_enfaixado_swing_gesto_dois_back":[402,2318,130,105],
-    "sk_g_enfaixado_side_walk_5":[534,2318,147,105],
-    "sk_g_enfaixado_side_walk_7":[683,2318,135,105],
-    "sk_g_bravo_front_walk_2":[820,2318,134,105],
-    "sk_g_bravo_front_walk_6":[956,2318,131,105],
-    "sk_g_bravo_front_walk_7":[1089,2318,132,105],
-    "sk_g_bravo_back_walk_7":[1223,2318,132,105],
-    "sk_g_bravo_side_idle":[1357,2318,140,105],
-    "sk_g_bravo_side_walk_4":[1499,2318,135,105],
-    "sk_g_bravo_golpe_side_0":[1636,2318,139,105],
-    "sk_g_bravo_golpe_side_1":[1777,2318,140,105],
-    "sk_g_bravo_golpe_side_2":[1919,2318,150,105],
-    "sk_g_bravo_golpe_side_3":[2071,2318,159,105],
-    "sk_g_bravo_golpe_side_4":[2232,2318,150,105],
-    "sk_g_bravo_swing_gesto_um_side":[2384,2318,140,105],
-    "sk_g_po_golpe_front_0":[2526,2318,134,105],
-    "sk_g_guardiao_front_walk_0":[2662,2318,129,105],
-    "sk_g_guardiao_front_walk_1":[2793,2318,134,105],
-    "sk_g_guardiao_back_walk_7":[2929,2318,132,105],
-    "sk_g_guardiao_golpe_side_1":[3063,2318,138,105],
-    "sk_g_andarilho_golpe_front_1":[3203,2318,133,105],
-    "sk_g_sentinela_back_walk_0":[3338,2318,131,105],
-    "sk_g_sentinela_side_walk_4":[3471,2318,132,105],
-    "sk_g_sentinela_side_walk_5":[3605,2318,140,105],
-    "sk_g_sentinela_side_walk_7":[3747,2318,132,105],
-    "sk_g_sentinela_golpe_side_1":[3881,2318,137,105],
-    "sk_g_retalhos_back_walk_1":[0,2425,133,105],
-    "sk_g_ava_front_walk_3":[135,2425,127,105],
-    "mob_saqueador_side_walk_7":[264,2425,134,105],
-    "mob_chefe_golpe_front_2":[400,2425,134,105],
-    "mob_fugitivo_front_walk_1":[536,2425,133,105],
-    "mob_fugitivo_front_walk_6":[671,2425,137,105],
-    "mob_fugitivo_side_walk_6":[810,2425,137,105],
-    "mob_construtor_front_walk_1":[949,2425,130,105],
-    "mob_construtor_front_walk_2":[1081,2425,131,105],
-    "mob_construtor_front_walk_6":[1214,2425,129,105],
-    "mob_construtor_front_walk_7":[1345,2425,128,105],
-    "mob_construtor_back_walk_1":[1475,2425,130,105],
-    "mob_construtor_back_walk_3":[1607,2425,130,105],
-    "mob_construtor_back_walk_5":[1739,2425,129,105],
-    "mob_tiao_side_walk_5":[1870,2425,141,105],
-    "mob_tiao_side_walk_6":[2013,2425,136,105],
-    "menino_negro_front_walk_3":[2151,2425,131,105],
-    "menino_negro_back_walk_1":[2284,2425,131,105],
-    "menino_negro_side_walk_2":[2417,2425,129,105],
-    "menina_ruiva_side_walk_4":[2548,2425,128,105],
-    "menina_negra_back_walk_1":[2678,2425,130,105],
-    "menina_negra_back_walk_2":[2810,2425,132,105],
-    "menina_negra_back_walk_5":[2944,2425,128,105],
-    "menina_negra_back_walk_7":[3074,2425,129,105],
-    "menina_negra_side_walk_2":[3205,2425,136,105],
-    "bicho_back_1":[3343,2425,112,105],
-    "bicho_back_3":[3457,2425,112,105],
-    "tree_floresta":[3571,2425,79,104],
-    "tree_deserto":[3652,2425,59,104],
-    "tree_neve":[3713,2425,75,104],
-    "sk_g_enfaixado_front_idle":[3790,2425,132,104],
-    "sk_g_enfaixado_golpe_front_0":[3924,2425,130,104],
-    "sk_g_enfaixado_golpe_front_2":[0,2532,135,104],
-    "sk_g_enfaixado_golpe_front_3":[137,2532,130,104],
-    "sk_g_enfaixado_golpe_front_4":[269,2532,130,104],
-    "sk_g_enfaixado_swing_gesto_um_front":[401,2532,137,104],
-    "sk_g_enfaixado_swing_gesto_dois_front":[540,2532,131,104],
-    "sk_g_enfaixado_back_walk_5":[673,2532,137,104],
-    "sk_g_enfaixado_side_walk_4":[812,2532,136,104],
-    "sk_g_bravo_front_idle":[950,2532,132,104],
-    "sk_g_bravo_golpe_front_0":[1084,2532,131,104],
-    "sk_g_bravo_golpe_front_1":[1217,2532,132,104],
-    "sk_g_bravo_golpe_front_2":[1351,2532,132,104],
-    "sk_g_bravo_golpe_front_3":[1485,2532,131,104],
-    "sk_g_bravo_golpe_front_4":[1618,2532,133,104],
-    "sk_g_bravo_swing_gesto_um_front":[1753,2532,137,104],
-    "sk_g_bravo_swing_gesto_dois_front":[1892,2532,132,104],
-    "sk_g_bravo_back_walk_0":[2026,2532,131,104],
-    "sk_g_bravo_back_walk_3":[2159,2532,132,104],
-    "sk_g_bravo_side_walk_7":[2293,2532,132,104],
-    "sk_g_po_front_idle":[2427,2532,133,104],
-    "sk_g_po_golpe_front_2":[2562,2532,133,104],
-    "sk_g_po_golpe_front_3":[2697,2532,136,104],
-    "sk_g_po_golpe_front_4":[2835,2532,136,104],
-    "sk_g_po_swing_gesto_um_front":[2973,2532,133,104],
-    "sk_g_po_swing_gesto_dois_front":[3108,2532,137,104],
-    "sk_g_guardiao_front_idle":[3247,2532,130,104],
-    "sk_g_guardiao_front_walk_3":[3379,2532,132,104],
-    "sk_g_guardiao_front_walk_7":[3513,2532,131,104],
-    "sk_g_guardiao_golpe_front_2":[3646,2532,130,104],
-    "sk_g_guardiao_golpe_front_3":[3778,2532,132,104],
-    "sk_g_guardiao_golpe_front_4":[3912,2532,134,104],
-    "sk_g_guardiao_back_walk_0":[0,2638,130,104],
-    "sk_g_guardiao_back_walk_3":[132,2638,131,104],
-    "sk_g_guardiao_side_walk_4":[265,2638,132,104],
-    "sk_g_guardiao_side_walk_7":[399,2638,129,104],
-    "sk_g_andarilho_front_idle":[530,2638,132,104],
-    "sk_g_andarilho_golpe_front_0":[664,2638,133,104],
-    "sk_g_andarilho_golpe_front_2":[799,2638,132,104],
-    "sk_g_andarilho_golpe_front_3":[933,2638,134,104],
-    "sk_g_andarilho_golpe_front_4":[1069,2638,136,104],
-    "sk_g_andarilho_swing_gesto_um_front":[1207,2638,137,104],
-    "sk_g_andarilho_swing_gesto_dois_front":[1346,2638,134,104],
-    "sk_g_andarilho_back_walk_4":[1482,2638,133,104],
-    "sk_g_sentinela_front_idle":[1617,2638,133,104],
-    "sk_g_sentinela_golpe_front_2":[1752,2638,133,104],
-    "sk_g_sentinela_golpe_front_3":[1887,2638,131,104],
-    "sk_g_sentinela_golpe_front_4":[2020,2638,131,104],
-    "sk_g_sentinela_side_idle":[2153,2638,137,104],
-    "sk_g_sentinela_side_walk_6":[2292,2638,140,104],
-    "sk_g_sentinela_golpe_side_0":[2434,2638,142,104],
-    "sk_g_sentinela_golpe_side_2":[2578,2638,151,104],
-    "sk_g_sentinela_golpe_side_3":[2731,2638,161,104],
-    "sk_g_sentinela_golpe_side_4":[2894,2638,152,104],
-    "sk_g_sentinela_swing_gesto_um_side":[3048,2638,137,104],
-    "sk_g_retalhos_front_idle":[3187,2638,131,104],
-    "sk_g_retalhos_golpe_front_0":[3320,2638,131,104],
-    "sk_g_retalhos_golpe_front_2":[3453,2638,131,104],
-    "sk_g_retalhos_golpe_front_3":[3586,2638,131,104],
-    "sk_g_retalhos_golpe_front_4":[3719,2638,131,104],
-    "sk_g_retalhos_swing_gesto_um_front":[3852,2638,133,104],
-    "sk_g_retalhos_swing_gesto_dois_front":[0,2744,134,104],
-    "sk_g_ava_front_idle":[136,2744,128,104],
-    "sk_g_ava_front_walk_2":[266,2744,129,104],
-    "sk_g_ava_front_walk_6":[397,2744,128,104],
-    "sk_g_ava_front_walk_7":[527,2744,128,104],
-    "sk_g_ava_golpe_front_0":[657,2744,126,104],
-    "sk_g_ava_golpe_front_1":[785,2744,127,104],
-    "sk_g_ava_golpe_front_2":[914,2744,127,104],
-    "sk_g_ava_golpe_front_3":[1043,2744,126,104],
-    "sk_g_ava_golpe_front_4":[1171,2744,126,104],
-    "sk_g_ava_swing_gesto_um_front":[1299,2744,134,104],
-    "sk_g_ava_swing_gesto_dois_front":[1435,2744,127,104],
-    "sk_g_ava_swing_gesto_dois_side":[1564,2744,134,104],
-    "mob_saqueador_front_idle":[1700,2744,131,104],
-    "mob_saqueador_golpe_front_0":[1833,2744,132,104],
-    "mob_saqueador_golpe_front_2":[1967,2744,133,104],
-    "mob_saqueador_golpe_front_3":[2102,2744,136,104],
-    "mob_saqueador_golpe_front_4":[2240,2744,136,104],
-    "mob_saqueador_back_walk_4":[2378,2744,134,104],
-    "mob_saqueador_side_walk_5":[2514,2744,137,104],
-    "mob_chefe_front_idle":[2653,2744,135,104],
-    "mob_chefe_golpe_front_3":[2790,2744,134,104],
-    "mob_chefe_golpe_front_4":[2926,2744,135,104],
-    "mob_fugitivo_front_idle":[3063,2744,133,104],
-    "mob_fugitivo_front_walk_2":[3198,2744,135,104],
-    "mob_fugitivo_front_walk_5":[3335,2744,136,104],
-    "mob_construtor_front_idle":[3473,2744,129,104],
-    "mob_construtor_back_walk_0":[3604,2744,126,104],
-    "mob_construtor_back_walk_2":[3732,2744,131,104],
-    "mob_construtor_back_walk_6":[3865,2744,130,104],
-    "mob_construtor_side_idle":[0,2850,129,104],
-    "mob_construtor_side_walk_7":[131,2850,131,104],
-    "mob_tiao_front_idle":[264,2850,134,104],
-    "menino_front_idle":[400,2850,133,104],
-    "menino_golpe_front_0":[535,2850,135,104],
-    "menino_golpe_front_1":[672,2850,133,104],
-    "menino_golpe_front_2":[807,2850,135,104],
-    "menino_golpe_front_3":[944,2850,134,104],
-    "menino_golpe_front_4":[1080,2850,134,104],
-    "menino_swing_gesto_um_front":[1216,2850,143,104],
-    "menino_negro_front_idle":[1361,2850,131,104],
-    "menino_negro_front_walk_2":[1494,2850,133,104],
-    "menino_negro_front_walk_4":[1629,2850,131,104],
-    "menino_negro_front_walk_6":[1762,2850,130,104],
-    "menino_negro_front_walk_7":[1894,2850,130,104],
-    "menino_negro_golpe_front_0":[2026,2850,132,104],
-    "menino_negro_golpe_front_1":[2160,2850,131,104],
-    "menino_negro_golpe_front_2":[2293,2850,132,104],
-    "menino_negro_golpe_front_3":[2427,2850,132,104],
-    "menino_negro_golpe_front_4":[2561,2850,132,104],
-    "menino_negro_swing_gesto_um_front":[2695,2850,131,104],
-    "menino_negro_back_walk_0":[2828,2850,130,104],
-    "menino_negro_back_walk_2":[2960,2850,132,104],
-    "menino_negro_back_walk_3":[3094,2850,131,104],
-    "menino_negro_back_walk_5":[3227,2850,129,104],
-    "menino_negro_back_walk_6":[3358,2850,129,104],
-    "menino_negro_back_walk_7":[3489,2850,129,104],
-    "menino_negro_side_idle":[3620,2850,136,104],
-    "menino_negro_side_walk_3":[3758,2850,135,104],
-    "menino_negro_golpe_side_0":[3895,2850,153,104],
-    "menino_negro_golpe_side_1":[0,2956,137,104],
-    "menino_negro_golpe_side_2":[139,2956,136,104],
-    "menino_negro_golpe_side_3":[277,2956,132,104],
-    "menino_negro_golpe_side_4":[411,2956,136,104],
-    "menino_negro_swing_gesto_um_side":[549,2956,137,104],
-    "menina_ruiva_front_idle":[688,2956,126,104],
-    "menina_ruiva_golpe_front_0":[816,2956,126,104],
-    "menina_ruiva_golpe_front_1":[944,2956,126,104],
-    "menina_ruiva_golpe_front_2":[1072,2956,126,104],
-    "menina_ruiva_golpe_front_3":[1200,2956,126,104],
-    "menina_ruiva_golpe_front_4":[1328,2956,126,104],
-    "menina_ruiva_swing_gesto_um_front":[1456,2956,130,104],
-    "menina_ruiva_side_idle":[1588,2956,134,104],
-    "menina_ruiva_side_walk_0":[1724,2956,130,104],
-    "menina_ruiva_side_walk_1":[1856,2956,139,104],
-    "menina_ruiva_side_walk_2":[1997,2956,138,104],
-    "menina_ruiva_golpe_side_0":[2137,2956,145,104],
-    "menina_ruiva_golpe_side_1":[2284,2956,134,104],
-    "menina_ruiva_golpe_side_2":[2420,2956,132,104],
-    "menina_ruiva_golpe_side_3":[2554,2956,127,104],
-    "menina_ruiva_golpe_side_4":[2683,2956,134,104],
-    "menina_ruiva_swing_gesto_um_side":[2819,2956,134,104],
-    "menina_negra_front_idle":[2955,2956,130,104],
-    "menina_negra_front_walk_3":[3087,2956,132,104],
-    "menina_negra_front_walk_4":[3221,2956,129,104],
-    "menina_negra_golpe_front_0":[3352,2956,129,104],
-    "menina_negra_golpe_front_1":[3483,2956,129,104],
-    "menina_negra_golpe_front_2":[3614,2956,130,104],
-    "menina_negra_golpe_front_3":[3746,2956,130,104],
-    "menina_negra_golpe_front_4":[3878,2956,130,104],
-    "menina_negra_swing_gesto_um_front":[0,3062,129,104],
-    "menina_negra_back_idle":[131,3062,129,104],
-    "menina_negra_back_walk_0":[262,3062,128,104],
-    "menina_negra_back_walk_3":[392,3062,132,104],
-    "menina_negra_golpe_back_0":[526,3062,128,104],
-    "menina_negra_golpe_back_1":[656,3062,129,104],
-    "menina_negra_golpe_back_2":[787,3062,129,104],
-    "menina_negra_golpe_back_3":[918,3062,129,104],
-    "menina_negra_golpe_back_4":[1049,3062,129,104],
-    "menina_negra_swing_gesto_um_back":[1180,3062,129,104],
-    "menina_negra_side_walk_5":[1311,3062,134,104],
-    "menina_negra_side_walk_6":[1447,3062,137,104],
-    "menina_negra_side_walk_7":[1586,3062,132,104],
-    "tiao_0":[1720,3062,75,104],
-    "tiao_1":[1797,3062,75,104],
-    "ana_0":[1874,3062,69,104],
-    "ana_1":[1945,3062,71,104],
-    "lia_0":[2018,3062,70,104],
-    "lia_1":[2090,3062,71,104],
-    "lia_back":[2163,3062,62,104],
-    "tree_deserto_3":[2227,3062,62,104],
-    "sk_g_enfaixado_back_walk_3":[2291,3062,132,103],
-    "sk_g_enfaixado_back_walk_7":[2425,3062,136,103],
-    "sk_g_enfaixado_side_walk_6":[2563,3062,144,103],
-    "sk_g_bravo_side_walk_5":[2709,3062,147,103],
-    "sk_g_bravo_side_walk_6":[2858,3062,139,103],
-    "sk_g_guardiao_front_walk_2":[2999,3062,135,103],
-    "sk_g_guardiao_front_walk_6":[3136,3062,132,103],
-    "sk_g_guardiao_side_idle":[3270,3062,135,103],
-    "sk_g_guardiao_side_walk_5":[3407,3062,136,103],
-    "sk_g_guardiao_golpe_side_0":[3545,3062,151,103],
-    "sk_g_guardiao_golpe_side_2":[3698,3062,134,103],
-    "sk_g_guardiao_golpe_side_3":[3834,3062,144,103],
-    "sk_g_guardiao_golpe_side_4":[0,3168,133,103],
-    "sk_g_guardiao_swing_gesto_um_side":[135,3168,133,103],
-    "sk_g_sentinela_back_walk_4":[270,3168,131,103],
-    "sk_g_retalhos_back_walk_0":[403,3168,131,103],
-    "sk_g_ava_side_idle":[536,3168,134,103],
-    "sk_g_ava_side_walk_0":[672,3168,134,103],
-    "sk_g_ava_golpe_side_0":[808,3168,133,103],
-    "sk_g_ava_golpe_side_1":[943,3168,134,103],
-    "sk_g_ava_golpe_side_2":[1079,3168,148,103],
-    "sk_g_ava_golpe_side_3":[1229,3168,156,103],
-    "sk_g_ava_golpe_side_4":[1387,3168,148,103],
-    "sk_g_ava_swing_gesto_um_side":[1537,3168,134,103],
-    "mob_saqueador_side_walk_6":[1673,3168,132,103],
-    "mob_fugitivo_back_walk_3":[1807,3168,133,103],
-    "mob_fugitivo_back_walk_7":[1942,3168,133,103],
-    "mob_construtor_side_walk_5":[2077,3168,132,103],
-    "mob_construtor_side_walk_6":[2211,3168,131,103],
-    "menino_negro_front_walk_0":[2344,3168,129,103],
-    "menino_negro_front_walk_1":[2475,3168,132,103],
-    "menino_negro_front_walk_5":[2609,3168,130,103],
-    "menino_negro_back_idle":[2741,3168,131,103],
-    "menino_negro_golpe_back_0":[2874,3168,133,103],
-    "menino_negro_golpe_back_1":[3009,3168,131,103],
-    "menino_negro_golpe_back_2":[3142,3168,133,103],
-    "menino_negro_golpe_back_3":[3277,3168,133,103],
-    "menino_negro_golpe_back_4":[3412,3168,133,103],
-    "menino_negro_swing_gesto_um_back":[3547,3168,130,103],
-    "menino_negro_side_walk_5":[3679,3168,129,103],
-    "menino_negro_side_walk_6":[3810,3168,130,103],
-    "menino_negro_side_walk_7":[3942,3168,133,103],
-    "menina_ruiva_front_walk_0":[0,3273,127,103],
-    "menina_ruiva_front_walk_3":[129,3273,127,103],
-    "menina_ruiva_front_walk_4":[258,3273,126,103],
-    "menina_ruiva_front_walk_5":[386,3273,126,103],
-    "menina_ruiva_back_walk_3":[514,3273,127,103],
-    "menina_ruiva_back_walk_7":[643,3273,126,103],
-    "menina_ruiva_side_walk_3":[771,3273,130,103],
-    "menina_negra_front_walk_5":[903,3273,128,103],
-    "menina_negra_front_walk_6":[1033,3273,130,103],
-    "menina_negra_front_walk_7":[1165,3273,130,103],
-    "menina_negra_back_walk_4":[1297,3273,130,103],
-    "menina_negra_side_walk_3":[1429,3273,128,103],
-    "bicho_back_2":[1559,3273,114,103],
-    "sk_g_enfaixado_back_walk_0":[1675,3273,136,102],
-    "sk_g_bravo_back_walk_4":[1813,3273,133,102],
-    "sk_g_bravo_side_walk_3":[1948,3273,131,102],
-    "sk_g_guardiao_back_walk_4":[2081,3273,130,102],
-    "sk_g_guardiao_side_walk_6":[2213,3273,135,102],
-    "sk_g_sentinela_side_walk_3":[2350,3273,135,102],
-    "sk_g_retalhos_back_walk_4":[2487,3273,134,102],
-    "sk_g_ava_side_walk_1":[2623,3273,149,102],
-    "mob_saqueador_side_walk_3":[2774,3273,139,102],
-    "mob_fugitivo_front_walk_7":[2915,3273,133,102],
-    "mob_construtor_back_walk_4":[3050,3273,129,102],
-    "menino_negro_back_walk_4":[3181,3273,131,102],
-    "menina_ruiva_front_walk_1":[3314,3273,127,102],
-    "menina_ruiva_front_walk_2":[3443,3273,128,102],
-    "menina_ruiva_front_walk_6":[3573,3273,127,102],
-    "menina_ruiva_front_walk_7":[3702,3273,127,102],
-    "menina_ruiva_back_walk_2":[3831,3273,127,102],
-    "menina_ruiva_back_walk_5":[3960,3273,126,102],
-    "menina_ruiva_back_walk_6":[0,3378,126,102],
-    "menina_ruiva_side_walk_7":[128,3378,133,102],
-    "menina_negra_front_walk_0":[263,3378,128,102],
-    "menina_negra_front_walk_1":[393,3378,129,102],
-    "menina_negra_front_walk_2":[524,3378,132,102],
-    "bicho_back_0":[658,3378,113,102],
-    "faz_plantar_0":[773,3378,93,102],
-    "faz_plantar_1":[868,3378,93,102],
-    "coelhao_pose_5":[963,3378,88,102],
-    "sk_g_enfaixado_back_walk_4":[1053,3378,134,101],
-    "sk_g_guardiao_side_walk_3":[1189,3378,130,101],
-    "mob_fugitivo_front_walk_3":[1321,3378,134,101],
-    "mob_fugitivo_side_walk_1":[1457,3378,135,101],
-    "mob_fugitivo_side_walk_2":[1594,3378,136,101],
-    "mob_fugitivo_side_walk_4":[1732,3378,146,101],
-    "menina_ruiva_back_walk_1":[1880,3378,127,101],
-    "menina_ruiva_side_walk_5":[2009,3378,136,101],
-    "tree_campos":[2147,3378,80,100],
-    "sk_g_enfaixado_side_walk_3":[2229,3378,133,100],
-    "sk_g_ava_side_walk_2":[2364,3378,147,100],
-    "sk_g_ava_side_walk_4":[2513,3378,132,100],
-    "sk_g_ava_side_walk_7":[2647,3378,138,100],
-    "mob_fugitivo_side_walk_3":[2787,3378,141,100],
-    "menina_ruiva_back_idle":[2930,3378,127,100],
-    "menina_ruiva_back_walk_0":[3059,3378,126,100],
-    "menina_ruiva_golpe_back_0":[3187,3378,127,100],
-    "menina_ruiva_golpe_back_1":[3316,3378,127,100],
-    "menina_ruiva_golpe_back_2":[3445,3378,127,100],
-    "menina_ruiva_golpe_back_3":[3574,3378,127,100],
-    "menina_ruiva_golpe_back_4":[3703,3378,127,100],
-    "menina_ruiva_swing_gesto_um_back":[3832,3378,129,100],
-    "menina_ruiva_side_walk_6":[0,3482,137,100],
-    "galinha_back_0":[139,3482,59,100],
-    "galinha_back_1":[200,3482,57,100],
-    "galinha_back_2":[259,3482,59,100],
-    "galinha_back_3":[320,3482,56,100],
-    "coelho_back_0":[378,3482,42,100],
-    "coelho_back_1":[422,3482,42,100],
-    "coelho_back_2":[466,3482,42,100],
-    "coelho_back_3":[510,3482,42,100],
-    "pintinho_front_0":[554,3482,72,100],
-    "raposa_front_0":[628,3482,76,100],
-    "raposa_front_1":[706,3482,78,100],
-    "raposa_front_2":[786,3482,78,100],
-    "raposa_front_3":[866,3482,73,100],
-    "raposa_back_0":[941,3482,51,100],
-    "raposa_back_1":[994,3482,54,100],
-    "raposa_back_2":[1050,3482,51,100],
-    "raposa_back_3":[1103,3482,56,100],
-    "cervo_front_0":[1161,3482,52,100],
-    "cervo_front_1":[1215,3482,52,100],
-    "cervo_front_2":[1269,3482,54,100],
-    "cervo_front_3":[1325,3482,52,100],
-    "cervo_back_0":[1379,3482,52,100],
-    "cervo_back_1":[1433,3482,52,100],
-    "cervo_back_2":[1487,3482,52,100],
-    "cervo_back_3":[1541,3482,52,100],
-    "cervo_side_0":[1595,3482,102,100],
-    "cervo_side_1":[1699,3482,107,100],
-    "cervo_side_2":[1808,3482,107,100],
-    "cervo_side_3":[1917,3482,107,100],
-    "pavao_back_0":[2026,3482,37,100],
-    "javali_back_2":[2065,3482,60,100],
-    "robo_front_0":[2127,3482,60,100],
-    "robo_front_1":[2189,3482,60,100],
-    "robo_front_2":[2251,3482,61,100],
-    "robo_front_3":[2314,3482,60,100],
-    "robo_front_4":[2376,3482,61,100],
-    "robo_front_5":[2439,3482,60,100],
-    "anel_cura":[2501,3482,160,100],
-    "faz_front_0":[2663,3482,66,100],
-    "faz_front_1":[2731,3482,66,100],
-    "faz_front_2":[2799,3482,66,100],
-    "faz_front_3":[2867,3482,66,100],
-    "sk_g_ava_side_walk_5":[2935,3482,145,99],
-    "mob_fugitivo_back_walk_2":[3082,3482,135,99],
-    "menina_ruiva_back_walk_4":[3219,3482,127,99],
-    "galinha_front_0":[3348,3482,66,99],
-    "galinha_front_1":[3416,3482,69,99],
-    "galinha_front_2":[3487,3482,69,99],
-    "galinha_front_3":[3558,3482,69,99],
-    "pavao_fan_0":[3629,3482,116,99],
-    "pavao_fan_1":[3747,3482,117,99],
-    "pavao_fan_2":[3866,3482,116,99],
-    "pavao_fan_3":[0,3584,116,99],
-    "javali_back_0":[118,3584,60,99],
-    "javali_back_1":[180,3584,59,99],
-    "javali_back_3":[241,3584,60,99],
-    "faz_colher_0":[303,3584,99,99],
-    "faz_colher_1":[404,3584,87,99],
-    "sk_g_ava_back_idle":[493,3584,127,98],
-    "sk_g_ava_golpe_back_0":[622,3584,127,98],
-    "sk_g_ava_golpe_back_1":[751,3584,127,98],
-    "sk_g_ava_golpe_back_2":[880,3584,127,98],
-    "sk_g_ava_golpe_back_3":[1009,3584,127,98],
-    "sk_g_ava_golpe_back_4":[1138,3584,127,98],
-    "sk_g_ava_swing_gesto_um_back":[1267,3584,133,98],
-    "sk_g_ava_swing_gesto_dois_back":[1402,3584,126,98],
-    "sk_g_ava_side_walk_6":[1530,3584,146,98],
-    "javali_front_0":[1678,3584,60,98],
-    "javali_front_1":[1740,3584,59,98],
-    "javali_front_2":[1801,3584,68,98],
-    "javali_front_3":[1871,3584,60,98],
-    "robo_back_0":[1933,3584,58,98],
-    "robo_back_1":[1993,3584,58,98],
-    "robo_back_2":[2053,3584,58,98],
-    "robo_back_3":[2113,3584,58,98],
-    "robo_back_4":[2173,3584,58,98],
-    "robo_back_5":[2233,3584,57,98],
-    "robo_side_0":[2292,3584,56,98],
-    "robo_side_1":[2350,3584,56,98],
-    "robo_side_2":[2408,3584,57,98],
-    "robo_side_3":[2467,3584,57,98],
-    "robo_side_4":[2526,3584,56,98],
-    "robo_side_5":[2584,3584,56,98],
-    "bicho_atk":[2642,3584,195,98],
-    "faz_side_0":[2839,3584,68,98],
-    "faz_side_1":[2909,3584,66,98],
-    "faz_side_2":[2977,3584,66,98],
-    "faz_side_3":[3045,3584,68,98],
-    "faz_side_5":[3115,3584,68,98],
-    "pintinho_back_1":[3185,3584,69,97],
-    "pintinho_back_3":[3256,3584,69,97],
-    "bicho_dead":[3327,3584,265,97],
-    "faz_side_4":[3594,3584,68,97],
-    "faz_feliz":[3664,3584,92,97],
-    "noel_pose_5":[3758,3584,67,97],
-    "sk_g_ava_back_walk_1":[3827,3584,128,96],
-    "mob_fugitivo_front_walk_0":[3957,3584,133,96],
-    "mob_fugitivo_back_walk_6":[0,3685,137,96],
-    "pavao_back_1":[139,3685,43,96],
-    "pavao_back_2":[184,3685,37,96],
-    "pavao_back_3":[223,3685,48,96],
-    "arco_mao":[273,3685,90,96],
-    "sk_g_ava_back_walk_2":[365,3685,129,95],
-    "sk_g_ava_back_walk_5":[496,3685,127,95],
-    "sk_g_ava_back_walk_6":[625,3685,128,95],
-    "sk_g_ava_side_walk_3":[755,3685,136,95],
-    "mob_fugitivo_front_walk_4":[893,3685,136,95],
-    "pintinho_back_2":[1031,3685,79,95],
-    "robo_dig_3":[1112,3685,72,95],
-    "anel_explosao":[1186,3685,160,95],
-    "faz_back_0":[1348,3685,64,95],
-    "faz_back_1":[1414,3685,64,95],
-    "faz_sentado":[1480,3685,70,95],
-    "bush_0_neve":[1552,3685,100,95],
-    "sk_g_ava_back_walk_0":[1654,3685,127,94],
-    "pintinho_back_0":[1783,3685,78,94],
-    "faz_back_3":[1863,3685,63,94],
-    "faz_back_4":[1928,3685,64,94],
-    "faz_back_5":[1994,3685,64,94],
-    "coelhao_pose_2":[2060,3685,67,94],
-    "sk_g_ava_back_walk_3":[2129,3685,127,93],
-    "sk_g_ava_back_walk_7":[2258,3685,128,93],
-    "faz_back_2":[2388,3685,63,93],
-    "muda_neve":[2453,3685,48,93],
-    "sk_g_ava_back_walk_4":[2503,3685,127,91],
-    "pavao_front_2":[2632,3685,37,91],
-    "tree_pantano":[2671,3685,80,90],
-    "pavao_front_0":[2753,3685,37,90],
-    "fx_magia_hit_2":[2792,3685,88,90],
-    "coelho_front_0":[2882,3685,41,89],
-    "coelho_front_1":[2925,3685,44,89],
-    "coelho_front_2":[2971,3685,42,89],
-    "coelho_front_3":[3015,3685,39,89],
-    "pavao_front_1":[3056,3685,37,89],
-    "coelho_side_0":[3095,3685,84,86],
-    "coelho_side_1":[3181,3685,84,86],
-    "coelho_side_3":[3267,3685,84,86],
-    "galinha_side_0":[3353,3685,85,85],
-    "galinha_side_1":[3440,3685,87,85],
-    "galinha_side_2":[3529,3685,88,85],
-    "galinha_side_3":[3619,3685,88,85],
-    "muda_montanhas":[3709,3685,46,85],
-    "toco_neve":[3757,3685,73,85],
-    "bush_0_pantano":[3832,3685,82,84],
-    "tree_montanhas":[3916,3685,80,83],
-    "javali_side_0":[0,3783,127,83],
-    "javali_side_1":[129,3783,126,83],
-    "javali_side_2":[257,3783,128,83],
-    "javali_side_3":[387,3783,128,83],
-    "bicho_dig_2":[517,3783,178,83],
-    "coelho_side_2":[697,3783,84,81],
-    "pavao_side_0":[783,3783,100,81],
-    "pavao_side_1":[885,3783,103,79],
-    "pavao_side_3":[990,3783,103,79],
-    "bush_0_montanhas":[1095,3783,84,79],
-    "pavao_side_2":[1181,3783,104,78],
-    "bush_1_pantano":[1287,3783,72,78],
-    "bush_1_neve":[1361,3783,76,77],
-    "wall":[1439,3783,61,76],
-    "bicho_side_0":[1502,3783,197,74],
-    "bicho_side_3":[1701,3783,197,74],
-    "muda_pantano":[1900,3783,40,74],
-    "bush_1_montanhas":[1942,3783,76,74],
-    "bicho_side_2":[2020,3783,197,73],
-    "bicho_side_1":[2219,3783,197,72],
-    "bicho_side_4":[2418,3783,197,72],
-    "fx_corte_2":[2617,3783,60,72],
-    "fx_corte_laranja":[2679,3783,71,72],
-    "fx_corte_roxo":[2752,3783,72,72],
-    "fx_corte_dourado":[2826,3783,70,72],
-    "fx_faisca_2":[2898,3783,71,72],
-    "fx_lascas":[2971,3783,72,72],
-    "fx_estrela":[3045,3783,72,72],
-    "fx_rastro_flecha":[3119,3783,72,72],
-    "fx_rastro_fogo":[3193,3783,72,72],
-    "fx_rastro_magia":[3267,3783,72,72],
-    "fx_magia_hit_1":[3341,3783,70,72],
-    "fx_fogo_1":[3413,3783,59,72],
-    "fx_tontura_0":[3474,3783,72,72],
-    "fx_tontura_1":[3548,3783,72,72],
-    "toco_pantano":[3622,3783,76,72],
-    "muda_deserto":[3700,3783,44,72],
-    "raposa_side_0":[3746,3783,114,71],
-    "raposa_side_1":[3862,3783,114,71],
-    "raposa_side_2":[3978,3783,116,71],
-    "raposa_side_3":[0,3868,114,71],
-    "magia_estouro":[116,3868,72,71],
-    "muda_campos":[190,3868,38,71],
-    "bush_1_floresta":[230,3868,62,71],
-    "bush_0_campos":[294,3868,70,70],
-    "bush_0_deserto":[366,3868,66,70],
-    "bush_1_deserto":[434,3868,80,68],
-    "bush_0_floresta":[516,3868,70,67],
-    "toco_montanhas":[588,3868,76,67],
-    "fx_poeira":[666,3868,72,66],
-    "fx_fogo_2":[740,3868,56,66],
-    "ground_campos_0":[798,3868,64,64],
-    "ground_campos_1":[864,3868,64,64],
-    "ground_campos_2":[930,3868,64,64],
-    "ground_campos_3":[996,3868,64,64],
-    "ground_floresta_0":[1062,3868,64,64],
-    "ground_floresta_1":[1128,3868,64,64],
-    "ground_floresta_2":[1194,3868,64,64],
-    "ground_floresta_3":[1260,3868,64,64],
-    "ground_pantano_0":[1326,3868,64,64],
-    "ground_pantano_1":[1392,3868,64,64],
-    "ground_pantano_2":[1458,3868,64,64],
-    "ground_pantano_3":[1524,3868,64,64],
-    "ground_deserto_0":[1590,3868,64,64],
-    "ground_deserto_1":[1656,3868,64,64],
-    "ground_deserto_2":[1722,3868,64,64],
-    "ground_deserto_3":[1788,3868,64,64],
-    "ground_montanhas_0":[1854,3868,64,64],
-    "ground_montanhas_1":[1920,3868,64,64],
-    "ground_montanhas_2":[1986,3868,64,64],
-    "ground_montanhas_3":[2052,3868,64,64],
-    "ground_neve_0":[2118,3868,64,64],
-    "ground_neve_1":[2184,3868,64,64],
-    "ground_neve_2":[2250,3868,64,64],
-    "ground_neve_3":[2316,3868,64,64],
-    "tilled_0":[2382,3868,64,64],
-    "tilled_1":[2448,3868,64,64],
-    "tilled_2":[2514,3868,64,64],
-    "tilled_3":[2580,3868,64,64],
-    "water_0":[2646,3868,64,64],
-    "water_1":[2712,3868,64,64],
-    "water_2":[2778,3868,64,64],
-    "dirt":[2844,3868,64,64],
-    "stone":[2910,3868,64,64],
-    "coal":[2976,3868,64,64],
-    "bronze":[3042,3868,64,64],
-    "iron":[3108,3868,64,64],
-    "silver":[3174,3868,64,64],
-    "gold":[3240,3868,64,64],
-    "oil":[3306,3868,64,64],
-    "diamond":[3372,3868,64,64],
-    "floor_0":[3438,3868,64,64],
-    "floor_1":[3504,3868,64,64],
-    "floor_2":[3570,3868,64,64],
-    "floor_3":[3636,3868,64,64],
-    "toco_deserto":[3702,3868,66,64],
-    "wheat_3":[3770,3868,64,63],
-    "coelhao_front_1":[3836,3868,67,63],
-    "deco_18":[3905,3868,50,63],
-    "coelhao_front_2":[3957,3868,67,62],
-    "muda_floresta":[4026,3868,37,62],
-    "deco_6":[0,3941,61,61],
-    "livro_brilho":[63,3941,64,60],
-    "bush_1_campos":[129,3941,69,60],
-    "deco_7":[200,3941,50,59],
-    "wheat_2":[252,3941,64,58],
-    "fx_corte_1":[318,3941,57,58],
-    "rock_montanhas":[377,3941,58,56],
-    "icon_espada":[437,3941,54,56],
-    "icon_muro":[493,3941,53,56],
-    "icon_enxada":[548,3941,46,56],
-    "icon_colheita":[596,3941,41,56],
-    "icon_petroleo":[639,3941,36,56],
-    "icon_arco":[677,3941,53,56],
-    "icon_flechas":[732,3941,53,56],
-    "icon_cetro":[787,3941,54,56],
-    "icon_livro":[843,3941,48,56],
-    "fx_faisca_1":[893,3941,57,56],
-    "icon_carvao":[952,3941,56,55],
-    "helmet_front":[1010,3941,64,55],
-    "fx_fogo_0":[1076,3941,42,55],
-    "icon_picareta":[1120,3941,56,54],
-    "icon_rede":[1178,3941,56,54],
-    "helmet_back":[1236,3941,64,54],
-    "pintinho_side_1":[1302,3941,43,53],
-    "pintinho_side_3":[1347,3941,43,53],
-    "icon_machado":[1392,3941,56,53],
-    "pintinho_side_0":[1450,3941,43,52],
-    "pintinho_side_2":[1495,3941,43,52],
-    "toco_floresta":[1540,3941,58,52],
-    "rock_floresta":[1600,3941,60,51],
-    "rock_deserto":[1662,3941,60,51],
-    "hole":[1724,3941,64,51],
-    "spring":[1790,3941,64,50],
-    "magia_voo":[1856,3941,56,50],
-    "wheat_1":[1914,3941,64,49],
-    "deco_17":[1980,3941,58,49],
-    "icon_diamante":[2040,3941,56,48],
-    "deco_23":[2098,3941,49,48],
-    "icon_pedra":[2149,3941,56,47],
-    "deco_8":[2207,3941,47,47],
-    "icon_sementes":[2256,3941,56,46],
-    "deco_11":[2314,3941,59,46],
-    "helmet_side":[2375,3941,64,45],
-    "deco_0":[2441,3941,43,45],
-    "deco_2":[2486,3941,40,45],
-    "deco_4":[2528,3941,41,45],
-    "deco_5":[2571,3941,41,45],
-    "deco_10":[2614,3941,58,45],
-    "deco_22":[2674,3941,31,45],
-    "rock_neve":[2707,3941,60,44],
-    "icon_madeira":[2769,3941,56,44],
-    "livro_mao":[2827,3941,64,44],
-    "deco_1":[2893,3941,43,44],
-    "rock_campos":[2938,3941,60,42],
-    "fist_sk_g_enfaixado":[3000,3941,40,42],
-    "fist_sk_g_bravo":[3042,3941,40,42],
-    "fist_sk_g_po":[3084,3941,40,42],
-    "fist_sk_g_guardiao":[3126,3941,40,42],
-    "fist_sk_g_andarilho":[3168,3941,40,42],
-    "fist_sk_g_sentinela":[3210,3941,40,42],
-    "fist_sk_g_retalhos":[3252,3941,40,42],
-    "fist_sk_g_ava":[3294,3941,40,42],
-    "fist_mob_saqueador":[3336,3941,40,42],
-    "fist_mob_chefe":[3378,3941,40,42],
-    "fist_mob_fugitivo":[3420,3941,40,42],
-    "fist_mob_construtor":[3462,3941,40,42],
-    "fist_mob_tiao":[3504,3941,40,42],
-    "fist_menino":[3546,3941,40,42],
-    "fist_menino_negro":[3588,3941,40,42],
-    "fist_menina_ruiva":[3630,3941,40,42],
-    "fist_menina_negra":[3672,3941,40,42],
-    "deco_9":[3714,3941,47,42],
-    "saq_dead":[3763,3941,103,41],
-    "fx_impacto":[3868,3941,72,41],
-    "fumaca_verde":[3942,3941,40,40],
-    "fumaca_vermelha":[3984,3941,40,40],
-    "fumaca_dourada":[4026,3941,40,40],
-    "fumaca_roxa":[0,4004,40,40],
-    "fx_magia_hit_0":[42,4004,37,40],
-    "toco_campos":[81,4004,50,40],
-    "deco_16":[133,4004,59,40],
-    "deco_20":[194,4004,64,40],
-    "icon_carne":[260,4004,56,39],
-    "rock_pantano":[318,4004,60,38],
-    "wheat_0":[380,4004,64,38],
-    "deco_14":[446,4004,40,38],
-    "icon_bronze":[488,4004,56,37],
-    "icon_ferro":[546,4004,56,37],
-    "icon_ouro":[604,4004,56,37],
-    "icon_prata":[662,4004,56,37],
-    "deco_3":[720,4004,41,37],
-    "deco_21":[763,4004,56,37],
-    "deco_15":[821,4004,30,36],
-    "deco_12":[853,4004,44,28],
-    "deco_13":[899,4004,37,24],
-    "deco_19":[938,4004,35,24],
-    "fx_corte_0":[975,4004,17,22],
-    "fx_faisca_0":[994,4004,21,21],
-    "flecha_voo":[1017,4004,64,13],
+    "mob_robo_sentinela_side_walk_0":[3069,772,134,112],
+    "mob_robo_sentinela_side_walk_1":[3205,772,137,112],
+    "mob_robo_sentinela_side_walk_4":[3344,772,134,112],
+    "bicho_dig_1":[3480,772,172,112],
+    "noel_front_0":[3654,772,70,112],
+    "noel_front_2":[3726,772,69,112],
+    "noel_front_4":[3797,772,68,112],
+    "coelhao_front_0":[3867,772,67,112],
+    "coelhao_front_4":[3936,772,68,112],
+    "sk_g_bravo_swing_gesto_dois_side":[0,893,140,111],
+    "sk_g_po_side_walk_0":[142,893,139,111],
+    "sk_g_po_side_walk_1":[283,893,148,111],
+    "sk_g_sentinela_golpe_back_1":[433,893,132,111],
+    "mob_chefe_back_idle":[567,893,135,111],
+    "mob_chefe_back_walk_2":[704,893,137,111],
+    "mob_chefe_back_walk_5":[843,893,136,111],
+    "mob_chefe_back_walk_6":[981,893,135,111],
+    "mob_chefe_back_walk_7":[1118,893,134,111],
+    "mob_chefe_golpe_back_0":[1254,893,136,111],
+    "mob_chefe_golpe_back_4":[1392,893,136,111],
+    "mob_chefe_side_walk_0":[1530,893,136,111],
+    "mob_chefe_side_walk_1":[1668,893,141,111],
+    "mob_chefe_side_walk_4":[1811,893,138,111],
+    "mob_tiao_side_walk_0":[1951,893,143,111],
+    "mob_tiao_side_walk_1":[2096,893,144,111],
+    "mob_robo_sentinela_side_walk_2":[2242,893,133,111],
+    "mob_robo_sentinela_side_walk_3":[2377,893,140,111],
+    "menino_back_walk_2":[2519,893,136,111],
+    "coelhao_front_3":[2657,893,68,111],
+    "coelhao_front_5":[2727,893,67,111],
+    "sk_g_po_back_walk_7":[2796,893,133,110],
+    "sk_g_po_side_walk_4":[2931,893,134,110],
+    "sk_g_guardiao_golpe_back_1":[3067,893,131,110],
+    "sk_g_guardiao_golpe_back_2":[3200,893,130,110],
+    "sk_g_guardiao_swing_gesto_um_back":[3332,893,136,110],
+    "sk_g_andarilho_side_walk_1":[3470,893,141,110],
+    "sk_g_sentinela_swing_gesto_um_back":[3613,893,141,110],
+    "sk_g_retalhos_side_walk_0":[3756,893,140,110],
+    "sk_g_retalhos_side_walk_1":[3898,893,150,110],
+    "mob_chefe_back_walk_0":[0,1006,134,110],
+    "mob_chefe_back_walk_3":[136,1006,135,110],
+    "mob_chefe_side_walk_2":[273,1006,140,110],
+    "mob_fugitivo_back_walk_5":[415,1006,135,110],
+    "mob_robo_scout_side_walk_5":[552,1006,135,110],
+    "mob_robo_sentinela_side_walk_5":[689,1006,135,110],
+    "mob_robo_sentinela_side_walk_6":[826,1006,134,110],
+    "mob_robo_sentinela_side_walk_7":[962,1006,134,110],
+    "menino_back_walk_0":[1098,1006,133,110],
+    "menino_back_walk_1":[1233,1006,136,110],
+    "menino_back_walk_3":[1371,1006,135,110],
+    "menino_back_walk_6":[1508,1006,133,110],
+    "menino_back_walk_7":[1643,1006,133,110],
+    "menino_side_walk_0":[1778,1006,138,110],
+    "menino_side_walk_1":[1918,1006,141,110],
+    "menino_side_walk_4":[2061,1006,135,110],
+    "cetro_mao":[2198,1006,107,110],
+    "cetro_brilho":[2307,1006,105,110],
+    "noel_front_1":[2414,1006,69,110],
+    "noel_front_3":[2485,1006,68,110],
+    "noel_front_5":[2555,1006,68,110],
+    "noel_pose_1":[2625,1006,96,110],
+    "noel_pose_2":[2723,1006,61,110],
+    "noel_pose_3":[2786,1006,89,110],
+    "sk_g_po_back_idle":[2877,1006,133,109],
+    "sk_g_po_back_walk_1":[3012,1006,134,109],
+    "sk_g_po_back_walk_2":[3148,1006,134,109],
+    "sk_g_po_back_walk_3":[3284,1006,133,109],
+    "sk_g_po_back_walk_5":[3419,1006,132,109],
+    "sk_g_po_back_walk_6":[3553,1006,131,109],
+    "sk_g_po_golpe_back_0":[3686,1006,134,109],
+    "sk_g_po_golpe_back_1":[3822,1006,133,109],
+    "sk_g_po_golpe_back_2":[3957,1006,133,109],
+    "sk_g_po_golpe_back_3":[0,1118,136,109],
+    "sk_g_po_golpe_back_4":[138,1118,136,109],
+    "sk_g_po_swing_gesto_um_back":[276,1118,132,109],
+    "sk_g_po_swing_gesto_dois_back":[410,1118,137,109],
+    "sk_g_po_side_idle":[549,1118,137,109],
+    "sk_g_po_side_walk_2":[688,1118,140,109],
+    "sk_g_po_golpe_side_0":[830,1118,142,109],
+    "sk_g_po_golpe_side_1":[974,1118,137,109],
+    "sk_g_po_golpe_side_2":[1113,1118,148,109],
+    "sk_g_po_golpe_side_3":[1263,1118,158,109],
+    "sk_g_po_golpe_side_4":[1423,1118,148,109],
+    "sk_g_po_swing_gesto_um_side":[1573,1118,137,109],
+    "sk_g_andarilho_back_walk_7":[1712,1118,133,109],
+    "sk_g_andarilho_side_walk_0":[1847,1118,139,109],
+    "sk_g_andarilho_side_walk_2":[1988,1118,137,109],
+    "sk_g_andarilho_side_walk_4":[2127,1118,134,109],
+    "sk_g_sentinela_golpe_front_0":[2263,1118,132,109],
+    "sk_g_retalhos_side_walk_4":[2397,1118,135,109],
+    "mob_chefe_front_walk_0":[2534,1118,134,109],
+    "mob_chefe_front_walk_4":[2670,1118,136,109],
+    "mob_chefe_front_walk_5":[2808,1118,136,109],
+    "mob_fugitivo_back_walk_4":[2946,1118,135,109],
+    "mob_tiao_back_idle":[3083,1118,134,109],
+    "mob_tiao_back_walk_1":[3219,1118,135,109],
+    "mob_tiao_back_walk_2":[3356,1118,135,109],
+    "mob_tiao_back_walk_5":[3493,1118,136,109],
+    "mob_tiao_back_walk_6":[3631,1118,136,109],
+    "mob_tiao_back_walk_7":[3769,1118,136,109],
+    "mob_tiao_side_walk_2":[3907,1118,138,109],
+    "mob_tiao_side_walk_4":[0,1229,138,109],
+    "mob_robo_scout_back_walk_1":[140,1229,135,109],
+    "mob_robo_scout_back_walk_5":[277,1229,134,109],
+    "mob_robo_scout_side_idle":[413,1229,138,109],
+    "mob_robo_scout_side_walk_6":[553,1229,140,109],
+    "mob_robo_sentinela_front_walk_4":[695,1229,136,109],
+    "mob_robo_sentinela_front_walk_5":[833,1229,132,109],
+    "mob_robo_sentinela_back_walk_1":[967,1229,135,109],
+    "mob_robo_sentinela_side_idle":[1104,1229,133,109],
+    "menino_back_idle":[1239,1229,133,109],
+    "menino_back_walk_4":[1374,1229,136,109],
+    "menino_back_walk_5":[1512,1229,133,109],
+    "menino_golpe_back_0":[1647,1229,135,109],
+    "menino_golpe_back_1":[1784,1229,133,109],
+    "menino_golpe_back_2":[1919,1229,134,109],
+    "menino_golpe_back_3":[2055,1229,135,109],
+    "menino_golpe_back_4":[2192,1229,135,109],
+    "menino_swing_gesto_um_back":[2329,1229,143,109],
+    "menino_side_walk_2":[2474,1229,137,109],
+    "noel_pose_0":[2613,1229,82,109],
+    "coelhao_back_1":[2697,1229,57,109],
+    "coelhao_back_5":[2756,1229,55,109],
+    "sk_g_po_golpe_front_1":[2813,1229,132,108],
+    "sk_g_po_side_walk_7":[2947,1229,132,108],
+    "sk_g_andarilho_back_idle":[3081,1229,132,108],
+    "sk_g_andarilho_back_walk_1":[3215,1229,135,108],
+    "sk_g_andarilho_back_walk_2":[3352,1229,135,108],
+    "sk_g_andarilho_back_walk_3":[3489,1229,134,108],
+    "sk_g_andarilho_back_walk_6":[3625,1229,134,108],
+    "sk_g_andarilho_golpe_back_0":[3761,1229,133,108],
+    "sk_g_andarilho_golpe_back_1":[3896,1229,133,108],
+    "sk_g_andarilho_golpe_back_2":[0,1340,132,108],
+    "sk_g_andarilho_golpe_back_3":[134,1340,134,108],
+    "sk_g_andarilho_golpe_back_4":[270,1340,136,108],
+    "sk_g_andarilho_swing_gesto_um_back":[408,1340,136,108],
+    "sk_g_andarilho_swing_gesto_dois_back":[546,1340,134,108],
+    "sk_g_sentinela_front_walk_5":[682,1340,132,108],
+    "sk_g_sentinela_swing_gesto_um_front":[816,1340,141,108],
+    "sk_g_sentinela_swing_gesto_dois_front":[959,1340,132,108],
+    "sk_g_retalhos_front_walk_4":[1093,1340,134,108],
+    "sk_g_retalhos_front_walk_5":[1229,1340,133,108],
+    "sk_g_retalhos_side_walk_2":[1364,1340,143,108],
+    "sk_g_retalhos_side_walk_3":[1509,1340,130,108],
+    "mob_saqueador_front_walk_1":[1641,1340,135,108],
+    "mob_saqueador_front_walk_3":[1778,1340,134,108],
+    "mob_saqueador_front_walk_4":[1914,1340,135,108],
+    "mob_saqueador_front_walk_5":[2051,1340,132,108],
+    "mob_saqueador_front_walk_7":[2185,1340,133,108],
+    "mob_saqueador_golpe_front_1":[2320,1340,133,108],
+    "mob_saqueador_back_walk_1":[2455,1340,134,108],
+    "mob_saqueador_back_walk_6":[2591,1340,132,108],
+    "mob_saqueador_side_walk_0":[2725,1340,136,108],
+    "mob_saqueador_side_walk_1":[2863,1340,139,108],
+    "mob_chefe_front_walk_1":[3004,1340,138,108],
+    "mob_chefe_front_walk_3":[3144,1340,136,108],
+    "mob_chefe_back_walk_4":[3282,1340,136,108],
+    "mob_chefe_side_walk_3":[3420,1340,135,108],
+    "mob_chefe_side_walk_5":[3557,1340,147,108],
+    "mob_chefe_side_walk_6":[3706,1340,148,108],
+    "mob_chefe_side_walk_7":[3856,1340,144,108],
+    "mob_chefe_golpe_side_0":[0,1450,149,108],
+    "mob_fugitivo_back_walk_0":[151,1450,134,108],
+    "mob_tiao_front_walk_0":[287,1450,134,108],
+    "mob_tiao_back_walk_3":[423,1450,134,108],
+    "mob_robo_scout_front_walk_6":[559,1450,138,108],
+    "mob_robo_scout_back_idle":[699,1450,135,108],
+    "mob_robo_scout_back_walk_0":[836,1450,137,108],
+    "mob_robo_scout_side_walk_0":[975,1450,153,108],
+    "mob_robo_scout_side_walk_7":[1130,1450,136,108],
+    "mob_robo_sentinela_front_walk_0":[1268,1450,133,108],
+    "mob_robo_sentinela_front_walk_1":[1403,1450,135,108],
+    "mob_robo_sentinela_front_walk_3":[1540,1450,135,108],
+    "mob_robo_sentinela_front_walk_6":[1677,1450,134,108],
+    "mob_robo_sentinela_front_walk_7":[1813,1450,132,108],
+    "mob_robo_sentinela_back_walk_0":[1947,1450,134,108],
+    "mob_robo_sentinela_back_walk_5":[2083,1450,133,108],
+    "menino_front_walk_4":[2218,1450,136,108],
+    "menino_front_walk_5":[2356,1450,133,108],
+    "menino_side_walk_3":[2491,1450,137,108],
+    "noel_back_4":[2630,1450,60,108],
+    "coelhao_back_0":[2692,1450,64,108],
+    "coelhao_back_2":[2758,1450,55,108],
+    "coelhao_back_4":[2815,1450,61,108],
+    "sk_g_enfaixado_front_walk_4":[2878,1450,134,107],
+    "sk_g_enfaixado_side_walk_0":[3014,1450,139,107],
+    "sk_g_enfaixado_side_walk_1":[3155,1450,150,107],
+    "sk_g_bravo_back_walk_1":[3307,1450,132,107],
+    "sk_g_bravo_back_walk_2":[3441,1450,133,107],
+    "sk_g_bravo_side_walk_0":[3576,1450,141,107],
+    "sk_g_bravo_side_walk_1":[3719,1450,150,107],
+    "sk_g_po_front_walk_1":[3871,1450,134,107],
+    "sk_g_po_front_walk_4":[0,1560,135,107],
+    "sk_g_po_front_walk_5":[137,1560,133,107],
+    "sk_g_po_back_walk_0":[272,1560,131,107],
+    "sk_g_po_side_walk_3":[405,1560,133,107],
+    "sk_g_po_side_walk_5":[540,1560,143,107],
+    "sk_g_po_side_walk_6":[685,1560,137,107],
+    "sk_g_guardiao_side_walk_0":[824,1560,130,107],
+    "sk_g_guardiao_side_walk_1":[956,1560,140,107],
+    "sk_g_andarilho_front_walk_1":[1098,1560,135,107],
+    "sk_g_andarilho_front_walk_3":[1235,1560,134,107],
+    "sk_g_andarilho_front_walk_4":[1371,1560,134,107],
+    "sk_g_andarilho_front_walk_5":[1507,1560,132,107],
+    "sk_g_andarilho_front_walk_7":[1641,1560,132,107],
+    "sk_g_andarilho_back_walk_5":[1775,1560,133,107],
+    "sk_g_andarilho_side_walk_3":[1910,1560,136,107],
+    "sk_g_andarilho_side_walk_7":[2048,1560,133,107],
+    "sk_g_sentinela_front_walk_0":[2183,1560,130,107],
+    "sk_g_sentinela_front_walk_1":[2315,1560,134,107],
+    "sk_g_sentinela_front_walk_3":[2451,1560,132,107],
+    "sk_g_sentinela_front_walk_4":[2585,1560,131,107],
+    "sk_g_sentinela_back_walk_1":[2718,1560,133,107],
+    "sk_g_sentinela_back_walk_2":[2853,1560,133,107],
+    "sk_g_sentinela_back_walk_5":[2988,1560,133,107],
+    "sk_g_sentinela_back_walk_6":[3123,1560,134,107],
+    "sk_g_sentinela_back_walk_7":[3259,1560,132,107],
+    "sk_g_sentinela_side_walk_0":[3393,1560,137,107],
+    "sk_g_sentinela_side_walk_1":[3532,1560,141,107],
+    "sk_g_sentinela_side_walk_2":[3675,1560,135,107],
+    "sk_g_retalhos_front_walk_0":[3812,1560,131,107],
+    "sk_g_retalhos_front_walk_1":[3945,1560,133,107],
+    "sk_g_retalhos_front_walk_3":[0,1669,133,107],
+    "sk_g_retalhos_golpe_front_1":[135,1669,131,107],
+    "sk_g_retalhos_back_walk_7":[268,1669,132,107],
+    "sk_g_retalhos_swing_gesto_dois_back":[402,1669,134,107],
+    "sk_g_retalhos_side_idle":[538,1669,136,107],
+    "sk_g_retalhos_side_walk_7":[676,1669,131,107],
+    "sk_g_retalhos_golpe_side_0":[809,1669,144,107],
+    "sk_g_retalhos_golpe_side_1":[955,1669,136,107],
+    "sk_g_retalhos_golpe_side_2":[1093,1669,149,107],
+    "sk_g_retalhos_golpe_side_3":[1244,1669,158,107],
+    "sk_g_retalhos_golpe_side_4":[1404,1669,150,107],
+    "sk_g_retalhos_swing_gesto_um_side":[1556,1669,136,107],
+    "sk_g_ava_front_walk_4":[1694,1669,128,107],
+    "mob_saqueador_front_walk_0":[1824,1669,133,107],
+    "mob_saqueador_front_walk_2":[1959,1669,135,107],
+    "mob_saqueador_front_walk_6":[2096,1669,131,107],
+    "mob_saqueador_back_idle":[2229,1669,132,107],
+    "mob_saqueador_back_walk_2":[2363,1669,135,107],
+    "mob_saqueador_back_walk_5":[2500,1669,132,107],
+    "mob_saqueador_back_walk_7":[2634,1669,132,107],
+    "mob_saqueador_golpe_back_0":[2768,1669,132,107],
+    "mob_saqueador_golpe_back_1":[2902,1669,134,107],
+    "mob_saqueador_golpe_back_2":[3038,1669,134,107],
+    "mob_saqueador_golpe_back_3":[3174,1669,136,107],
+    "mob_saqueador_golpe_back_4":[3312,1669,136,107],
+    "mob_saqueador_side_walk_2":[3450,1669,133,107],
+    "mob_chefe_front_walk_2":[3585,1669,138,107],
+    "mob_chefe_front_walk_6":[3725,1669,136,107],
+    "mob_chefe_front_walk_7":[3863,1669,135,107],
+    "mob_chefe_side_idle":[0,1778,136,107],
+    "mob_chefe_golpe_side_3":[138,1778,177,107],
+    "mob_chefe_golpe_side_4":[317,1778,165,107],
+    "mob_fugitivo_back_idle":[484,1778,133,107],
+    "mob_fugitivo_side_idle":[619,1778,142,107],
+    "mob_construtor_front_walk_4":[763,1778,129,107],
+    "mob_construtor_side_walk_1":[894,1778,137,107],
+    "mob_construtor_side_walk_4":[1033,1778,129,107],
+    "mob_tiao_front_walk_3":[1164,1778,134,107],
+    "mob_tiao_front_walk_4":[1300,1778,135,107],
+    "mob_tiao_front_walk_5":[1437,1778,136,107],
+    "mob_tiao_front_walk_7":[1575,1778,137,107],
+    "mob_tiao_back_walk_0":[1714,1778,134,107],
+    "mob_tiao_side_idle":[1850,1778,144,107],
+    "mob_tiao_side_walk_3":[1996,1778,138,107],
+    "mob_tiao_side_walk_7":[2136,1778,135,107],
+    "mob_robo_scout_front_walk_1":[2273,1778,135,107],
+    "mob_robo_scout_front_walk_2":[2410,1778,136,107],
+    "mob_robo_scout_front_walk_5":[2548,1778,134,107],
+    "mob_robo_scout_back_walk_4":[2684,1778,136,107],
+    "mob_robo_sentinela_front_walk_2":[2822,1778,136,107],
+    "mob_robo_sentinela_back_idle":[2960,1778,133,107],
+    "mob_robo_sentinela_back_walk_2":[3095,1778,136,107],
+    "mob_robo_sentinela_back_walk_4":[3233,1778,136,107],
+    "mob_robo_sentinela_back_walk_6":[3371,1778,134,107],
+    "mob_robo_sentinela_back_walk_7":[3507,1778,132,107],
+    "menino_front_walk_0":[3641,1778,133,107],
+    "menino_front_walk_1":[3776,1778,136,107],
+    "menino_front_walk_2":[3914,1778,136,107],
+    "menino_front_walk_3":[0,1887,136,107],
+    "menino_front_walk_6":[138,1887,133,107],
+    "menino_front_walk_7":[273,1887,133,107],
+    "menino_side_idle":[408,1887,137,107],
+    "menino_side_walk_5":[547,1887,137,107],
+    "menino_side_walk_6":[686,1887,136,107],
+    "menino_side_walk_7":[824,1887,135,107],
+    "menino_golpe_side_0":[961,1887,142,107],
+    "menino_golpe_side_1":[1105,1887,137,107],
+    "menino_golpe_side_2":[1244,1887,144,107],
+    "menino_golpe_side_3":[1390,1887,151,107],
+    "menino_golpe_side_4":[1543,1887,144,107],
+    "menino_swing_gesto_um_side":[1689,1887,137,107],
+    "menina_negra_side_idle":[1828,1887,131,107],
+    "menina_negra_side_walk_0":[1961,1887,137,107],
+    "menina_negra_golpe_side_0":[2100,1887,132,107],
+    "menina_negra_golpe_side_1":[2234,1887,131,107],
+    "menina_negra_golpe_side_2":[2367,1887,131,107],
+    "menina_negra_golpe_side_3":[2500,1887,128,107],
+    "menina_negra_golpe_side_4":[2630,1887,131,107],
+    "menina_negra_swing_gesto_um_side":[2763,1887,131,107],
+    "noel_back_0":[2896,1887,64,107],
+    "noel_back_1":[2962,1887,63,107],
+    "noel_back_2":[3027,1887,60,107],
+    "noel_back_3":[3089,1887,63,107],
+    "noel_back_5":[3154,1887,63,107],
+    "sk_g_enfaixado_front_walk_0":[3219,1887,135,106],
+    "sk_g_enfaixado_front_walk_1":[3356,1887,131,106],
+    "sk_g_enfaixado_front_walk_5":[3489,1887,136,106],
+    "sk_g_enfaixado_side_idle":[3627,1887,137,106],
+    "sk_g_enfaixado_side_walk_2":[3766,1887,145,106],
+    "sk_g_enfaixado_golpe_side_0":[3913,1887,137,106],
+    "sk_g_enfaixado_golpe_side_1":[0,1996,137,106],
+    "sk_g_enfaixado_golpe_side_2":[139,1996,149,106],
+    "sk_g_enfaixado_golpe_side_3":[290,1996,158,106],
+    "sk_g_enfaixado_golpe_side_4":[450,1996,148,106],
+    "sk_g_enfaixado_swing_gesto_um_side":[600,1996,137,106],
+    "sk_g_bravo_front_walk_0":[739,1996,131,106],
+    "sk_g_bravo_front_walk_1":[872,1996,133,106],
+    "sk_g_bravo_front_walk_3":[1007,1996,133,106],
+    "sk_g_bravo_front_walk_4":[1142,1996,134,106],
+    "sk_g_bravo_front_walk_5":[1278,1996,132,106],
+    "sk_g_bravo_back_idle":[1412,1996,132,106],
+    "sk_g_bravo_back_walk_5":[1546,1996,131,106],
+    "sk_g_bravo_back_walk_6":[1679,1996,131,106],
+    "sk_g_bravo_golpe_back_0":[1812,1996,131,106],
+    "sk_g_bravo_golpe_back_1":[1945,1996,132,106],
+    "sk_g_bravo_golpe_back_2":[2079,1996,132,106],
+    "sk_g_bravo_golpe_back_3":[2213,1996,132,106],
+    "sk_g_bravo_golpe_back_4":[2347,1996,133,106],
+    "sk_g_bravo_swing_gesto_um_back":[2482,1996,136,106],
+    "sk_g_bravo_swing_gesto_dois_back":[2620,1996,132,106],
+    "sk_g_bravo_side_walk_2":[2754,1996,141,106],
+    "sk_g_po_front_walk_0":[2897,1996,132,106],
+    "sk_g_po_front_walk_2":[3031,1996,135,106],
+    "sk_g_po_front_walk_3":[3168,1996,133,106],
+    "sk_g_po_front_walk_6":[3303,1996,131,106],
+    "sk_g_po_front_walk_7":[3436,1996,133,106],
+    "sk_g_po_back_walk_4":[3571,1996,135,106],
+    "sk_g_guardiao_front_walk_4":[3708,1996,131,106],
+    "sk_g_guardiao_front_walk_5":[3841,1996,131,106],
+    "sk_g_guardiao_back_idle":[0,2104,130,106],
+    "sk_g_guardiao_back_walk_1":[132,2104,134,106],
+    "sk_g_guardiao_back_walk_2":[268,2104,134,106],
+    "sk_g_guardiao_back_walk_5":[404,2104,132,106],
+    "sk_g_guardiao_back_walk_6":[538,2104,132,106],
+    "sk_g_guardiao_golpe_back_0":[672,2104,133,106],
+    "sk_g_guardiao_golpe_back_3":[807,2104,133,106],
+    "sk_g_guardiao_golpe_back_4":[942,2104,135,106],
+    "sk_g_guardiao_side_walk_2":[1079,2104,137,106],
+    "sk_g_andarilho_front_walk_0":[1218,2104,132,106],
+    "sk_g_andarilho_front_walk_2":[1352,2104,136,106],
+    "sk_g_andarilho_front_walk_6":[1490,2104,133,106],
+    "sk_g_andarilho_back_walk_0":[1625,2104,133,106],
+    "sk_g_andarilho_side_idle":[1760,2104,139,106],
+    "sk_g_andarilho_side_walk_5":[1901,2104,138,106],
+    "sk_g_andarilho_side_walk_6":[2041,2104,135,106],
+    "sk_g_andarilho_golpe_side_0":[2178,2104,144,106],
+    "sk_g_andarilho_golpe_side_1":[2324,2104,139,106],
+    "sk_g_andarilho_golpe_side_2":[2465,2104,147,106],
+    "sk_g_andarilho_golpe_side_3":[2614,2104,155,106],
+    "sk_g_andarilho_golpe_side_4":[2771,2104,147,106],
+    "sk_g_andarilho_swing_gesto_um_side":[2920,2104,139,106],
+    "sk_g_sentinela_front_walk_2":[3061,2104,134,106],
+    "sk_g_sentinela_front_walk_6":[3197,2104,133,106],
+    "sk_g_sentinela_front_walk_7":[3332,2104,131,106],
+    "sk_g_sentinela_back_idle":[3465,2104,133,106],
+    "sk_g_sentinela_back_walk_3":[3600,2104,131,106],
+    "sk_g_sentinela_golpe_back_0":[3733,2104,132,106],
+    "sk_g_sentinela_golpe_back_3":[3867,2104,130,106],
+    "sk_g_sentinela_golpe_back_4":[0,2212,131,106],
+    "sk_g_retalhos_front_walk_2":[133,2212,134,106],
+    "sk_g_retalhos_front_walk_6":[269,2212,132,106],
+    "sk_g_retalhos_front_walk_7":[403,2212,133,106],
+    "sk_g_retalhos_back_idle":[538,2212,132,106],
+    "sk_g_retalhos_back_walk_2":[672,2212,133,106],
+    "sk_g_retalhos_back_walk_3":[807,2212,132,106],
+    "sk_g_retalhos_back_walk_5":[941,2212,132,106],
+    "sk_g_retalhos_back_walk_6":[1075,2212,131,106],
+    "sk_g_retalhos_golpe_back_0":[1208,2212,132,106],
+    "sk_g_retalhos_golpe_back_1":[1342,2212,132,106],
+    "sk_g_retalhos_golpe_back_2":[1476,2212,132,106],
+    "sk_g_retalhos_golpe_back_3":[1610,2212,132,106],
+    "sk_g_retalhos_golpe_back_4":[1744,2212,132,106],
+    "sk_g_retalhos_swing_gesto_um_back":[1878,2212,133,106],
+    "sk_g_retalhos_side_walk_5":[2013,2212,146,106],
+    "sk_g_retalhos_side_walk_6":[2161,2212,138,106],
+    "sk_g_ava_front_walk_0":[2301,2212,128,106],
+    "sk_g_ava_front_walk_1":[2431,2212,129,106],
+    "sk_g_ava_front_walk_5":[2562,2212,128,106],
+    "mob_saqueador_back_walk_0":[2692,2212,132,106],
+    "mob_saqueador_back_walk_3":[2826,2212,133,106],
+    "mob_saqueador_side_idle":[2961,2212,142,106],
+    "mob_saqueador_side_walk_4":[3105,2212,132,106],
+    "mob_saqueador_golpe_side_0":[3239,2212,137,106],
+    "mob_saqueador_golpe_side_1":[3378,2212,142,106],
+    "mob_saqueador_golpe_side_2":[3522,2212,151,106],
+    "mob_saqueador_golpe_side_3":[3675,2212,160,106],
+    "mob_saqueador_golpe_side_4":[3837,2212,151,106],
+    "mob_fugitivo_side_walk_0":[0,2320,152,106],
+    "mob_fugitivo_side_walk_5":[154,2320,133,106],
+    "mob_fugitivo_side_walk_7":[289,2320,137,106],
+    "mob_construtor_front_walk_0":[428,2320,126,106],
+    "mob_construtor_front_walk_3":[556,2320,130,106],
+    "mob_construtor_front_walk_5":[688,2320,128,106],
+    "mob_construtor_back_idle":[818,2320,129,106],
+    "mob_construtor_back_walk_7":[949,2320,128,106],
+    "mob_construtor_side_walk_0":[1079,2320,128,106],
+    "mob_construtor_side_walk_2":[1209,2320,131,106],
+    "mob_construtor_side_walk_3":[1342,2320,129,106],
+    "mob_tiao_front_walk_1":[1473,2320,134,106],
+    "mob_tiao_front_walk_2":[1609,2320,134,106],
+    "mob_tiao_front_walk_6":[1745,2320,137,106],
+    "mob_tiao_back_walk_4":[1884,2320,134,106],
+    "mob_robo_scout_side_walk_1":[2020,2320,137,106],
+    "mob_robo_sentinela_back_walk_3":[2159,2320,134,106],
+    "menino_negro_side_walk_0":[2295,2320,132,106],
+    "menino_negro_side_walk_1":[2429,2320,132,106],
+    "menino_negro_side_walk_4":[2563,2320,129,106],
+    "menina_negra_back_walk_6":[2694,2320,129,106],
+    "menina_negra_side_walk_1":[2825,2320,137,106],
+    "menina_negra_side_walk_4":[2964,2320,130,106],
+    "robo_dig_0":[3096,2320,111,106],
+    "robo_dig_1":[3209,2320,113,106],
+    "robo_dig_2":[3324,2320,85,106],
+    "bicho_back_4":[3411,2320,111,106],
+    "noel_side_0":[3524,2320,72,106],
+    "noel_side_1":[3598,2320,72,106],
+    "noel_side_2":[3672,2320,69,106],
+    "noel_side_3":[3743,2320,73,106],
+    "noel_side_4":[3818,2320,71,106],
+    "noel_side_5":[3891,2320,73,106],
+    "coelhao_back_3":[3966,2320,61,106],
+    "sk_g_enfaixado_front_walk_2":[0,2428,131,105],
+    "sk_g_enfaixado_front_walk_3":[133,2428,132,105],
+    "sk_g_enfaixado_front_walk_6":[267,2428,136,105],
+    "sk_g_enfaixado_front_walk_7":[405,2428,136,105],
+    "sk_g_enfaixado_golpe_front_1":[543,2428,132,105],
+    "sk_g_enfaixado_back_idle":[677,2428,132,105],
+    "sk_g_enfaixado_back_walk_1":[811,2428,131,105],
+    "sk_g_enfaixado_back_walk_2":[944,2428,131,105],
+    "sk_g_enfaixado_back_walk_6":[1077,2428,136,105],
+    "sk_g_enfaixado_golpe_back_0":[1215,2428,130,105],
+    "sk_g_enfaixado_golpe_back_1":[1347,2428,132,105],
+    "sk_g_enfaixado_golpe_back_2":[1481,2428,134,105],
+    "sk_g_enfaixado_golpe_back_3":[1617,2428,130,105],
+    "sk_g_enfaixado_golpe_back_4":[1749,2428,130,105],
+    "sk_g_enfaixado_swing_gesto_um_back":[1881,2428,136,105],
+    "sk_g_enfaixado_swing_gesto_dois_back":[2019,2428,130,105],
+    "sk_g_enfaixado_side_walk_5":[2151,2428,147,105],
+    "sk_g_enfaixado_side_walk_7":[2300,2428,135,105],
+    "sk_g_bravo_front_walk_2":[2437,2428,134,105],
+    "sk_g_bravo_front_walk_6":[2573,2428,131,105],
+    "sk_g_bravo_front_walk_7":[2706,2428,132,105],
+    "sk_g_bravo_back_walk_7":[2840,2428,132,105],
+    "sk_g_bravo_side_idle":[2974,2428,140,105],
+    "sk_g_bravo_side_walk_4":[3116,2428,135,105],
+    "sk_g_bravo_golpe_side_0":[3253,2428,139,105],
+    "sk_g_bravo_golpe_side_1":[3394,2428,140,105],
+    "sk_g_bravo_golpe_side_2":[3536,2428,150,105],
+    "sk_g_bravo_golpe_side_3":[3688,2428,159,105],
+    "sk_g_bravo_golpe_side_4":[3849,2428,150,105],
+    "sk_g_bravo_swing_gesto_um_side":[0,2535,140,105],
+    "sk_g_po_golpe_front_0":[142,2535,134,105],
+    "sk_g_guardiao_front_walk_0":[278,2535,129,105],
+    "sk_g_guardiao_front_walk_1":[409,2535,134,105],
+    "sk_g_guardiao_back_walk_7":[545,2535,132,105],
+    "sk_g_guardiao_golpe_side_1":[679,2535,138,105],
+    "sk_g_andarilho_golpe_front_1":[819,2535,133,105],
+    "sk_g_sentinela_back_walk_0":[954,2535,131,105],
+    "sk_g_sentinela_side_walk_4":[1087,2535,132,105],
+    "sk_g_sentinela_side_walk_5":[1221,2535,140,105],
+    "sk_g_sentinela_side_walk_7":[1363,2535,132,105],
+    "sk_g_sentinela_golpe_side_1":[1497,2535,137,105],
+    "sk_g_retalhos_back_walk_1":[1636,2535,133,105],
+    "sk_g_ava_front_walk_3":[1771,2535,127,105],
+    "mob_saqueador_side_walk_7":[1900,2535,134,105],
+    "mob_chefe_golpe_front_2":[2036,2535,134,105],
+    "mob_fugitivo_front_walk_1":[2172,2535,133,105],
+    "mob_fugitivo_front_walk_6":[2307,2535,137,105],
+    "mob_fugitivo_side_walk_6":[2446,2535,137,105],
+    "mob_construtor_front_walk_1":[2585,2535,130,105],
+    "mob_construtor_front_walk_2":[2717,2535,131,105],
+    "mob_construtor_front_walk_6":[2850,2535,129,105],
+    "mob_construtor_front_walk_7":[2981,2535,128,105],
+    "mob_construtor_back_walk_1":[3111,2535,130,105],
+    "mob_construtor_back_walk_3":[3243,2535,130,105],
+    "mob_construtor_back_walk_5":[3375,2535,129,105],
+    "mob_tiao_side_walk_5":[3506,2535,141,105],
+    "mob_tiao_side_walk_6":[3649,2535,136,105],
+    "mob_robo_scout_front_walk_3":[3787,2535,134,105],
+    "mob_robo_scout_front_walk_7":[3923,2535,135,105],
+    "menino_negro_front_walk_3":[0,2642,131,105],
+    "menino_negro_back_walk_1":[133,2642,131,105],
+    "menino_negro_side_walk_2":[266,2642,129,105],
+    "menina_ruiva_side_walk_4":[397,2642,128,105],
+    "menina_negra_back_walk_1":[527,2642,130,105],
+    "menina_negra_back_walk_2":[659,2642,132,105],
+    "menina_negra_back_walk_5":[793,2642,128,105],
+    "menina_negra_back_walk_7":[923,2642,129,105],
+    "menina_negra_side_walk_2":[1054,2642,136,105],
+    "bicho_back_1":[1192,2642,112,105],
+    "bicho_back_3":[1306,2642,112,105],
+    "tree_floresta":[1420,2642,79,104],
+    "tree_deserto":[1501,2642,59,104],
+    "tree_neve":[1562,2642,75,104],
+    "sk_g_enfaixado_front_idle":[1639,2642,132,104],
+    "sk_g_enfaixado_golpe_front_0":[1773,2642,130,104],
+    "sk_g_enfaixado_golpe_front_2":[1905,2642,135,104],
+    "sk_g_enfaixado_golpe_front_3":[2042,2642,130,104],
+    "sk_g_enfaixado_golpe_front_4":[2174,2642,130,104],
+    "sk_g_enfaixado_swing_gesto_um_front":[2306,2642,137,104],
+    "sk_g_enfaixado_swing_gesto_dois_front":[2445,2642,131,104],
+    "sk_g_enfaixado_back_walk_5":[2578,2642,137,104],
+    "sk_g_enfaixado_side_walk_4":[2717,2642,136,104],
+    "sk_g_bravo_front_idle":[2855,2642,132,104],
+    "sk_g_bravo_golpe_front_0":[2989,2642,131,104],
+    "sk_g_bravo_golpe_front_1":[3122,2642,132,104],
+    "sk_g_bravo_golpe_front_2":[3256,2642,132,104],
+    "sk_g_bravo_golpe_front_3":[3390,2642,131,104],
+    "sk_g_bravo_golpe_front_4":[3523,2642,133,104],
+    "sk_g_bravo_swing_gesto_um_front":[3658,2642,137,104],
+    "sk_g_bravo_swing_gesto_dois_front":[3797,2642,132,104],
+    "sk_g_bravo_back_walk_0":[3931,2642,131,104],
+    "sk_g_bravo_back_walk_3":[0,2749,132,104],
+    "sk_g_bravo_side_walk_7":[134,2749,132,104],
+    "sk_g_po_front_idle":[268,2749,133,104],
+    "sk_g_po_golpe_front_2":[403,2749,133,104],
+    "sk_g_po_golpe_front_3":[538,2749,136,104],
+    "sk_g_po_golpe_front_4":[676,2749,136,104],
+    "sk_g_po_swing_gesto_um_front":[814,2749,133,104],
+    "sk_g_po_swing_gesto_dois_front":[949,2749,137,104],
+    "sk_g_guardiao_front_idle":[1088,2749,130,104],
+    "sk_g_guardiao_front_walk_3":[1220,2749,132,104],
+    "sk_g_guardiao_front_walk_7":[1354,2749,131,104],
+    "sk_g_guardiao_golpe_front_2":[1487,2749,130,104],
+    "sk_g_guardiao_golpe_front_3":[1619,2749,132,104],
+    "sk_g_guardiao_golpe_front_4":[1753,2749,134,104],
+    "sk_g_guardiao_back_walk_0":[1889,2749,130,104],
+    "sk_g_guardiao_back_walk_3":[2021,2749,131,104],
+    "sk_g_guardiao_side_walk_4":[2154,2749,132,104],
+    "sk_g_guardiao_side_walk_7":[2288,2749,129,104],
+    "sk_g_andarilho_front_idle":[2419,2749,132,104],
+    "sk_g_andarilho_golpe_front_0":[2553,2749,133,104],
+    "sk_g_andarilho_golpe_front_2":[2688,2749,132,104],
+    "sk_g_andarilho_golpe_front_3":[2822,2749,134,104],
+    "sk_g_andarilho_golpe_front_4":[2958,2749,136,104],
+    "sk_g_andarilho_swing_gesto_um_front":[3096,2749,137,104],
+    "sk_g_andarilho_swing_gesto_dois_front":[3235,2749,134,104],
+    "sk_g_andarilho_back_walk_4":[3371,2749,133,104],
+    "sk_g_sentinela_front_idle":[3506,2749,133,104],
+    "sk_g_sentinela_golpe_front_2":[3641,2749,133,104],
+    "sk_g_sentinela_golpe_front_3":[3776,2749,131,104],
+    "sk_g_sentinela_golpe_front_4":[3909,2749,131,104],
+    "sk_g_sentinela_side_idle":[0,2855,137,104],
+    "sk_g_sentinela_side_walk_6":[139,2855,140,104],
+    "sk_g_sentinela_golpe_side_0":[281,2855,142,104],
+    "sk_g_sentinela_golpe_side_2":[425,2855,151,104],
+    "sk_g_sentinela_golpe_side_3":[578,2855,161,104],
+    "sk_g_sentinela_golpe_side_4":[741,2855,152,104],
+    "sk_g_sentinela_swing_gesto_um_side":[895,2855,137,104],
+    "sk_g_retalhos_front_idle":[1034,2855,131,104],
+    "sk_g_retalhos_golpe_front_0":[1167,2855,131,104],
+    "sk_g_retalhos_golpe_front_2":[1300,2855,131,104],
+    "sk_g_retalhos_golpe_front_3":[1433,2855,131,104],
+    "sk_g_retalhos_golpe_front_4":[1566,2855,131,104],
+    "sk_g_retalhos_swing_gesto_um_front":[1699,2855,133,104],
+    "sk_g_retalhos_swing_gesto_dois_front":[1834,2855,134,104],
+    "sk_g_ava_front_idle":[1970,2855,128,104],
+    "sk_g_ava_front_walk_2":[2100,2855,129,104],
+    "sk_g_ava_front_walk_6":[2231,2855,128,104],
+    "sk_g_ava_front_walk_7":[2361,2855,128,104],
+    "sk_g_ava_golpe_front_0":[2491,2855,126,104],
+    "sk_g_ava_golpe_front_1":[2619,2855,127,104],
+    "sk_g_ava_golpe_front_2":[2748,2855,127,104],
+    "sk_g_ava_golpe_front_3":[2877,2855,126,104],
+    "sk_g_ava_golpe_front_4":[3005,2855,126,104],
+    "sk_g_ava_swing_gesto_um_front":[3133,2855,134,104],
+    "sk_g_ava_swing_gesto_dois_front":[3269,2855,127,104],
+    "sk_g_ava_swing_gesto_dois_side":[3398,2855,134,104],
+    "mob_saqueador_front_idle":[3534,2855,131,104],
+    "mob_saqueador_golpe_front_0":[3667,2855,132,104],
+    "mob_saqueador_golpe_front_2":[3801,2855,133,104],
+    "mob_saqueador_golpe_front_3":[3936,2855,136,104],
+    "mob_saqueador_golpe_front_4":[0,2961,136,104],
+    "mob_saqueador_back_walk_4":[138,2961,134,104],
+    "mob_saqueador_side_walk_5":[274,2961,137,104],
+    "mob_chefe_front_idle":[413,2961,135,104],
+    "mob_chefe_golpe_front_3":[550,2961,134,104],
+    "mob_chefe_golpe_front_4":[686,2961,135,104],
+    "mob_fugitivo_front_idle":[823,2961,133,104],
+    "mob_fugitivo_front_walk_2":[958,2961,135,104],
+    "mob_fugitivo_front_walk_5":[1095,2961,136,104],
+    "mob_construtor_front_idle":[1233,2961,129,104],
+    "mob_construtor_back_walk_0":[1364,2961,126,104],
+    "mob_construtor_back_walk_2":[1492,2961,131,104],
+    "mob_construtor_back_walk_6":[1625,2961,130,104],
+    "mob_construtor_side_idle":[1757,2961,129,104],
+    "mob_construtor_side_walk_7":[1888,2961,131,104],
+    "mob_tiao_front_idle":[2021,2961,134,104],
+    "mob_robo_scout_front_idle":[2157,2961,136,104],
+    "mob_robo_scout_front_walk_0":[2295,2961,136,104],
+    "mob_robo_scout_side_walk_4":[2433,2961,149,104],
+    "mob_robo_sentinela_front_idle":[2584,2961,133,104],
+    "menino_front_idle":[2719,2961,133,104],
+    "menino_golpe_front_0":[2854,2961,135,104],
+    "menino_golpe_front_1":[2991,2961,133,104],
+    "menino_golpe_front_2":[3126,2961,135,104],
+    "menino_golpe_front_3":[3263,2961,134,104],
+    "menino_golpe_front_4":[3399,2961,134,104],
+    "menino_swing_gesto_um_front":[3535,2961,143,104],
+    "menino_negro_front_idle":[3680,2961,131,104],
+    "menino_negro_front_walk_2":[3813,2961,133,104],
+    "menino_negro_front_walk_4":[3948,2961,131,104],
+    "menino_negro_front_walk_6":[0,3067,130,104],
+    "menino_negro_front_walk_7":[132,3067,130,104],
+    "menino_negro_golpe_front_0":[264,3067,132,104],
+    "menino_negro_golpe_front_1":[398,3067,131,104],
+    "menino_negro_golpe_front_2":[531,3067,132,104],
+    "menino_negro_golpe_front_3":[665,3067,132,104],
+    "menino_negro_golpe_front_4":[799,3067,132,104],
+    "menino_negro_swing_gesto_um_front":[933,3067,131,104],
+    "menino_negro_back_walk_0":[1066,3067,130,104],
+    "menino_negro_back_walk_2":[1198,3067,132,104],
+    "menino_negro_back_walk_3":[1332,3067,131,104],
+    "menino_negro_back_walk_5":[1465,3067,129,104],
+    "menino_negro_back_walk_6":[1596,3067,129,104],
+    "menino_negro_back_walk_7":[1727,3067,129,104],
+    "menino_negro_side_idle":[1858,3067,136,104],
+    "menino_negro_side_walk_3":[1996,3067,135,104],
+    "menino_negro_golpe_side_0":[2133,3067,153,104],
+    "menino_negro_golpe_side_1":[2288,3067,137,104],
+    "menino_negro_golpe_side_2":[2427,3067,136,104],
+    "menino_negro_golpe_side_3":[2565,3067,132,104],
+    "menino_negro_golpe_side_4":[2699,3067,136,104],
+    "menino_negro_swing_gesto_um_side":[2837,3067,137,104],
+    "menina_ruiva_front_idle":[2976,3067,126,104],
+    "menina_ruiva_golpe_front_0":[3104,3067,126,104],
+    "menina_ruiva_golpe_front_1":[3232,3067,126,104],
+    "menina_ruiva_golpe_front_2":[3360,3067,126,104],
+    "menina_ruiva_golpe_front_3":[3488,3067,126,104],
+    "menina_ruiva_golpe_front_4":[3616,3067,126,104],
+    "menina_ruiva_swing_gesto_um_front":[3744,3067,130,104],
+    "menina_ruiva_side_idle":[3876,3067,134,104],
+    "menina_ruiva_side_walk_0":[0,3173,130,104],
+    "menina_ruiva_side_walk_1":[132,3173,139,104],
+    "menina_ruiva_side_walk_2":[273,3173,138,104],
+    "menina_ruiva_golpe_side_0":[413,3173,145,104],
+    "menina_ruiva_golpe_side_1":[560,3173,134,104],
+    "menina_ruiva_golpe_side_2":[696,3173,132,104],
+    "menina_ruiva_golpe_side_3":[830,3173,127,104],
+    "menina_ruiva_golpe_side_4":[959,3173,134,104],
+    "menina_ruiva_swing_gesto_um_side":[1095,3173,134,104],
+    "menina_negra_front_idle":[1231,3173,130,104],
+    "menina_negra_front_walk_3":[1363,3173,132,104],
+    "menina_negra_front_walk_4":[1497,3173,129,104],
+    "menina_negra_golpe_front_0":[1628,3173,129,104],
+    "menina_negra_golpe_front_1":[1759,3173,129,104],
+    "menina_negra_golpe_front_2":[1890,3173,130,104],
+    "menina_negra_golpe_front_3":[2022,3173,130,104],
+    "menina_negra_golpe_front_4":[2154,3173,130,104],
+    "menina_negra_swing_gesto_um_front":[2286,3173,129,104],
+    "menina_negra_back_idle":[2417,3173,129,104],
+    "menina_negra_back_walk_0":[2548,3173,128,104],
+    "menina_negra_back_walk_3":[2678,3173,132,104],
+    "menina_negra_golpe_back_0":[2812,3173,128,104],
+    "menina_negra_golpe_back_1":[2942,3173,129,104],
+    "menina_negra_golpe_back_2":[3073,3173,129,104],
+    "menina_negra_golpe_back_3":[3204,3173,129,104],
+    "menina_negra_golpe_back_4":[3335,3173,129,104],
+    "menina_negra_swing_gesto_um_back":[3466,3173,129,104],
+    "menina_negra_side_walk_5":[3597,3173,134,104],
+    "menina_negra_side_walk_6":[3733,3173,137,104],
+    "menina_negra_side_walk_7":[3872,3173,132,104],
+    "tiao_0":[4006,3173,75,104],
+    "tiao_1":[0,3279,75,104],
+    "ana_0":[77,3279,69,104],
+    "ana_1":[148,3279,71,104],
+    "lia_0":[221,3279,70,104],
+    "lia_1":[293,3279,71,104],
+    "lia_back":[366,3279,62,104],
+    "tree_deserto_3":[430,3279,62,104],
+    "sk_g_enfaixado_back_walk_3":[494,3279,132,103],
+    "sk_g_enfaixado_back_walk_7":[628,3279,136,103],
+    "sk_g_enfaixado_side_walk_6":[766,3279,144,103],
+    "sk_g_bravo_side_walk_5":[912,3279,147,103],
+    "sk_g_bravo_side_walk_6":[1061,3279,139,103],
+    "sk_g_guardiao_front_walk_2":[1202,3279,135,103],
+    "sk_g_guardiao_front_walk_6":[1339,3279,132,103],
+    "sk_g_guardiao_side_idle":[1473,3279,135,103],
+    "sk_g_guardiao_side_walk_5":[1610,3279,136,103],
+    "sk_g_guardiao_golpe_side_0":[1748,3279,151,103],
+    "sk_g_guardiao_golpe_side_2":[1901,3279,134,103],
+    "sk_g_guardiao_golpe_side_3":[2037,3279,144,103],
+    "sk_g_guardiao_golpe_side_4":[2183,3279,133,103],
+    "sk_g_guardiao_swing_gesto_um_side":[2318,3279,133,103],
+    "sk_g_sentinela_back_walk_4":[2453,3279,131,103],
+    "sk_g_retalhos_back_walk_0":[2586,3279,131,103],
+    "sk_g_ava_side_idle":[2719,3279,134,103],
+    "sk_g_ava_side_walk_0":[2855,3279,134,103],
+    "sk_g_ava_golpe_side_0":[2991,3279,133,103],
+    "sk_g_ava_golpe_side_1":[3126,3279,134,103],
+    "sk_g_ava_golpe_side_2":[3262,3279,148,103],
+    "sk_g_ava_golpe_side_3":[3412,3279,156,103],
+    "sk_g_ava_golpe_side_4":[3570,3279,148,103],
+    "sk_g_ava_swing_gesto_um_side":[3720,3279,134,103],
+    "mob_saqueador_side_walk_6":[3856,3279,132,103],
+    "mob_fugitivo_back_walk_3":[0,3385,133,103],
+    "mob_fugitivo_back_walk_7":[135,3385,133,103],
+    "mob_construtor_side_walk_5":[270,3385,132,103],
+    "mob_construtor_side_walk_6":[404,3385,131,103],
+    "menino_negro_front_walk_0":[537,3385,129,103],
+    "menino_negro_front_walk_1":[668,3385,132,103],
+    "menino_negro_front_walk_5":[802,3385,130,103],
+    "menino_negro_back_idle":[934,3385,131,103],
+    "menino_negro_golpe_back_0":[1067,3385,133,103],
+    "menino_negro_golpe_back_1":[1202,3385,131,103],
+    "menino_negro_golpe_back_2":[1335,3385,133,103],
+    "menino_negro_golpe_back_3":[1470,3385,133,103],
+    "menino_negro_golpe_back_4":[1605,3385,133,103],
+    "menino_negro_swing_gesto_um_back":[1740,3385,130,103],
+    "menino_negro_side_walk_5":[1872,3385,129,103],
+    "menino_negro_side_walk_6":[2003,3385,130,103],
+    "menino_negro_side_walk_7":[2135,3385,133,103],
+    "menina_ruiva_front_walk_0":[2270,3385,127,103],
+    "menina_ruiva_front_walk_3":[2399,3385,127,103],
+    "menina_ruiva_front_walk_4":[2528,3385,126,103],
+    "menina_ruiva_front_walk_5":[2656,3385,126,103],
+    "menina_ruiva_back_walk_3":[2784,3385,127,103],
+    "menina_ruiva_back_walk_7":[2913,3385,126,103],
+    "menina_ruiva_side_walk_3":[3041,3385,130,103],
+    "menina_negra_front_walk_5":[3173,3385,128,103],
+    "menina_negra_front_walk_6":[3303,3385,130,103],
+    "menina_negra_front_walk_7":[3435,3385,130,103],
+    "menina_negra_back_walk_4":[3567,3385,130,103],
+    "menina_negra_side_walk_3":[3699,3385,128,103],
+    "bicho_back_2":[3829,3385,114,103],
+    "sk_g_enfaixado_back_walk_0":[3945,3385,136,102],
+    "sk_g_bravo_back_walk_4":[0,3490,133,102],
+    "sk_g_bravo_side_walk_3":[135,3490,131,102],
+    "sk_g_guardiao_back_walk_4":[268,3490,130,102],
+    "sk_g_guardiao_side_walk_6":[400,3490,135,102],
+    "sk_g_sentinela_side_walk_3":[537,3490,135,102],
+    "sk_g_retalhos_back_walk_4":[674,3490,134,102],
+    "sk_g_ava_side_walk_1":[810,3490,149,102],
+    "mob_saqueador_side_walk_3":[961,3490,139,102],
+    "mob_fugitivo_front_walk_7":[1102,3490,133,102],
+    "mob_construtor_back_walk_4":[1237,3490,129,102],
+    "mob_robo_scout_side_walk_2":[1368,3490,138,102],
+    "mob_robo_scout_side_walk_3":[1508,3490,142,102],
+    "menino_negro_back_walk_4":[1652,3490,131,102],
+    "menina_ruiva_front_walk_1":[1785,3490,127,102],
+    "menina_ruiva_front_walk_2":[1914,3490,128,102],
+    "menina_ruiva_front_walk_6":[2044,3490,127,102],
+    "menina_ruiva_front_walk_7":[2173,3490,127,102],
+    "menina_ruiva_back_walk_2":[2302,3490,127,102],
+    "menina_ruiva_back_walk_5":[2431,3490,126,102],
+    "menina_ruiva_back_walk_6":[2559,3490,126,102],
+    "menina_ruiva_side_walk_7":[2687,3490,133,102],
+    "menina_negra_front_walk_0":[2822,3490,128,102],
+    "menina_negra_front_walk_1":[2952,3490,129,102],
+    "menina_negra_front_walk_2":[3083,3490,132,102],
+    "bicho_back_0":[3217,3490,113,102],
+    "faz_plantar_0":[3332,3490,93,102],
+    "faz_plantar_1":[3427,3490,93,102],
+    "coelhao_pose_5":[3522,3490,88,102],
+    "sk_g_enfaixado_back_walk_4":[3612,3490,134,101],
+    "sk_g_guardiao_side_walk_3":[3748,3490,130,101],
+    "mob_fugitivo_front_walk_3":[3880,3490,134,101],
+    "mob_fugitivo_side_walk_1":[0,3594,135,101],
+    "mob_fugitivo_side_walk_2":[137,3594,136,101],
+    "mob_fugitivo_side_walk_4":[275,3594,146,101],
+    "mob_robo_scout_front_walk_4":[423,3594,136,101],
+    "mob_robo_scout_back_walk_3":[561,3594,134,101],
+    "mob_robo_scout_back_walk_7":[697,3594,135,101],
+    "menina_ruiva_back_walk_1":[834,3594,127,101],
+    "menina_ruiva_side_walk_5":[963,3594,136,101],
+    "tree_campos":[1101,3594,80,100],
+    "sk_g_enfaixado_side_walk_3":[1183,3594,133,100],
+    "sk_g_ava_side_walk_2":[1318,3594,147,100],
+    "sk_g_ava_side_walk_4":[1467,3594,132,100],
+    "sk_g_ava_side_walk_7":[1601,3594,138,100],
+    "mob_fugitivo_side_walk_3":[1741,3594,141,100],
+    "menina_ruiva_back_idle":[1884,3594,127,100],
+    "menina_ruiva_back_walk_0":[2013,3594,126,100],
+    "menina_ruiva_golpe_back_0":[2141,3594,127,100],
+    "menina_ruiva_golpe_back_1":[2270,3594,127,100],
+    "menina_ruiva_golpe_back_2":[2399,3594,127,100],
+    "menina_ruiva_golpe_back_3":[2528,3594,127,100],
+    "menina_ruiva_golpe_back_4":[2657,3594,127,100],
+    "menina_ruiva_swing_gesto_um_back":[2786,3594,129,100],
+    "menina_ruiva_side_walk_6":[2917,3594,137,100],
+    "galinha_back_0":[3056,3594,59,100],
+    "galinha_back_1":[3117,3594,57,100],
+    "galinha_back_2":[3176,3594,59,100],
+    "galinha_back_3":[3237,3594,56,100],
+    "coelho_back_0":[3295,3594,42,100],
+    "coelho_back_1":[3339,3594,42,100],
+    "coelho_back_2":[3383,3594,42,100],
+    "coelho_back_3":[3427,3594,42,100],
+    "pintinho_front_0":[3471,3594,72,100],
+    "raposa_front_0":[3545,3594,76,100],
+    "raposa_front_1":[3623,3594,78,100],
+    "raposa_front_2":[3703,3594,78,100],
+    "raposa_front_3":[3783,3594,73,100],
+    "raposa_back_0":[3858,3594,51,100],
+    "raposa_back_1":[3911,3594,54,100],
+    "raposa_back_2":[3967,3594,51,100],
+    "raposa_back_3":[4020,3594,56,100],
+    "cervo_front_0":[0,3697,52,100],
+    "cervo_front_1":[54,3697,52,100],
+    "cervo_front_2":[108,3697,54,100],
+    "cervo_front_3":[164,3697,52,100],
+    "cervo_back_0":[218,3697,52,100],
+    "cervo_back_1":[272,3697,52,100],
+    "cervo_back_2":[326,3697,52,100],
+    "cervo_back_3":[380,3697,52,100],
+    "cervo_side_0":[434,3697,102,100],
+    "cervo_side_1":[538,3697,107,100],
+    "cervo_side_2":[647,3697,107,100],
+    "cervo_side_3":[756,3697,107,100],
+    "pavao_back_0":[865,3697,37,100],
+    "javali_back_2":[904,3697,60,100],
+    "robo_front_0":[966,3697,60,100],
+    "robo_front_1":[1028,3697,60,100],
+    "robo_front_2":[1090,3697,61,100],
+    "robo_front_3":[1153,3697,60,100],
+    "robo_front_4":[1215,3697,61,100],
+    "robo_front_5":[1278,3697,60,100],
+    "anel_cura":[1340,3697,160,100],
+    "faz_front_0":[1502,3697,66,100],
+    "faz_front_1":[1570,3697,66,100],
+    "faz_front_2":[1638,3697,66,100],
+    "faz_front_3":[1706,3697,66,100],
+    "sk_g_ava_side_walk_5":[1774,3697,145,99],
+    "mob_fugitivo_back_walk_2":[1921,3697,135,99],
+    "menina_ruiva_back_walk_4":[2058,3697,127,99],
+    "galinha_front_0":[2187,3697,66,99],
+    "galinha_front_1":[2255,3697,69,99],
+    "galinha_front_2":[2326,3697,69,99],
+    "galinha_front_3":[2397,3697,69,99],
+    "pavao_fan_0":[2468,3697,116,99],
+    "pavao_fan_1":[2586,3697,117,99],
+    "pavao_fan_2":[2705,3697,116,99],
+    "pavao_fan_3":[2823,3697,116,99],
+    "javali_back_0":[2941,3697,60,99],
+    "javali_back_1":[3003,3697,59,99],
+    "javali_back_3":[3064,3697,60,99],
+    "faz_colher_0":[3126,3697,99,99],
+    "faz_colher_1":[3227,3697,87,99],
+    "sk_g_ava_back_idle":[3316,3697,127,98],
+    "sk_g_ava_golpe_back_0":[3445,3697,127,98],
+    "sk_g_ava_golpe_back_1":[3574,3697,127,98],
+    "sk_g_ava_golpe_back_2":[3703,3697,127,98],
+    "sk_g_ava_golpe_back_3":[3832,3697,127,98],
+    "sk_g_ava_golpe_back_4":[3961,3697,127,98],
+    "sk_g_ava_swing_gesto_um_back":[0,3799,133,98],
+    "sk_g_ava_swing_gesto_dois_back":[135,3799,126,98],
+    "sk_g_ava_side_walk_6":[263,3799,146,98],
+    "javali_front_0":[411,3799,60,98],
+    "javali_front_1":[473,3799,59,98],
+    "javali_front_2":[534,3799,68,98],
+    "javali_front_3":[604,3799,60,98],
+    "robo_back_0":[666,3799,58,98],
+    "robo_back_1":[726,3799,58,98],
+    "robo_back_2":[786,3799,58,98],
+    "robo_back_3":[846,3799,58,98],
+    "robo_back_4":[906,3799,58,98],
+    "robo_back_5":[966,3799,57,98],
+    "robo_side_0":[1025,3799,56,98],
+    "robo_side_1":[1083,3799,56,98],
+    "robo_side_2":[1141,3799,57,98],
+    "robo_side_3":[1200,3799,57,98],
+    "robo_side_4":[1259,3799,56,98],
+    "robo_side_5":[1317,3799,56,98],
+    "bicho_atk":[1375,3799,195,98],
+    "faz_side_0":[1572,3799,68,98],
+    "faz_side_1":[1642,3799,66,98],
+    "faz_side_2":[1710,3799,66,98],
+    "faz_side_3":[1778,3799,68,98],
+    "faz_side_5":[1848,3799,68,98],
+    "mob_robo_scout_back_walk_2":[1918,3799,136,97],
+    "pintinho_back_1":[2056,3799,69,97],
+    "pintinho_back_3":[2127,3799,69,97],
+    "bicho_dead":[2198,3799,265,97],
+    "faz_side_4":[2465,3799,68,97],
+    "faz_feliz":[2535,3799,92,97],
+    "noel_pose_5":[2629,3799,67,97],
+    "sk_g_ava_back_walk_1":[2698,3799,128,96],
+    "mob_fugitivo_front_walk_0":[2828,3799,133,96],
+    "mob_fugitivo_back_walk_6":[2963,3799,137,96],
+    "pavao_back_1":[3102,3799,43,96],
+    "pavao_back_2":[3147,3799,37,96],
+    "pavao_back_3":[3186,3799,48,96],
+    "arco_mao":[3236,3799,90,96],
+    "sk_g_ava_back_walk_2":[3328,3799,129,95],
+    "sk_g_ava_back_walk_5":[3459,3799,127,95],
+    "sk_g_ava_back_walk_6":[3588,3799,128,95],
+    "sk_g_ava_side_walk_3":[3718,3799,136,95],
+    "mob_fugitivo_front_walk_4":[3856,3799,136,95],
+    "mob_robo_scout_back_walk_6":[0,3899,137,95],
+    "pintinho_back_2":[139,3899,79,95],
+    "robo_dig_3":[220,3899,72,95],
+    "anel_explosao":[294,3899,160,95],
+    "faz_back_0":[456,3899,64,95],
+    "faz_back_1":[522,3899,64,95],
+    "faz_sentado":[588,3899,70,95],
+    "bush_0_neve":[660,3899,100,95],
+    "sk_g_ava_back_walk_0":[762,3899,127,94],
+    "pintinho_back_0":[891,3899,78,94],
+    "faz_back_3":[971,3899,63,94],
+    "faz_back_4":[1036,3899,64,94],
+    "faz_back_5":[1102,3899,64,94],
+    "coelhao_pose_2":[1168,3899,67,94],
+    "sk_g_ava_back_walk_3":[1237,3899,127,93],
+    "sk_g_ava_back_walk_7":[1366,3899,128,93],
+    "faz_back_2":[1496,3899,63,93],
+    "muda_neve":[1561,3899,48,93],
+    "sk_g_ava_back_walk_4":[1611,3899,127,91],
+    "pavao_front_2":[1740,3899,37,91],
+    "tree_pantano":[1779,3899,80,90],
+    "pavao_front_0":[1861,3899,37,90],
+    "fx_magia_hit_2":[1900,3899,88,90],
+    "coelho_front_0":[1990,3899,41,89],
+    "coelho_front_1":[2033,3899,44,89],
+    "coelho_front_2":[2079,3899,42,89],
+    "coelho_front_3":[2123,3899,39,89],
+    "pavao_front_1":[2164,3899,37,89],
+    "coelho_side_0":[2203,3899,84,86],
+    "coelho_side_1":[2289,3899,84,86],
+    "coelho_side_3":[2375,3899,84,86],
+    "galinha_side_0":[2461,3899,85,85],
+    "galinha_side_1":[2548,3899,87,85],
+    "galinha_side_2":[2637,3899,88,85],
+    "galinha_side_3":[2727,3899,88,85],
+    "muda_montanhas":[2817,3899,46,85],
+    "toco_neve":[2865,3899,73,85],
+    "bush_0_pantano":[2940,3899,82,84],
+    "tree_montanhas":[3024,3899,80,83],
+    "javali_side_0":[3106,3899,127,83],
+    "javali_side_1":[3235,3899,126,83],
+    "javali_side_2":[3363,3899,128,83],
+    "javali_side_3":[3493,3899,128,83],
+    "bicho_dig_2":[3623,3899,178,83],
+    "coelho_side_2":[3803,3899,84,81],
+    "pavao_side_0":[3889,3899,100,81],
+    "pavao_side_1":[3991,3899,103,79],
+    "pavao_side_3":[0,3996,103,79],
+    "bush_0_montanhas":[105,3996,84,79],
+    "pavao_side_2":[191,3996,104,78],
+    "bush_1_pantano":[297,3996,72,78],
+    "bush_1_neve":[371,3996,76,77],
+    "wall":[449,3996,61,76],
+    "bicho_side_0":[512,3996,197,74],
+    "bicho_side_3":[711,3996,197,74],
+    "muda_pantano":[910,3996,40,74],
+    "bush_1_montanhas":[952,3996,76,74],
+    "bicho_side_2":[1030,3996,197,73],
+    "bicho_side_1":[1229,3996,197,72],
+    "bicho_side_4":[1428,3996,197,72],
+    "fx_corte_2":[1627,3996,60,72],
+    "fx_corte_laranja":[1689,3996,71,72],
+    "fx_corte_roxo":[1762,3996,72,72],
+    "fx_corte_dourado":[1836,3996,70,72],
+    "fx_faisca_2":[1908,3996,71,72],
+    "fx_lascas":[1981,3996,72,72],
+    "fx_estrela":[2055,3996,72,72],
+    "fx_rastro_flecha":[2129,3996,72,72],
+    "fx_rastro_fogo":[2203,3996,72,72],
+    "fx_rastro_magia":[2277,3996,72,72],
+    "fx_magia_hit_1":[2351,3996,70,72],
+    "fx_fogo_1":[2423,3996,59,72],
+    "fx_tontura_0":[2484,3996,72,72],
+    "fx_tontura_1":[2558,3996,72,72],
+    "toco_pantano":[2632,3996,76,72],
+    "muda_deserto":[2710,3996,44,72],
+    "raposa_side_0":[2756,3996,114,71],
+    "raposa_side_1":[2872,3996,114,71],
+    "raposa_side_2":[2988,3996,116,71],
+    "raposa_side_3":[3106,3996,114,71],
+    "magia_estouro":[3222,3996,72,71],
+    "muda_campos":[3296,3996,38,71],
+    "bush_1_floresta":[3336,3996,62,71],
+    "bush_0_campos":[3400,3996,70,70],
+    "bush_0_deserto":[3472,3996,66,70],
+    "bush_1_deserto":[3540,3996,80,68],
+    "bush_0_floresta":[3622,3996,70,67],
+    "toco_montanhas":[3694,3996,76,67],
+    "fx_poeira":[3772,3996,72,66],
+    "fx_fogo_2":[3846,3996,56,66],
+    "ground_campos_0":[3904,3996,64,64],
+    "ground_campos_1":[3970,3996,64,64],
+    "ground_campos_2":[0,4077,64,64],
+    "ground_campos_3":[66,4077,64,64],
+    "ground_floresta_0":[132,4077,64,64],
+    "ground_floresta_1":[198,4077,64,64],
+    "ground_floresta_2":[264,4077,64,64],
+    "ground_floresta_3":[330,4077,64,64],
+    "ground_pantano_0":[396,4077,64,64],
+    "ground_pantano_1":[462,4077,64,64],
+    "ground_pantano_2":[528,4077,64,64],
+    "ground_pantano_3":[594,4077,64,64],
+    "ground_deserto_0":[660,4077,64,64],
+    "ground_deserto_1":[726,4077,64,64],
+    "ground_deserto_2":[792,4077,64,64],
+    "ground_deserto_3":[858,4077,64,64],
+    "ground_montanhas_0":[924,4077,64,64],
+    "ground_montanhas_1":[990,4077,64,64],
+    "ground_montanhas_2":[1056,4077,64,64],
+    "ground_montanhas_3":[1122,4077,64,64],
+    "ground_neve_0":[1188,4077,64,64],
+    "ground_neve_1":[1254,4077,64,64],
+    "ground_neve_2":[1320,4077,64,64],
+    "ground_neve_3":[1386,4077,64,64],
+    "tilled_0":[1452,4077,64,64],
+    "tilled_1":[1518,4077,64,64],
+    "tilled_2":[1584,4077,64,64],
+    "tilled_3":[1650,4077,64,64],
+    "water_0":[1716,4077,64,64],
+    "water_1":[1782,4077,64,64],
+    "water_2":[1848,4077,64,64],
+    "dirt":[1914,4077,64,64],
+    "stone":[1980,4077,64,64],
+    "coal":[2046,4077,64,64],
+    "bronze":[2112,4077,64,64],
+    "iron":[2178,4077,64,64],
+    "silver":[2244,4077,64,64],
+    "gold":[2310,4077,64,64],
+    "oil":[2376,4077,64,64],
+    "diamond":[2442,4077,64,64],
+    "floor_0":[2508,4077,64,64],
+    "floor_1":[2574,4077,64,64],
+    "floor_2":[2640,4077,64,64],
+    "floor_3":[2706,4077,64,64],
+    "toco_deserto":[2772,4077,66,64],
+    "wheat_3":[2840,4077,64,63],
+    "coelhao_front_1":[2906,4077,67,63],
+    "deco_18":[2975,4077,50,63],
+    "coelhao_front_2":[3027,4077,67,62],
+    "muda_floresta":[3096,4077,37,62],
+    "deco_6":[3135,4077,61,61],
+    "livro_brilho":[3198,4077,64,60],
+    "bush_1_campos":[3264,4077,69,60],
+    "deco_7":[3335,4077,50,59],
+    "wheat_2":[3387,4077,64,58],
+    "fx_corte_1":[3453,4077,57,58],
+    "rock_montanhas":[3512,4077,58,56],
+    "icon_espada":[3572,4077,54,56],
+    "icon_muro":[3628,4077,53,56],
+    "icon_enxada":[3683,4077,46,56],
+    "icon_colheita":[3731,4077,41,56],
+    "icon_petroleo":[3774,4077,36,56],
+    "icon_arco":[3812,4077,53,56],
+    "icon_flechas":[3867,4077,53,56],
+    "icon_cetro":[3922,4077,54,56],
+    "icon_livro":[3978,4077,48,56],
+    "fx_faisca_1":[4028,4077,57,56],
+    "icon_carvao":[0,4143,56,55],
+    "helmet_front":[58,4143,64,55],
+    "fx_fogo_0":[124,4143,42,55],
+    "icon_picareta":[168,4143,56,54],
+    "icon_rede":[226,4143,56,54],
+    "helmet_back":[284,4143,64,54],
+    "pintinho_side_1":[350,4143,43,53],
+    "pintinho_side_3":[395,4143,43,53],
+    "icon_machado":[440,4143,56,53],
+    "pintinho_side_0":[498,4143,43,52],
+    "pintinho_side_2":[543,4143,43,52],
+    "toco_floresta":[588,4143,58,52],
+    "rock_floresta":[648,4143,60,51],
+    "rock_deserto":[710,4143,60,51],
+    "hole":[772,4143,64,51],
+    "spring":[838,4143,64,50],
+    "magia_voo":[904,4143,56,50],
+    "wheat_1":[962,4143,64,49],
+    "deco_17":[1028,4143,58,49],
+    "icon_diamante":[1088,4143,56,48],
+    "deco_23":[1146,4143,49,48],
+    "icon_pedra":[1197,4143,56,47],
+    "deco_8":[1255,4143,47,47],
+    "icon_sementes":[1304,4143,56,46],
+    "deco_11":[1362,4143,59,46],
+    "helmet_side":[1423,4143,64,45],
+    "deco_0":[1489,4143,43,45],
+    "deco_2":[1534,4143,40,45],
+    "deco_4":[1576,4143,41,45],
+    "deco_5":[1619,4143,41,45],
+    "deco_10":[1662,4143,58,45],
+    "deco_22":[1722,4143,31,45],
+    "rock_neve":[1755,4143,60,44],
+    "icon_madeira":[1817,4143,56,44],
+    "livro_mao":[1875,4143,64,44],
+    "deco_1":[1941,4143,43,44],
+    "rock_campos":[1986,4143,60,42],
+    "fist_sk_g_enfaixado":[2048,4143,40,42],
+    "fist_sk_g_bravo":[2090,4143,40,42],
+    "fist_sk_g_po":[2132,4143,40,42],
+    "fist_sk_g_guardiao":[2174,4143,40,42],
+    "fist_sk_g_andarilho":[2216,4143,40,42],
+    "fist_sk_g_sentinela":[2258,4143,40,42],
+    "fist_sk_g_retalhos":[2300,4143,40,42],
+    "fist_sk_g_ava":[2342,4143,40,42],
+    "fist_mob_saqueador":[2384,4143,40,42],
+    "fist_mob_chefe":[2426,4143,40,42],
+    "fist_mob_fugitivo":[2468,4143,40,42],
+    "fist_mob_construtor":[2510,4143,40,42],
+    "fist_mob_tiao":[2552,4143,40,42],
+    "fist_mob_robo_scout":[2594,4143,40,42],
+    "fist_mob_robo_sentinela":[2636,4143,40,42],
+    "fist_menino":[2678,4143,40,42],
+    "fist_menino_negro":[2720,4143,40,42],
+    "fist_menina_ruiva":[2762,4143,40,42],
+    "fist_menina_negra":[2804,4143,40,42],
+    "deco_9":[2846,4143,47,42],
+    "saq_dead":[2895,4143,103,41],
+    "fx_impacto":[3000,4143,72,41],
+    "fumaca_verde":[3074,4143,40,40],
+    "fumaca_vermelha":[3116,4143,40,40],
+    "fumaca_dourada":[3158,4143,40,40],
+    "fumaca_roxa":[3200,4143,40,40],
+    "fx_magia_hit_0":[3242,4143,37,40],
+    "toco_campos":[3281,4143,50,40],
+    "deco_16":[3333,4143,59,40],
+    "deco_20":[3394,4143,64,40],
+    "icon_carne":[3460,4143,56,39],
+    "rock_pantano":[3518,4143,60,38],
+    "wheat_0":[3580,4143,64,38],
+    "deco_14":[3646,4143,40,38],
+    "icon_bronze":[3688,4143,56,37],
+    "icon_ferro":[3746,4143,56,37],
+    "icon_ouro":[3804,4143,56,37],
+    "icon_prata":[3862,4143,56,37],
+    "deco_3":[3920,4143,41,37],
+    "deco_21":[3963,4143,56,37],
+    "deco_15":[4021,4143,30,36],
+    "deco_12":[0,4200,44,28],
+    "deco_13":[46,4200,37,24],
+    "deco_19":[85,4200,35,24],
+    "fx_corte_0":[122,4200,17,22],
+    "fx_faisca_0":[141,4200,21,21],
+    "flecha_voo":[164,4200,64,13],
     "skin_sk_g_enfaixado":[234,223,224],
     "skin_sk_g_bravo":[78,64,64],
     "skin_sk_g_po":[111,86,79],
@@ -3918,6 +4021,8 @@
     "skin_mob_fugitivo":[225,169,148],
     "skin_mob_construtor":[255,187,166],
     "skin_mob_tiao":[212,153,131],
+    "skin_mob_robo_scout":[121,100,81],
+    "skin_mob_robo_sentinela":[104,79,68],
     "skin_menino":[76,58,74],
     "skin_menino_negro":[109,107,107],
     "skin_menina_ruiva":[75,124,79],
@@ -4273,6 +4378,60 @@
     "hand_mob_tiao_side_walk_5":[54,75],
     "hand_mob_tiao_side_walk_6":[51,73],
     "hand_mob_tiao_side_walk_7":[60,77],
+    "hand_mob_robo_scout_front_idle":[45,72],
+    "hand_mob_robo_scout_front_walk_0":[52,61],
+    "hand_mob_robo_scout_front_walk_1":[58,56],
+    "hand_mob_robo_scout_front_walk_2":[55,64],
+    "hand_mob_robo_scout_front_walk_3":[44,67],
+    "hand_mob_robo_scout_front_walk_4":[44,53],
+    "hand_mob_robo_scout_front_walk_5":[43,51],
+    "hand_mob_robo_scout_front_walk_6":[45,61],
+    "hand_mob_robo_scout_front_walk_7":[45,62],
+    "hand_mob_robo_scout_back_idle":[90,69],
+    "hand_mob_robo_scout_back_walk_0":[83,38],
+    "hand_mob_robo_scout_back_walk_1":[76,35],
+    "hand_mob_robo_scout_back_walk_2":[76,45],
+    "hand_mob_robo_scout_back_walk_3":[87,63],
+    "hand_mob_robo_scout_back_walk_4":[90,65],
+    "hand_mob_robo_scout_back_walk_5":[90,66],
+    "hand_mob_robo_scout_back_walk_6":[89,63],
+    "hand_mob_robo_scout_back_walk_7":[88,51],
+    "hand_mob_robo_scout_side_idle":[70,85],
+    "hand_mob_robo_scout_side_walk_0":[99,58],
+    "hand_mob_robo_scout_side_walk_1":[95,51],
+    "hand_mob_robo_scout_side_walk_2":[94,63],
+    "hand_mob_robo_scout_side_walk_3":[70,78],
+    "hand_mob_robo_scout_side_walk_4":[54,71],
+    "hand_mob_robo_scout_side_walk_5":[51,69],
+    "hand_mob_robo_scout_side_walk_6":[71,74],
+    "hand_mob_robo_scout_side_walk_7":[86,71],
+    "hand_mob_robo_sentinela_front_idle":[40,72],
+    "hand_mob_robo_sentinela_front_walk_0":[43,79],
+    "hand_mob_robo_sentinela_front_walk_1":[46,79],
+    "hand_mob_robo_sentinela_front_walk_2":[46,79],
+    "hand_mob_robo_sentinela_front_walk_3":[43,81],
+    "hand_mob_robo_sentinela_front_walk_4":[44,78],
+    "hand_mob_robo_sentinela_front_walk_5":[45,71],
+    "hand_mob_robo_sentinela_front_walk_6":[47,67],
+    "hand_mob_robo_sentinela_front_walk_7":[44,72],
+    "hand_mob_robo_sentinela_back_idle":[94,78],
+    "hand_mob_robo_sentinela_back_walk_0":[89,75],
+    "hand_mob_robo_sentinela_back_walk_1":[89,64],
+    "hand_mob_robo_sentinela_back_walk_2":[90,61],
+    "hand_mob_robo_sentinela_back_walk_3":[91,68],
+    "hand_mob_robo_sentinela_back_walk_4":[91,77],
+    "hand_mob_robo_sentinela_back_walk_5":[88,85],
+    "hand_mob_robo_sentinela_back_walk_6":[86,88],
+    "hand_mob_robo_sentinela_back_walk_7":[88,85],
+    "hand_mob_robo_sentinela_side_idle":[63,91],
+    "hand_mob_robo_sentinela_side_walk_0":[67,88],
+    "hand_mob_robo_sentinela_side_walk_1":[79,83],
+    "hand_mob_robo_sentinela_side_walk_2":[83,81],
+    "hand_mob_robo_sentinela_side_walk_3":[81,88],
+    "hand_mob_robo_sentinela_side_walk_4":[61,89],
+    "hand_mob_robo_sentinela_side_walk_5":[47,87],
+    "hand_mob_robo_sentinela_side_walk_6":[43,86],
+    "hand_mob_robo_sentinela_side_walk_7":[54,88],
     "hand_menino_front_idle":[47,68],
     "hand_menino_front_walk_0":[51,75],
     "hand_menino_front_walk_1":[53,74],
@@ -4694,6 +4853,8 @@
     "d3_mob_fugitivo":1,
     "d3_mob_construtor":1,
     "d3_mob_tiao":1,
+    "d3_mob_robo_scout":1,
+    "d3_mob_robo_sentinela":1,
     "d3_menino":1,
     "hand_menino_golpe_front_0":[49,11],
     "hand_menino_golpe_front_1":[48,10],
@@ -5217,6 +5378,60 @@
     "head_mob_tiao_side_walk_5":[72,0,31],
     "head_mob_tiao_side_walk_6":[71,0,31],
     "head_mob_tiao_side_walk_7":[73,0,32],
+    "head_mob_robo_scout_front_idle":[64,1,31],
+    "head_mob_robo_scout_front_walk_0":[66,1,22],
+    "head_mob_robo_scout_front_walk_1":[68,1,22],
+    "head_mob_robo_scout_front_walk_2":[68,2,24],
+    "head_mob_robo_scout_front_walk_3":[66,2,23],
+    "head_mob_robo_scout_front_walk_4":[68,1,23],
+    "head_mob_robo_scout_front_walk_5":[66,0,22],
+    "head_mob_robo_scout_front_walk_6":[69,1,22],
+    "head_mob_robo_scout_front_walk_7":[65,1,22],
+    "head_mob_robo_scout_back_idle":[67,1,24],
+    "head_mob_robo_scout_back_walk_0":[70,1,24],
+    "head_mob_robo_scout_back_walk_1":[66,1,25],
+    "head_mob_robo_scout_back_walk_2":[67,1,24],
+    "head_mob_robo_scout_back_walk_3":[67,0,24],
+    "head_mob_robo_scout_back_walk_4":[67,1,24],
+    "head_mob_robo_scout_back_walk_5":[68,1,24],
+    "head_mob_robo_scout_back_walk_6":[68,1,24],
+    "head_mob_robo_scout_back_walk_7":[69,1,25],
+    "head_mob_robo_scout_side_idle":[71,0,21],
+    "head_mob_robo_scout_side_walk_0":[75,0,22],
+    "head_mob_robo_scout_side_walk_1":[72,0,21],
+    "head_mob_robo_scout_side_walk_2":[77,0,22],
+    "head_mob_robo_scout_side_walk_3":[74,0,21],
+    "head_mob_robo_scout_side_walk_4":[75,0,22],
+    "head_mob_robo_scout_side_walk_5":[74,0,22],
+    "head_mob_robo_scout_side_walk_6":[78,0,22],
+    "head_mob_robo_scout_side_walk_7":[75,0,22],
+    "head_mob_robo_sentinela_front_idle":[66,0,24],
+    "head_mob_robo_sentinela_front_walk_0":[65,0,24],
+    "head_mob_robo_sentinela_front_walk_1":[69,0,23],
+    "head_mob_robo_sentinela_front_walk_2":[72,0,23],
+    "head_mob_robo_sentinela_front_walk_3":[71,0,24],
+    "head_mob_robo_sentinela_front_walk_4":[70,0,23],
+    "head_mob_robo_sentinela_front_walk_5":[64,0,23],
+    "head_mob_robo_sentinela_front_walk_6":[63,0,23],
+    "head_mob_robo_sentinela_front_walk_7":[63,0,23],
+    "head_mob_robo_sentinela_back_idle":[66,0,23],
+    "head_mob_robo_sentinela_back_walk_0":[68,0,24],
+    "head_mob_robo_sentinela_back_walk_1":[64,0,24],
+    "head_mob_robo_sentinela_back_walk_2":[62,0,25],
+    "head_mob_robo_sentinela_back_walk_3":[62,0,25],
+    "head_mob_robo_sentinela_back_walk_4":[65,0,24],
+    "head_mob_robo_sentinela_back_walk_5":[67,0,24],
+    "head_mob_robo_sentinela_back_walk_6":[69,0,23],
+    "head_mob_robo_sentinela_back_walk_7":[67,0,23],
+    "head_mob_robo_sentinela_side_idle":[68,0,23],
+    "head_mob_robo_sentinela_side_walk_0":[68,0,24],
+    "head_mob_robo_sentinela_side_walk_1":[67,0,25],
+    "head_mob_robo_sentinela_side_walk_2":[66,0,25],
+    "head_mob_robo_sentinela_side_walk_3":[72,0,24],
+    "head_mob_robo_sentinela_side_walk_4":[66,0,25],
+    "head_mob_robo_sentinela_side_walk_5":[66,0,24],
+    "head_mob_robo_sentinela_side_walk_6":[66,0,24],
+    "head_mob_robo_sentinela_side_walk_7":[68,0,24],
     "head_menino_front_idle":[66,0,31],
     "head_menino_front_walk_0":[65,0,32],
     "head_menino_front_walk_1":[70,0,32],
@@ -5350,8 +5565,8 @@
     img.onload = () => { art = img; buildIconURLs(); invDirty = true; };
     // se a pasta assets não foi enviada, tenta o arquivo solto na raiz do site
     // nome com versão: cada atualização das imagens usa um arquivo novo (evita misturar com o antigo e o cache)
-    img.onerror = () => { const n = +(img.dataset.tent || 0); img.dataset.tent = n + 1; const alt = ['atlas-v73.webp', 'assets/atlas.webp', 'atlas.webp'][n]; if (alt) img.src = alt; };
-    img.src = window.TERRA_ATLAS || 'assets/atlas-v73.webp';
+    img.onerror = () => { const n = +(img.dataset.tent || 0); img.dataset.tent = n + 1; const alt = ['atlas-v74.webp', 'assets/atlas.webp', 'atlas.webp'][n]; if (alt) img.src = alt; };
+    img.src = window.TERRA_ATLAS || 'assets/atlas-v74.webp';
   })();
   function artRect(name) { return art && ATLAS[name]; }
   // Segundo atlas: muros, torres, casas, fortalezas e móveis (tools/build_structures.py)
@@ -5359,186 +5574,208 @@
     "forte_muralha_chao":[0,0,760,651],
     "forte_muralha_fundo":[762,0,760,651],
     "forte_muralha_frente":[1524,0,760,651],
-    "forte_forte_cidade_fundo":[2286,0,760,384],
-    "forte_forte_cidade_frente":[3048,0,760,384],
-    "forte_colonia_fundo":[0,653,760,378],
-    "forte_colonia_frente":[762,653,760,378],
-    "forte_forte_fundo":[1524,653,760,354],
-    "forte_forte_frente":[2286,653,760,354],
-    "forte_campo_fundo":[3048,653,760,341],
-    "forte_campo_frente":[0,1033,760,341],
-    "casa_cabana":[762,1033,340,310],
-    "casa_cabana_chao":[1104,1033,340,310],
-    "banca_loja_r3":[1446,1033,368,310],
-    "banca_joias_r0":[1816,1033,339,309],
-    "banca_joias_r1":[2157,1033,339,307],
-    "casa_saloon":[2498,1033,340,304],
-    "casa_saloon_chao":[2840,1033,340,304],
-    "casa_pedra":[3182,1033,340,302],
-    "casa_pedra_chao":[3524,1033,340,302],
-    "banca_joias_r2":[0,1376,339,300],
-    "banca_joias_r3":[341,1376,339,297],
-    "casa_castelo":[682,1376,340,295],
-    "casa_castelo_chao":[1024,1376,340,295],
-    "banca_loja_r1":[1366,1376,368,292],
-    "banca_feira_r1":[1736,1376,337,291],
-    "banca_feira_r3":[2075,1376,337,290],
-    "casa_tribal":[2414,1376,340,289],
-    "casa_tribal_chao":[2756,1376,340,289],
-    "maq_petroleo_r3_2":[3098,1376,324,289],
-    "maq_petroleo_r3_0":[3424,1376,324,287],
-    "casa_castelo_dentro":[3750,1376,340,278],
-    "casa_castelo_dentro_chao":[0,1678,340,278],
-    "maq_petroleo_r3_1":[342,1678,324,277],
-    "casa_tribal_dentro":[668,1678,340,275],
-    "casa_tribal_dentro_chao":[1010,1678,340,275],
-    "casa_cabana_dentro":[1352,1678,340,274],
-    "casa_cabana_dentro_chao":[1694,1678,340,274],
-    "casa_saloon_dentro":[2036,1678,340,274],
-    "casa_saloon_dentro_chao":[2378,1678,340,274],
-    "casa_domo":[2720,1678,340,268],
-    "casa_domo_chao":[3062,1678,340,268],
-    "casa_domo_dentro":[3404,1678,340,268],
-    "casa_domo_dentro_chao":[3746,1678,340,268],
-    "maq_petroleo_r0_2":[0,1958,324,264],
-    "casa_pedra_dentro":[326,1958,340,260],
-    "casa_pedra_dentro_chao":[668,1958,340,260],
-    "maq_petroleo_r1_1":[1010,1958,324,259],
-    "banca_loja_r0":[1336,1958,368,257],
-    "banca_loja_r2":[1706,1958,368,257],
-    "banca_petroleo_r0":[2076,1958,315,257],
-    "banca_feira_r2":[2393,1958,337,256],
-    "maq_petroleo_r0_0":[2732,1958,324,251],
-    "maq_petroleo_r1_0":[3058,1958,324,250],
-    "banca_feira_r0":[3384,1958,337,244],
-    "maq_petroleo_r1_2":[3723,1958,324,240],
-    "maq_petroleo_r0_1":[0,2224,324,238],
-    "casa_choupana":[326,2224,300,234],
-    "banca_petroleo_r2":[628,2224,315,234],
-    "maq_petroleo_r2_2":[945,2224,324,233],
-    "banca_petroleo_r3":[1271,2224,315,231],
-    "muro_tijolo_vu":[1588,2224,96,231],
-    "maq_mina_r1_0":[1686,2224,287,227],
-    "maq_mina_r1_1":[1975,2224,287,227],
-    "maq_mina_r1_2":[2264,2224,287,227],
-    "muro_fortaleza_aberto_v":[2553,2224,96,223],
-    "muro_fortaleza_portao_v":[2651,2224,96,223],
-    "muro_madeira_aberto_v":[2749,2224,96,223],
-    "muro_madeira_portao_v":[2847,2224,96,223],
-    "muro_pedra_vu":[2945,2224,96,223],
-    "maq_petroleo_r2_0":[3043,2224,324,221],
-    "muro_madeira_vu":[3369,2224,96,217],
-    "banca_petroleo_r1":[3467,2224,315,216],
-    "muro_fortaleza_vu":[3784,2224,96,215],
-    "muro_tijolo_aberto_v":[3882,2224,96,208],
-    "muro_tijolo_portao_v":[3980,2224,96,208],
-    "maq_petroleo_r2_1":[0,2464,324,207],
-    "muro_fortaleza_vd":[326,2464,96,207],
-    "torre_madeira":[424,2464,119,203],
-    "torre_cristal":[545,2464,114,203],
-    "muro_ferro_aberto_v":[661,2464,96,202],
-    "muro_ferro_portao_v":[759,2464,96,202],
-    "muro_pedra_aberto_v":[857,2464,96,201],
-    "muro_pedra_portao_v":[955,2464,96,201],
-    "torre_pedra":[1053,2464,117,198],
-    "torre_balista_cristal":[1172,2464,113,196],
-    "torre_canhao":[1287,2464,137,188],
-    "torre_balista":[1426,2464,131,185],
-    "muro_madeira_vd":[1559,2464,96,185],
-    "maq_mina_r3_1":[1657,2464,287,180],
-    "muro_ferro_aberto":[1946,2464,144,180],
-    "muro_ferro_portao":[2092,2464,144,180],
-    "muro_ferro_vu":[2238,2464,96,180],
-    "muro_fortaleza_aberto":[2336,2464,144,180],
-    "muro_fortaleza_portao":[2482,2464,144,180],
-    "maq_mina_r3_0":[2628,2464,287,179],
-    "maq_mina_r3_2":[2917,2464,287,179],
-    "muro_tijolo_aberto":[3206,2464,144,178],
-    "muro_tijolo_portao":[3352,2464,144,178],
-    "muro_pedra_aberto":[3498,2464,144,171],
-    "muro_pedra_portao":[3644,2464,144,171],
-    "muro_madeira_aberto":[3790,2464,152,169],
-    "muro_madeira_portao":[0,2673,152,169],
-    "muro_pedra_vd":[154,2673,96,160],
-    "maq_mina_r0_0":[252,2673,287,158],
-    "maq_mina_r0_1":[541,2673,287,158],
-    "maq_mina_r0_2":[830,2673,287,158],
-    "iso_estante":[1119,2673,78,155],
-    "iso_cama_dossel":[1199,2673,138,154],
-    "forte_muralha":[1339,2673,180,154],
-    "muro_tijolo_vd":[1521,2673,96,153],
-    "muro_ferro_vd":[1619,2673,96,149],
-    "muro_tijolo_poste":[1717,2673,96,146],
-    "iso_guarda_roupa":[1815,2673,83,145],
-    "maq_mina_r2_0":[1900,2673,287,145],
-    "maq_mina_r2_1":[2189,2673,287,145],
-    "maq_mina_r2_2":[2478,2673,287,145],
-    "iso_geladeira":[2767,2673,82,143],
-    "muro_tijolo_h":[2851,2673,96,142],
-    "muro_ferro_poste":[2949,2673,96,140],
-    "muro_madeira_poste":[3047,2673,96,140],
-    "muro_madeira_h":[3145,2673,96,138],
-    "iso_espelho":[3243,2673,70,137],
-    "muro_fortaleza_h":[3315,2673,96,137],
-    "muro_ferro_h":[3413,2673,96,136],
-    "muro_fortaleza_poste":[3511,2673,96,136],
-    "catapulta_0":[3609,2673,150,135],
-    "catapulta_1":[3761,2673,150,135],
-    "catapulta_2":[3913,2673,150,135],
-    "catapulta_3":[0,2844,150,135],
-    "iso_luminaria":[152,2844,82,134],
-    "iso_aquario":[236,2844,88,134],
-    "movel_cama_dossel":[326,2844,126,132],
-    "cristal_claro":[454,2844,103,131],
-    "iso_cama_casal":[559,2844,150,130],
-    "muro_pedra_poste":[711,2844,96,130],
-    "cristal_roxo":[809,2844,103,129],
-    "muro_pedra_h":[914,2844,96,129],
-    "iso_fogao":[1012,2844,97,125],
-    "catapulta_ferro":[1111,2844,161,124],
-    "iso_lareira":[1274,2844,113,122],
-    "iso_mesa":[1389,2844,144,119],
-    "iso_cofre":[1535,2844,91,117],
-    "movel_lareira":[1628,2844,63,117],
-    "iso_sofa":[1693,2844,136,116],
-    "iso_pia":[1831,2844,153,111],
-    "movel_fogao":[1986,2844,64,111],
-    "iso_cama":[2052,2844,125,110],
-    "iso_cadeira":[2179,2844,58,109],
-    "iso_planta":[2239,2844,64,106],
-    "iso_poltrona":[2305,2844,99,105],
-    "movel_cama_casal":[2406,2844,126,105],
-    "iso_barril":[2534,2844,71,104],
-    "espinhos":[2607,2844,120,103],
-    "movel_capsula":[2729,2844,112,100],
-    "iso_bau":[2843,2844,95,98],
-    "movel_cama":[2940,2844,102,95],
-    "iso_mesinha":[3044,2844,124,93],
-    "iso_criado":[3170,2844,67,92],
-    "forte_forte_cidade":[3239,2844,180,91],
-    "forte_colonia":[3421,2844,180,90],
-    "iso_quadro":[3603,2844,64,87],
-    "movel_fogueira":[3669,2844,68,85],
-    "forte_forte":[3739,2844,180,84],
-    "forte_campo":[0,2981,180,81],
-    "movel_cofre":[182,2981,63,78],
-    "movel_mesa":[247,2981,90,74],
-    "movel_cesto":[339,2981,70,73],
-    "iso_tapete":[411,2981,132,72],
-    "movel_bau_ferro":[545,2981,66,72],
-    "movel_bau":[613,2981,66,64],
-    "catapulta_impacto":[681,2981,86,63],
-    "movel_banco":[769,2981,81,62],
-    "movel_mesa_redonda":[852,2981,72,58],
-    "catapulta_pilha":[926,2981,62,42],
-    "catapulta_pedra":[990,2981,30,29]
+    "cla_torre_r1":[2286,0,362,397],
+    "cla_torre_r1_m":[2650,0,362,397],
+    "cla_torre_r0":[3014,0,362,387],
+    "cla_torre_r0_m":[3378,0,362,387],
+    "forte_forte_cidade_fundo":[0,653,760,384],
+    "forte_forte_cidade_frente":[762,653,760,384],
+    "cla_torre_r3":[1524,653,362,383],
+    "cla_torre_r3_m":[1888,653,362,383],
+    "forte_colonia_fundo":[2252,653,760,378],
+    "forte_colonia_frente":[3014,653,760,378],
+    "cla_torre_r2":[0,1039,362,365],
+    "cla_torre_r2_m":[364,1039,362,365],
+    "forte_forte_fundo":[728,1039,760,354],
+    "forte_forte_frente":[1490,1039,760,354],
+    "forte_campo_fundo":[2252,1039,760,341],
+    "forte_campo_frente":[3014,1039,760,341],
+    "casa_cabana":[0,1406,340,310],
+    "casa_cabana_chao":[342,1406,340,310],
+    "banca_loja_r3":[684,1406,368,310],
+    "banca_joias_r0":[1054,1406,339,309],
+    "banca_joias_r1":[1395,1406,339,307],
+    "casa_saloon":[1736,1406,340,304],
+    "casa_saloon_chao":[2078,1406,340,304],
+    "casa_pedra":[2420,1406,340,302],
+    "casa_pedra_chao":[2762,1406,340,302],
+    "banca_joias_r2":[3104,1406,339,300],
+    "banca_joias_r3":[3445,1406,339,297],
+    "casa_castelo":[0,1718,340,295],
+    "casa_castelo_chao":[342,1718,340,295],
+    "banca_loja_r1":[684,1718,368,292],
+    "banca_feira_r1":[1054,1718,337,291],
+    "banca_feira_r3":[1393,1718,337,290],
+    "casa_tribal":[1732,1718,340,289],
+    "casa_tribal_chao":[2074,1718,340,289],
+    "maq_petroleo_r3_2":[2416,1718,324,289],
+    "maq_petroleo_r3_0":[2742,1718,324,287],
+    "casa_castelo_dentro":[3068,1718,340,278],
+    "casa_castelo_dentro_chao":[3410,1718,340,278],
+    "maq_petroleo_r3_1":[3752,1718,324,277],
+    "casa_tribal_dentro":[0,2015,340,275],
+    "casa_tribal_dentro_chao":[342,2015,340,275],
+    "casa_cabana_dentro":[684,2015,340,274],
+    "casa_cabana_dentro_chao":[1026,2015,340,274],
+    "casa_saloon_dentro":[1368,2015,340,274],
+    "casa_saloon_dentro_chao":[1710,2015,340,274],
+    "casa_domo":[2052,2015,340,268],
+    "casa_domo_chao":[2394,2015,340,268],
+    "casa_domo_dentro":[2736,2015,340,268],
+    "casa_domo_dentro_chao":[3078,2015,340,268],
+    "maq_petroleo_r0_2":[3420,2015,324,264],
+    "casa_pedra_dentro":[3746,2015,340,260],
+    "casa_pedra_dentro_chao":[0,2292,340,260],
+    "maq_petroleo_r1_1":[342,2292,324,259],
+    "banca_loja_r0":[668,2292,368,257],
+    "banca_loja_r2":[1038,2292,368,257],
+    "banca_petroleo_r0":[1408,2292,315,257],
+    "banca_feira_r2":[1725,2292,337,256],
+    "maq_petroleo_r0_0":[2064,2292,324,251],
+    "maq_petroleo_r1_0":[2390,2292,324,250],
+    "banca_feira_r0":[2716,2292,337,244],
+    "maq_petroleo_r1_2":[3055,2292,324,240],
+    "maq_petroleo_r0_1":[3381,2292,324,238],
+    "casa_choupana":[3707,2292,300,234],
+    "banca_petroleo_r2":[0,2554,315,234],
+    "maq_petroleo_r2_2":[317,2554,324,233],
+    "muro_cla_aberto_v":[643,2554,96,232],
+    "muro_cla_portao_v":[741,2554,96,232],
+    "banca_petroleo_r3":[839,2554,315,231],
+    "muro_tijolo_vu":[1156,2554,96,231],
+    "muro_cla_vu":[1254,2554,96,228],
+    "maq_mina_r1_0":[1352,2554,287,227],
+    "maq_mina_r1_1":[1641,2554,287,227],
+    "maq_mina_r1_2":[1930,2554,287,227],
+    "muro_fortaleza_aberto_v":[2219,2554,96,223],
+    "muro_fortaleza_portao_v":[2317,2554,96,223],
+    "muro_madeira_aberto_v":[2415,2554,96,223],
+    "muro_madeira_portao_v":[2513,2554,96,223],
+    "muro_pedra_vu":[2611,2554,96,223],
+    "maq_petroleo_r2_0":[2709,2554,324,221],
+    "muro_madeira_vu":[3035,2554,96,217],
+    "banca_petroleo_r1":[3133,2554,315,216],
+    "muro_fortaleza_vu":[3450,2554,96,215],
+    "muro_cla_vd":[3548,2554,96,208],
+    "muro_tijolo_aberto_v":[3646,2554,96,208],
+    "muro_tijolo_portao_v":[3744,2554,96,208],
+    "maq_petroleo_r2_1":[0,2790,324,207],
+    "muro_fortaleza_vd":[326,2790,96,207],
+    "torre_madeira":[424,2790,119,203],
+    "torre_cristal":[545,2790,114,203],
+    "muro_cla_aberto":[661,2790,144,202],
+    "muro_cla_portao":[807,2790,144,202],
+    "muro_ferro_aberto_v":[953,2790,96,202],
+    "muro_ferro_portao_v":[1051,2790,96,202],
+    "muro_pedra_aberto_v":[1149,2790,96,201],
+    "muro_pedra_portao_v":[1247,2790,96,201],
+    "torre_pedra":[1345,2790,117,198],
+    "torre_balista_cristal":[1464,2790,113,196],
+    "torre_canhao":[1579,2790,137,188],
+    "torre_balista":[1718,2790,131,185],
+    "muro_madeira_vd":[1851,2790,96,185],
+    "muro_cla_dan_vu":[1949,2790,96,184],
+    "maq_mina_r3_1":[2047,2790,287,180],
+    "muro_ferro_aberto":[2336,2790,144,180],
+    "muro_ferro_portao":[2482,2790,144,180],
+    "muro_ferro_vu":[2628,2790,96,180],
+    "muro_fortaleza_aberto":[2726,2790,144,180],
+    "muro_fortaleza_portao":[2872,2790,144,180],
+    "maq_mina_r3_0":[3018,2790,287,179],
+    "maq_mina_r3_2":[3307,2790,287,179],
+    "muro_tijolo_aberto":[3596,2790,144,178],
+    "muro_tijolo_portao":[3742,2790,144,178],
+    "muro_pedra_aberto":[3888,2790,144,171],
+    "muro_pedra_portao":[0,2999,144,171],
+    "muro_madeira_aberto":[146,2999,152,169],
+    "muro_madeira_portao":[300,2999,152,169],
+    "muro_pedra_vd":[454,2999,96,160],
+    "maq_mina_r0_0":[552,2999,287,158],
+    "maq_mina_r0_1":[841,2999,287,158],
+    "maq_mina_r0_2":[1130,2999,287,158],
+    "iso_estante":[1419,2999,78,155],
+    "muro_cla_dan_vd":[1499,2999,96,155],
+    "iso_cama_dossel":[1597,2999,138,154],
+    "forte_muralha":[1737,2999,180,154],
+    "muro_cla_dan_h":[1919,2999,96,153],
+    "muro_tijolo_vd":[2017,2999,96,153],
+    "muro_ferro_vd":[2115,2999,96,149],
+    "muro_tijolo_poste":[2213,2999,96,146],
+    "iso_guarda_roupa":[2311,2999,83,145],
+    "maq_mina_r2_0":[2396,2999,287,145],
+    "maq_mina_r2_1":[2685,2999,287,145],
+    "maq_mina_r2_2":[2974,2999,287,145],
+    "iso_geladeira":[3263,2999,82,143],
+    "muro_tijolo_h":[3347,2999,96,142],
+    "muro_ferro_poste":[3445,2999,96,140],
+    "muro_madeira_poste":[3543,2999,96,140],
+    "muro_madeira_h":[3641,2999,96,138],
+    "iso_espelho":[3739,2999,70,137],
+    "muro_fortaleza_h":[3811,2999,96,137],
+    "muro_ferro_h":[3909,2999,96,136],
+    "muro_fortaleza_poste":[0,3172,96,136],
+    "catapulta_0":[98,3172,150,135],
+    "catapulta_1":[250,3172,150,135],
+    "catapulta_2":[402,3172,150,135],
+    "catapulta_3":[554,3172,150,135],
+    "iso_luminaria":[706,3172,82,134],
+    "iso_aquario":[790,3172,88,134],
+    "movel_cama_dossel":[880,3172,126,132],
+    "muro_cla_des_vu":[1008,3172,96,132],
+    "muro_cla_h":[1106,3172,96,132],
+    "muro_cla_poste":[1204,3172,96,132],
+    "cristal_claro":[1302,3172,103,131],
+    "iso_cama_casal":[1407,3172,150,130],
+    "muro_pedra_poste":[1559,3172,96,130],
+    "cristal_roxo":[1657,3172,103,129],
+    "muro_pedra_h":[1762,3172,96,129],
+    "iso_fogao":[1860,3172,97,125],
+    "catapulta_ferro":[1959,3172,161,124],
+    "iso_lareira":[2122,3172,113,122],
+    "iso_mesa":[2237,3172,144,119],
+    "iso_cofre":[2383,3172,91,117],
+    "movel_lareira":[2476,3172,63,117],
+    "iso_sofa":[2541,3172,136,116],
+    "iso_pia":[2679,3172,153,111],
+    "movel_fogao":[2834,3172,64,111],
+    "iso_cama":[2900,3172,125,110],
+    "iso_cadeira":[3027,3172,58,109],
+    "muro_cla_des_h":[3087,3172,96,109],
+    "iso_planta":[3185,3172,64,106],
+    "iso_poltrona":[3251,3172,99,105],
+    "movel_cama_casal":[3352,3172,126,105],
+    "iso_barril":[3480,3172,71,104],
+    "espinhos":[3553,3172,120,103],
+    "movel_capsula":[3675,3172,112,100],
+    "iso_bau":[3789,3172,95,98],
+    "movel_cama":[3886,3172,102,95],
+    "iso_mesinha":[0,3310,124,93],
+    "iso_criado":[126,3310,67,92],
+    "forte_forte_cidade":[195,3310,180,91],
+    "forte_colonia":[377,3310,180,90],
+    "iso_quadro":[559,3310,64,87],
+    "movel_fogueira":[625,3310,68,85],
+    "forte_forte":[695,3310,180,84],
+    "forte_campo":[877,3310,180,81],
+    "muro_cla_des_vd":[1059,3310,96,81],
+    "movel_cofre":[1157,3310,63,78],
+    "movel_mesa":[1222,3310,90,74],
+    "movel_cesto":[1314,3310,70,73],
+    "iso_tapete":[1386,3310,132,72],
+    "movel_bau_ferro":[1520,3310,66,72],
+    "movel_bau":[1588,3310,66,64],
+    "catapulta_impacto":[1656,3310,86,63],
+    "movel_banco":[1744,3310,81,62],
+    "movel_mesa_redonda":[1827,3310,72,58],
+    "catapulta_pilha":[1901,3310,62,42],
+    "catapulta_pedra":[1965,3310,30,29]
   }/*FIM_ATLAS2*/;
   let art2 = null;
   (function loadArt2() {
     const img = new Image();
     img.onload = () => { art2 = img; thumbCache.clear(); invDirty = true; };
-    img.onerror = () => { const n = +(img.dataset.tent || 0); img.dataset.tent = n + 1; const alt = ['estruturas-v3.webp', 'assets/estruturas.webp', 'estruturas.webp'][n]; if (alt) img.src = alt; };
-    img.src = window.TERRA_ATLAS2 || 'assets/estruturas-v3.webp';
+    img.onerror = () => { const n = +(img.dataset.tent || 0); img.dataset.tent = n + 1; const alt = ['estruturas-v4.webp', 'assets/estruturas.webp', 'estruturas.webp'][n]; if (alt) img.src = alt; };
+    img.src = window.TERRA_ATLAS2 || 'assets/estruturas-v4.webp';
   })();
   const thumbCache = new Map();
   function thumb2(name, w = 56, h = 48) {
@@ -6069,6 +6306,7 @@
     const cur = (k, m, id) => S.sel.k === k && (k === 'kit' ? S.sel.id === id : (S.sel.m || 0) === m);
     const pick = (val, on) => on ? '<button type="button" class="btn btn-chosen" data-bsel="nada:0" title="Toque para desmarcar">Escolhido ✓</button>' : `<button type="button" class="btn btn-gold" data-bsel="${val}">Escolher</button>`;
     let html = '';
+    if (modoClas) { $('build-body').innerHTML = terrasBuildHtml(row, cur, pick); return; }
     // tudo o que está construído por perto, do mais perto ao mais longe
     const near = S.builds.map((b, i) => ({ b, i, vila: b.vila, dist: Math.hypot(b.x + BUILDS[b.k].w / 2 - S.p.x, b.y + BUILDS[b.k].h / 2 - S.p.y) }))
       .filter(o => o.dist < 60 && !o.vila).sort((a, c) => a.dist - c.dist).slice(0, 30);
@@ -6085,9 +6323,9 @@
     }
     html += '</div><p class="muted small-text">Guardar devolve para "Suas construções", para colocar em outro lugar. Casas levam os móveis de dentro. Muros e portões: desmonte com a picareta.</p>';
     html += '<div class="section-label">Muros</div><div class="list">';
-    WALL_MATS.forEach((m, k) => { html += row(thumb2(`muro_${m.id}_h`), m.nome, `${costTxt(m.custo)} · ${m.golpes} golpes para derrubar`, pick('muro:' + k, cur('muro', k))); });
+    WALL_MATS.forEach((m, k) => { if (m.soClas && !modoClas) return; html += row(thumb2(`muro_${m.id}_h`), m.nome, `${costTxt(m.custo)} · ${m.golpes} golpes para derrubar`, pick('muro:' + k, cur('muro', k))); });
     html += '</div><div class="section-label">Portões · abrem quando você chega perto</div><div class="list">';
-    WALL_MATS.forEach((m, k) => { html += row(thumb2(`muro_${m.id}_portao`), `Portão (${m.nome.toLowerCase()})`, costTxt(wallCost(k, true)), pick('portao:' + k, cur('portao', k))); });
+    WALL_MATS.forEach((m, k) => { if (m.soClas && !modoClas) return; html += row(thumb2(`muro_${m.id}_portao`), `Portão (${m.nome.toLowerCase()})`, costTxt(wallCost(k, true)), pick('portao:' + k, cur('portao', k))); });
     html += '</div><div class="section-label">Ajustar muros e portões</div><div class="list">';
     html += row('', 'Mover', 'Use num muro para pegar e use de novo onde quiser soltar', pick('mover:0', S.sel.k === 'mover'));
     html += row('', 'Girar', 'Use num muro: encaixe automático → deitado → em pé', pick('girar:0', S.sel.k === 'girar'));
@@ -6316,8 +6554,13 @@
         const b = e.target.closest('[data-st]');
         if (!b) return;
         const v = b.dataset.st;
-        if (v === 'tp') { adminMove = 'tp'; renderAdmin(); return; }
+        if (v === 'tp') { adminMove = 'tp'; renderAdmin(); $('minimap').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
         if (v === 'equip') { adminEquipSalvar(); renderAdmin(); return; }
+        if (v === 'robos') { adminRobosSalvar(); renderAdmin(); return; }
+        if (v === 'terras') {
+          MUNDO.terras = { regen: Math.max(0.1, +$('tc-regen').value || 2), rend: Math.min(100, Math.max(0, Math.floor(+$('tc-rend').value || 0))) };
+          mundoSalvar('terras'); toast('Terreno das Terras salvo: vale para todos', 'leaf'); renderAdmin(); return;
+        }
         if (v.startsWith('adianta:')) {   // teste: adianta a produção só das suas máquinas
           const n = +v.slice(8), ms = eqCfg().ciclo * 60000; let q = 0;
           for (const b of S.builds) if (BUILDS[b.k] && BUILDS[b.k].tipo === 'maquina') { maqEstado(b); if (!b.quebrada) { b.prontos = 0; b.ult -= n * ms; maqEstado(b); q++; } }
@@ -6365,6 +6608,12 @@
         + '<p class="muted small-text">Suas máquinas (plataforma de petróleo e mineração), na hora:</p>'
         + '<div class="confirm-row"><button type="button" class="btn btn-gold" data-st="adianta:1">Adiantar 1 ciclo</button><button type="button" class="btn btn-gold" data-st="adianta:4">Adiantar 4 ciclos</button><button type="button" class="btn" data-st="quebra">Dar defeito</button><button type="button" class="btn" data-st="conserta">Deixar novas</button></div>';
       html += adminEquipHtml();
+      { const c = terrasCfg();
+        html += '<div class="section-label">Terras dos Clãs · terreno</div>'
+          + `<div class="cla-linha"><label class="field">Volta a crescer em (ciclos de 30 min)<input id="tc-regen" type="number" min="0.1" step="0.5" value="${c.regen}"></label><label class="field">Recurso ao derrubar (% do normal)<input id="tc-rend" type="number" min="0" max="100" value="${c.rend}"></label></div>`
+          + '<p class="muted small-text">0% = derrubar só limpa o terreno. 50% = dá metade da madeira e da pedra. Minério nunca sai nas Terras.</p>'
+          + '<div class="confirm-row"><button type="button" class="btn btn-gold" data-st="terras">Salvar terreno das Terras</button></div>'; }
+      html += adminRobosHtml();
       html += '<div class="section-label">Suas armas · experiência</div><div class="list">';
       for (const [w, nome] of Object.entries(ARMAS)) {
         const max = w === 'cetro' ? 5 : 4;
@@ -6379,7 +6628,7 @@
   // Com contas ligadas fica no servidor (tabela "mundo") e vale para todos; sem contas fica no próprio save.
   const MUNDO_PADRAO = () => ({
     zonas: [{ id: 1, nome: 'Praça do começo', x: SPAWN.x, y: SPAWN.y, r: 18, ativo: true }],
-    eventos: [], fugitivo: null, vilas: [], construtores: { premio: 'moedas:100', chance: 0.1 }, aviso: null, vendas: {}, equip: null,
+    eventos: [], fugitivo: null, vilas: [], construtores: { premio: 'moedas:100', chance: 0.1 }, aviso: null, vendas: {}, equip: null, terras: null, robos: null,
   });
   let MUNDO = MUNDO_PADRAO();
   const online = () => NET.enabled && NET.user;
@@ -6388,7 +6637,7 @@
       try {
         const o = await NET.mundoGet();
         const base = MUNDO_PADRAO();
-        MUNDO = { zonas: o.zonas || base.zonas, eventos: o.eventos || [], fugitivo: o.fugitivo || null, vilas: o.vilas || [], construtores: o.construtores || base.construtores, aviso: o.aviso || null, vendas: o.vendas || {}, equip: o.equip || null };
+        MUNDO = { zonas: o.zonas || base.zonas, eventos: o.eventos || [], fugitivo: o.fugitivo || null, vilas: o.vilas || [], construtores: o.construtores || base.construtores, aviso: o.aviso || null, vendas: o.vendas || {}, equip: o.equip || null, terras: o.terras || null, robos: o.robos || null };
         mostrarAviso(MUNDO.aviso); avisoFugitivo();
       } catch (e) { /* sem rede: fica com o que já tinha */ }
     } else MUNDO = S.mundo ? Object.assign(MUNDO_PADRAO(), S.mundo) : MUNDO_PADRAO();
@@ -7053,6 +7302,10 @@
         if (b) { b.acesso = ks[(ks.indexOf(b.acesso || 'so_eu') + 1) % ks.length]; toast(`Entrada: ${ACESSO[b.acesso]}`); save(); }
         renderBuild(); return;
       }
+      const tcs = e.target.closest('[data-tconserta]');
+      if (tcs) { const o = TER.obras.get(tcs.dataset.tconserta); tcs.disabled = true; if (o) consertarObra(o).then(() => renderBuild()); return; }
+      const tob = e.target.closest('[data-tobra]');
+      if (tob) { tob.disabled = true; terrasRemoverObra(tob.dataset.tobra).then(() => renderBuild()); return; }
       const bp = e.target.closest('[data-bpick]') || e.target.closest('[data-bsell]');
       if (bp) {
         const sellIt = !!bp.dataset.bsell, [tag, idx] = (bp.dataset.bsell || bp.dataset.bpick).split(':');
@@ -7571,7 +7824,7 @@
     if (d.tipo === 'casa' || d.tipo === 'forte') { w = d.w * tp; cx = (b.x + d.w / 2) * tp - camX; bottom = (b.y + d.h + d.pad) * tp - camY; }
     else if (b.k.startsWith('catapulta')) { w = 2.6 * tp; cx = (b.x + 1) * tp - camX; bottom = (b.y + 2.1) * tp - camY; }
     else if (d.tipo === 'torre') { w = 2.35 * tp; cx = (b.x + 1) * tp - camX; bottom = (b.y + 2.1) * tp - camY; }
-    else if (d.tipo === 'maquina' || d.tipo === 'banca') { w = d.dw * tp; cx = (b.x + d.w / 2) * tp - camX; bottom = (b.y + d.h + 0.2) * tp - camY; }
+    else if (d.tipo === 'maquina' || d.tipo === 'banca' || d.tipo === 'cla') { w = d.dw * tp; cx = (b.x + d.w / 2) * tp - camX; bottom = (b.y + d.h + 0.2) * tp - camY; }
     else { w = (d.dw || r[2] / 64) * tp; cx = (b.x + 0.5) * tp - camX; bottom = (b.y + 0.95) * tp - camY; }
     const h = w * r[3] / r[2];
     return [cx - w / 2, bottom - h, w, h];
@@ -7626,6 +7879,9 @@
       }
       else if (d.tipo === 'maquina') ents.push({ y: key, f: () => desenharMaquina(b, camX, camY) });
       else if (d.tipo === 'banca') ents.push({ y: key, f: () => { drawBuild(b, imgDe(b), camX, camY); desenharPlaca(b, camX, camY); } });
+      else if (d.tipo === 'cla') ents.push({ y: key, f: () => { drawBuild(b, imgDe(b), camX, camY); tintaBandeira(b, imgDe(b), camX, camY); const r = buildRect(b, imgDe(b), camX, camY); barraObra(b, r[0] + r[2] / 2, r[1] + 0.4 * tp); } });
+      else if (d.tipo === 'clabandeira') ents.push({ y: key, f: () => { desenharEstandarte((b.x + 0.5) * tp - camX, (b.y + 0.85) * tp - camY, b.cor, b.brasao, 1, performance.now()); barraObra(b, (b.x + 0.5) * tp - camX, (b.y - 1.6) * tp - camY); } });
+      else if (d.tipo === 'clatx') ents.push({ y: key, f: () => desenharTransmissao(b, camX, camY) });
       else ents.push({ y: key, f: () => drawBuild(b, d.img, camX, camY) });
     }
     return fronts;
@@ -7649,13 +7905,15 @@
       ctx.lineWidth = Math.max(2, tp / 16); ctx.strokeRect(x0 + 1, y0 + 1, tp - 2, tp - 2);
       return;
     }
-    if (!(S.kit[S.sel.id] > 0)) return;
+    if (!(S.kit[S.sel.id] > 0) && !(modoClas && BUILDS[S.sel.id] && BUILDS[S.sel.id].custo)) return;
     const d = BUILDS[S.sel.id];
     if (d.tipo === 'robo') return;
-    const c = candidate(S.sel.id), bad = placeProblem(c);
+    const c = candidate(S.sel.id), bad = placeProblem(c) || (modoClas ? terrasProblema(c.x, c.y, d.w, d.h) : null);
+    if (d.tipo === 'clabandeira') { desenharEstandarte((c.x + 0.5) * tp - camX, (c.y + 0.85) * tp - camY, CLA.dados ? CLA.dados.cor : '#c0392b', CLA.dados ? CLA.dados.brasao : 'escudo', 0.5, performance.now()); }
     const show = { k: d.tipo === 'forte' && d.arte ? d.arte : c.k, x: c.x, y: c.y, flip: !!S.sel.flip, rot: S.sel.rot || 0 };
     if (d.tipo === 'forte') { drawBuild(show, d.img + '_fundo', camX, camY, 0.5); drawBuild(show, d.img + '_frente', camX, camY, 0.5); }
-    else drawBuild(show, d.gira ? imgDe(show) : d.img, camX, camY, 0.5);
+    else if (d.tipo === 'clatx') desenharTransmissao(Object.assign({ cor: CLA.dados ? CLA.dados.cor : '#c0392b' }, show), camX, camY, 0.5);
+    else if (d.tipo !== 'clabandeira') drawBuild(show, d.gira ? imgDe(show) : d.img, camX, camY, 0.5);
     for (const [jk, ox, oy] of d.junto || []) drawBuild({ k: jk, x: c.x + ox, y: c.y + oy }, BUILDS[jk].img, camX, camY, 0.5);
     const x0 = c.x * tp - camX, y0 = c.y * tp - camY, w = d.w * tp, h = d.h * tp;
     ctx.strokeStyle = bad ? 'rgba(235,80,60,0.95)' : 'rgba(140,230,120,0.95)';
@@ -7667,7 +7925,10 @@
   }
   // muros: a peça horizontal ocupa um bloco; vizinhos se ligam (metades da peça horizontal + poste)
   function wallFn(t, x, y, z, sx, sy) {
-    const i = I(x, y, z), mat = (WALL_MATS[S.wmat[i] & 15] || WALL_MATS[0]).id, rot = S.wmat[i] >> 4;
+    const i = I(x, y, z), rot = S.wmat[i] >> 4;
+    let mat = (WALL_MATS[S.wmat[i] & 15] || WALL_MATS[0]).id;
+    const golpe = hits.get(i);   // muralha do clã: fica danificada e depois destruída conforme apanha
+    if (mat === 'cla' && t === T.WALL && golpe) mat = golpe.h / golpe.need >= 0.66 ? 'cla_des' : golpe.h / golpe.need >= 0.33 ? 'cla_dan' : mat;
     const isW = (xx, yy) => { const q = tileAt(xx, yy, z); return q === T.WALL || q === T.GATE; };
     const L = isW(x - 1, y), R = isW(x + 1, y), U = isW(x, y - 1), Dn = isW(x, y + 1);
     return () => {
@@ -7683,7 +7944,7 @@
       };
       if (t === T.GATE) {
         const emPe = !(L || R) && (U || Dn);
-        const open = S.p.z === z && Math.hypot(S.p.x - x - 0.5, S.p.y - y - 0.5) < 1.8;
+        const open = S.p.z === z && Math.hypot(S.p.x - x - 0.5, S.p.y - y - 0.5) < 1.8 && !(modoClas && portaoFechado(x, y));
         if (emPe) { if (U) peca('vu'); peca(open ? 'aberto_v' : 'portao_v'); if (Dn) peca('vd'); }
         else { if (L) half('L'); if (R) half('R'); peca(open ? 'aberto' : 'portao'); }
         return;
@@ -7742,6 +8003,7 @@
     const px0 = S.p.x * tp - camX, py0 = S.p.y * tp - camY;
     const alvos = S.npcs.map(n => ({ x: n.x, y: n.y, cor: n.def.cor, letra: n.def.nome.replace('Dona ', '')[0] }));
     if (S.porto && S.p.z === 0) alvos.push({ x: S.porto.x + 2.5, y: S.porto.y + 1.5, cor: '#5fb3ff', letra: '⛵' });   // o porto também
+    if (modoClas) alvos.push(...terrasMarcadores());
     for (const n of alvos) {
       const sx = n.x * tp - camX, sy = n.y * tp - camY;
       if (sx > 0 && sx < W2 && sy > top && sy < bottom) continue;
@@ -8520,7 +8782,7 @@
     const psx = p.x * tp - camX, psy = p.y * tp - camY;
     drawMobs(ents, camX, camY, W2, H2);
     if (z === 0) desenharPorto(ents, camX, camY, u, now);
-    if (modoClas && z === 0) desenharRemotos(ents, camX, camY, W2, H2, u, now);
+    if (modoClas && z === 0) { desenharRemotos(ents, camX, camY, W2, H2, u, now); desenharBases(ents, camX, camY, W2, H2, now); }
     if (z === 0) for (const n of evNpcs.values()) {
       const sx = n.x * tp - camX, sy = n.y * tp - camY;
       if (sx < -2 * tp || sy < -3 * tp || sx > W2 + 2 * tp || sy > H2 + 2 * tp) continue;
@@ -8984,6 +9246,7 @@
     body.innerHTML = '<div class="empty">Carregando…</div>';
     await claCarregar();
     try { CLA.convites = CLA.dados ? [] : (await NET.claConvites()) || []; } catch (e) { CLA.convites = []; }
+    if (CLA.dados && !modoClas && NET.terrasEstado) try { const e = await NET.terrasEstado(); if (e) TER.bases = e.bases || []; } catch (e) { /* sem as bases */ }
     if (CLA.aba === 'procurar' || !CLA.dados) try { CLA.lista = (await NET.claListar(CLA.busca)) || []; } catch (e) { CLA.lista = []; }
     for (const c of CLA.lista) CLA.cores[c.tag] = c.cor;
     if (!openSheet || openSheet.id !== 'sheet-cla') return;
@@ -8995,6 +9258,12 @@
         <small class="muted">${d.membros.length} ${d.membros.length === 1 ? 'membro' : 'membros'} · ${d.aberto ? 'aberto a todos' : 'só convidados'} · você é ${PAPEL_NOME[d.papel]}</small></div></div>`;
       if (d.descricao) h += `<p class="muted">${E(d.descricao)}</p>`;
       h += `<div class="cla-linha"><button type="button" class="btn btn-gold" data-cla="chat">Chat do clã</button><button type="button" class="btn" data-cla="aba-procurar">Ver outros clãs</button></div>`;
+      { const bs = TER.bases.find(q => q.cla === d.id);
+        h += '<div class="cla-sec">Base nas Terras dos Clãs</div>';
+        h += bs ? `<p class="muted">A bandeira do clã está em x ${bs.x}, y ${bs.y}. Os membros constroem muros, portões e torres até ${BASE_R} blocos dela.</p>` : '<p class="muted">Seu clã ainda não tem base. Com ela, os membros podem construir muros, portões e torres nas Terras.</p>';
+        if (chefe) h += `<div class="cla-linha"><button type="button" class="btn btn-gold" data-cla="base">${bs ? 'Mudar a base para cá' : 'Marcar a base aqui'}</button>${lider && bs ? `<button type="button" class="btn btn-danger" data-cla="base-sair">${CLA.baseSairOk ? 'Confirmar: apagar a base e tudo o que foi construído' : 'Abandonar a base'}</button>` : ''}</div>`
+          + `<p class="muted small-text">${modoClas ? 'A bandeira fica onde você está agora. Para mudar de lugar, remova antes as construções do clã.' : 'Vá até as Terras dos Clãs (barco no porto) e marque no lugar que quiser.'}</p>`;
+      }
       h += '<div class="cla-sec">Membros</div><div class="list">';
       for (const m of d.membros) {
         const eu = NET.profile && m.codigo === NET.profile.codigo;
@@ -9065,6 +9334,12 @@
     if (a === 'aba-procurar' || a === 'aba-meu') { CLA.aba = a.slice(4); renderCla(); return; }
     if (a === 'buscar') { renderCla(); return; }
     if (a === 'chat') { closeSheet(); CHAT.tab = 'cla'; openChat(); return; }
+    if (a === 'base') { b.disabled = true; await claMarcarBase(); }
+    if (a === 'base-sair') {
+      if (!CLA.baseSairOk) { CLA.baseSairOk = true; renderCla(); return; }
+      CLA.baseSairOk = false;
+      if (await vale(() => NET.claBaseAbandonar(), 'Base abandonada')) { NET.terrasEnviar('o', {}); if (modoClas) await terrasCarregar(); else TER.bases = TER.bases.filter(q => q.cla !== d.id); }
+    }
     if (a === 'sair') { CLA.sairOk = true; renderCla(); return; }
     if (a === 'sair-nao') { CLA.sairOk = false; renderCla(); return; }
     if (a === 'criar') {
@@ -9179,7 +9454,7 @@
     const ida = !modoClas;
     $('viagem-titulo').textContent = ida ? 'Terras dos Clãs' : 'Voltar para casa';
     $('viagem-texto').innerHTML = ida
-      ? 'Um mapa só, onde todos os jogadores se encontram ao vivo. Suas moedas, mochila, skins e armas vão com você; sua terra fica guardada.<br><br>Por enquanto lá <b>não dá para coletar nem construir</b>: compre recursos no <b>Mercado</b> (Menu). Cuidado com os saqueadores.'
+      ? 'Um mapa só, onde todos os jogadores se encontram ao vivo. Suas moedas, mochila, skins e armas vão com você; sua terra fica guardada.<br><br>Lá dá para <b>derrubar árvores e pedras para limpar o terreno</b> (volta a crescer com o tempo, para todos), ' + (terrasCfg().rend ? `rende só ${terrasCfg().rend}% do recurso` : 'não rende recurso') + ': compre no <b>Mercado</b> (Menu). Cada clã marca a sua <b>base</b> (Menu → Clã) e constrói muros, portões e torres dentro dela. Cuidado com os saqueadores.'
         + (online() ? '' : '<br><br><i>Sem conta ligada você vai sozinho: os outros jogadores só aparecem no site do jogo com a conta.</i>')
       : 'O barco leva você de volta ao porto da sua terra.';
     $('viagem-ir').textContent = ida ? '⛵ Embarcar' : '⛵ Voltar';
@@ -9201,7 +9476,10 @@
       if (ida) {
         save(true);
         S_casa = S;
-        if (!mundoClas) { mundoClas = emptyState(SEED_CLAS); genWorld(mundoClas); }
+        if (!mundoClas) {
+          mundoClas = emptyState(SEED_CLAS); genWorld(mundoClas);
+          TER.orig = mundoClas.tiles.slice(0, W * H); TER.origAux = mundoClas.aux.slice(0, W * H);   // como o mapa nasce (para crescer de novo)
+        }
         const t = mundoClas;
         for (const k of LEVA) t[k] = S_casa[k];
         modoClas = true;
@@ -9210,6 +9488,7 @@
         t.p = { x: t.home.x, y: t.home.y, z: 0, dir: 3 };
         start(t);
         terrasLigar();
+        terrasCarregar(); terrasRegen();
         toast('Terras dos Clãs: aqui todos se encontram. Para voltar, pegue o barco no porto.', 'gold', 5000);
       } else {
         terrasDesligar();
@@ -9230,11 +9509,21 @@
   const REMOTOS = new Map();   // código TF- → jogador
   let golpesN = 0, swingAnt = 0, ultimoEnvio = 0, ultimoPos = '';
   function terrasLigar() { REMOTOS.clear(); if (online() && NET.terrasEntrar) NET.terrasEntrar(terrasEvento); }
-  function terrasDesligar() { if (NET.terrasSair) NET.terrasSair(); REMOTOS.clear(); }
+  function terrasDesligar() { if (NET.terrasSair) NET.terrasSair(); REMOTOS.clear(); TER.hostCod = null; if (S && S.mobs) S.mobs = S.mobs.filter(m => !m.robo); TER.meusRobos.length = 0; }
   const corOk = c => (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c) ? c : null);
   function terrasEvento(ev, d) {
     if (ev === 'ok') { NET.terrasEnviar('oi', {}); enviarPos(true); return; }
     if (ev === 'oi') { setTimeout(() => enviarPos(true), 150 + Math.random() * 400); return; }
+    if (ev === 't') {   // alguém derrubou uma árvore ou pedra
+      const x = d && d.x | 0, y = d && d.y | 0;
+      if (!modoClas || !(x > 1 && y > 1 && x < W - 2 && y < H - 2)) return;
+      TER.terreno.set(chaveXY(x, y), Date.now()); terrasRegen(); return;
+    }
+    if (ev === 'o') { if (modoClas) terrasRecarregar(); return; }
+    if (ev === 'm') { terrasMobs(d); return; }
+    if (ev === 'mh') { terrasGolpeMob(d); return; }
+    if (ev === 'og') { if (modoClas && d && d.id != null) obraHp(String(d.id), +d.hp); return; }
+    if (ev === 'rb') { terrasRobo(d); return; }   // construções mudaram: busca no servidor
     if (!d || typeof d.c !== 'string' || !/^TF-[A-Z0-9]{6}$/.test(d.c)) return;
     if (ev === 'sai') { REMOTOS.delete(d.c); return; }
     if (NET.profile && d.c === NET.profile.codigo) return;
@@ -9312,8 +9601,737 @@
     if (r.bolha) drawBubble(sx, ty - 0.25 * tp, r.bolha);
   }
 
+  // ---- Terras dos Clãs: terreno derrubado (igual para todos), bases e construções dos clãs
+  // Tudo o que se derruba ou constrói vai para o servidor (supabase/terras.sql) e avisa quem está lá pelo canal ao vivo.
+  // O que foi derrubado volta sozinho: na metade do tempo vira muda, no fim volta a árvore (ou a pedra).
+  const BASE_R = 15;   // a base vai até 15 blocos da bandeira para cada lado (31 × 31)
+  const TER = { terreno: new Map(), bases: [], obras: new Map(), obraEm: new Map(), orig: null, origAux: null, desvio: 0, carregando: false, golpes: [], mortes: [], hostCod: null, hostVisto: 0, meusRobos: [], tx: null };
+  const terrasCfg = () => Object.assign({ regen: 2, rend: 0 }, MUNDO.terras || {});
+  const CICLO_TERRAS = 30 * 60000;
+  const chaveXY = (x, y) => y * W + x;
+  const meuClaId = () => (CLA.dados ? CLA.dados.id : null);
+  const minhaBase = () => (CLA.dados ? TER.bases.find(b => b.cla === CLA.dados.id) : null);
+  function terrasProblema(x, y, w, h) {
+    if (!online()) return 'Construir nas Terras precisa da conta ligada';
+    if (!CLA.dados) return 'Entre em um clã para construir nas Terras (Menu → Clã)';
+    const b = minhaBase();
+    if (!b) return CLA.dados.papel === 'membro' ? 'Seu clã ainda não tem base: peça ao líder para marcar' : 'Seu clã ainda não tem base: Menu → Clã → Marcar a base aqui';
+    if (x < b.x - BASE_R || y < b.y - BASE_R || x + w - 1 > b.x + BASE_R || y + h - 1 > b.y + BASE_R) return 'Construa dentro da base do seu clã (a linha na cor do clã)';
+    if (x <= b.x && x + w - 1 >= b.x && y <= b.y && y + h - 1 >= b.y) return 'A bandeira da base fica aí';
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
+      const t = S.tiles[I(xx, yy, 0)];
+      if (t === T.TREE || t === T.SAPLING || t === T.ROCK) return 'Derrube as árvores e pedras antes';
+    }
+    return null;
+  }
+  // machado e picareta nas Terras: só limpam o terreno (sem minério; recurso conforme o administrador)
+  function terrasGolpe(tool, x, y, z, t, i) {
+    if (z !== 0) return;
+    const ob = TER.obras.get(TER.obraEm.get(chaveXY(x, y)));
+    if (ob || t === T.WALL || t === T.GATE) {
+      if (!ob) { actHeld = false; swing = 0; return; }
+      if (ob.cla === meuClaId()) { actHeld = false; swing = 0; toast('É do seu clã: para tirar, use Construir → Remover', 'warn', 3000); return; }
+      golpearObra(ob, tool); return;
+    }
+    const arvore = tool === 'machado' && (t === T.TREE || t === T.SAPLING), pedra = tool === 'picareta' && t === T.ROCK;
+    if (!arvore && !pedra) {
+      if (tool === 'picareta' && MINE[t]) { actHeld = false; toast('Nas Terras dos Clãs não se tira minério', 'warn'); }
+      return;
+    }
+    if (x < 2 || y < 2 || x > W - 3 || y > H - 3) return;
+    const need = arvore ? (t === T.SAPLING ? 1 : TREE_HITS[axeTier()]) : mineHits(MINE[T.ROCK]), h = (hits.get(i)?.h || 0) + 1;
+    cooldown = arvore ? 0.32 : 0.28; wear(tool); sfx(arvore ? 'corte' : 'pedra');
+    if (h < need) { hits.set(i, { h, need }); return; }
+    hits.delete(i);
+    sfx(arvore ? 'arvore' : 'pedra_quebra');
+    S.tiles[i] = T.GRASS; S.aux[chaveXY(x, y)] = 0;
+    const item = arvore ? 'madeira' : 'pedra', n = Math.floor((arvore ? (t === T.SAPLING ? SAPLING_WOOD : TREE_WOOD) : MINE[T.ROCK].n) * terrasCfg().rend / 100);
+    if (n > 0) { give(item, n); toast(`+${n} ${ITEMS[item].nome}`); }
+    else hint('terras_limpar', 'Terreno limpo. Nas Terras dos Clãs derrubar não dá recurso, e o que cai volta a crescer com o tempo (para todos).');
+    TER.terreno.set(chaveXY(x, y), Date.now());
+    if (online() && NET.terrasLimpar) { NET.terrasLimpar(x, y).catch(() => {}); NET.terrasEnviar('t', { x, y }); }
+  }
+  // volta a crescer: metade do tempo → muda; tempo todo → árvore ou pedra de novo
+  function terrasRegen() {
+    if (!modoClas || !TER.orig) return;
+    const total = Math.max(0.1, +terrasCfg().regen || 2) * CICLO_TERRAS, agora = Date.now();
+    for (const [k, quando] of TER.terreno) {
+      const x = k % W, y = (k / W) | 0, i = I(x, y, 0), o = TER.orig[k], t = S.tiles[i], idade = agora - quando;
+      if (o !== T.TREE && o !== T.SAPLING && o !== T.ROCK) { if (idade >= total) TER.terreno.delete(k); continue; }
+      if (t === T.WALL || t === T.GATE || TER.obraEm.has(k) || S.builds.some(b => shapeHit(b, x + 0.5, y + 0.5))) { if (idade >= total) TER.terreno.delete(k); continue; }
+      if (idade < total / 2) { if (t === T.TREE || t === T.SAPLING || t === T.ROCK) { S.tiles[i] = T.GRASS; S.aux[k] = 0; hits.delete(i); } continue; }
+      if (t !== T.GRASS && t !== T.SAPLING) continue;
+      if (idade < total) { if (o !== T.ROCK && t === T.GRASS) { S.tiles[i] = T.SAPLING; S.aux[k] = 0; } continue; }
+      if (playerInTile(x, y)) continue;   // espera o jogador sair de cima
+      S.tiles[i] = o; S.aux[k] = TER.origAux[k]; TER.terreno.delete(k);
+    }
+  }
+  setInterval(() => { if (modoClas) terrasRegen(); }, 10000);
+  setInterval(() => { if (modoClas) terrasCarregar(); }, 90000);
+  async function terrasCarregar() {
+    if (!modoClas || !online() || !NET.terrasEstado || TER.carregando) return;
+    TER.carregando = true;
+    try {
+      const e = await NET.terrasEstado();
+      if (!modoClas || !e) return;
+      TER.desvio = (+e.agora || Date.now()) - Date.now();
+      for (const [x, y, ms] of e.terreno || []) { const k = chaveXY(x | 0, y | 0), q = ms - TER.desvio; if (!(TER.terreno.get(k) >= q)) TER.terreno.set(k, q); }
+      TER.bases = (e.bases || []).filter(b => b && isFinite(b.x) && isFinite(b.y) && b.x >= 0 && b.y >= 0 && b.x < W && b.y < H);
+      for (const b of TER.bases) if (corOk(b.cor) && typeof b.tag === 'string') CLA.cores[b.tag] = b.cor;
+      TER.tx = e.tx || null;
+      terrasObras(e.obras || []);
+      terrasRegen();
+    } catch (err) { /* sem rede: tenta de novo depois */ } finally { TER.carregando = false; }
+  }
+  let terrasRecarga = null;
+  const terrasRecarregar = () => { clearTimeout(terrasRecarga); terrasRecarga = setTimeout(terrasCarregar, 600); };
+  // construções do servidor → mapa (tira o que sumiu, põe o que é novo ou mudou)
+  function terrasObras(lista) {
+    const novas = new Map();
+    for (const o of lista) if (o && o.id != null && typeof o.k === 'string' && isFinite(o.x) && isFinite(o.y) && o.x > 0 && o.y > 0 && o.x < W - 3 && o.y < H - 3) novas.set(String(o.id), o);
+    for (const [id, o] of TER.obras) if (!novas.has(id)) obraTirar(o);
+    for (const [id, o] of novas) { const v = TER.obras.get(id); if (!v || v.rot !== o.rot || v.k !== o.k) { if (v) obraTirar(v); obraPor(o); } }
+    TER.obras = novas;
+    for (const o of novas.values()) { o.max = o.max || o.hp; if (o.hp != null) marcarDano(o); }
+    for (const b of S.builds) if (b.obra) { const base = TER.bases.find(q => q.cla === b.cla); if (base) { b.cor = base.cor; b.brasao = base.brasao; } }
+  }
+  function obraPor(o) {
+    const m = /^(muro|portao):(\d)$/.exec(o.k), base = TER.bases.find(q => q.cla === o.cla), id = String(o.id);
+    if (m) {
+      const i = I(o.x, o.y, 0);
+      S.tiles[i] = m[1] === 'portao' ? T.GATE : T.WALL; S.wmat[i] = (+m[2] & 15) | (((o.rot | 0) % 3) << 4); S.aux[chaveXY(o.x, o.y)] = 0; S.water[i] = 0;
+      TER.obraEm.set(chaveXY(o.x, o.y), id);
+    } else if (BUILDS[o.k] && BUILDS[o.k].custo) {
+      const d = BUILDS[o.k];
+      S.builds.push({ k: o.k, x: o.x, y: o.y, rot: (o.rot | 0) & 3, obra: id, cla: o.cla, cor: base ? base.cor : '#c0392b', brasao: base ? base.brasao : 'escudo' });
+      for (let yy = o.y; yy < o.y + d.h; yy++) for (let xx = o.x; xx < o.x + d.w; xx++) {
+        const i = I(xx, yy, 0), t = S.tiles[i];
+        if (t === T.TREE || t === T.SAPLING || t === T.ROCK) { S.tiles[i] = T.GRASS; S.aux[chaveXY(xx, yy)] = 0; }
+        TER.obraEm.set(chaveXY(xx, yy), id);
+      }
+    }
+  }
+  function obraTirar(o) {
+    const id = String(o.id);
+    if (/^(muro|portao):/.test(o.k)) {
+      const i = I(o.x, o.y, 0);
+      if (S.tiles[i] === T.WALL || S.tiles[i] === T.GATE) { S.tiles[i] = T.GRASS; S.wmat[i] = 0; hits.delete(i); }
+      if (TER.obraEm.get(chaveXY(o.x, o.y)) === id) TER.obraEm.delete(chaveXY(o.x, o.y));
+    } else {
+      const k = S.builds.findIndex(b => b.obra === id);
+      if (k >= 0) S.builds.splice(k, 1);
+      for (const [c, v] of TER.obraEm) if (v === id) TER.obraEm.delete(c);
+    }
+  }
+  // colocar muros e portões nas Terras: paga o material e o servidor confere se é dentro da base
+  async function terrasMuro(x, y, z, t, i) {
+    const gate = S.sel.k === 'portao', m = S.sel.m || 0, cost = wallCost(m, gate);
+    if (z !== 0) return;
+    if (isWallT(t)) {
+      actHeld = false;
+      const o = TER.obras.get(TER.obraEm.get(chaveXY(x, y)));
+      if (o && o.cla === meuClaId() && o.hp < o.max) { consertarObra(o); return; }   // muro do clã que apanhou: conserta
+      toast('Já tem muro aí. Para trocar, remova antes (Construir → Remover).', 'warn'); return;
+    }
+    if (!(t === T.GRASS || t === T.TILLED)) { if (t === T.TREE || t === T.SAPLING || t === T.ROCK) toast('Derrube as árvores e pedras antes', 'warn'); return; }
+    if (playerInTile(x, y) && !gate) return;
+    const prob = terrasProblema(x, y, 1, 1);
+    if (prob) { actHeld = false; cooldown = 0.6; toast(prob, 'warn', 3500); return; }
+    if (S.builds.some(b => shapeHit(b, x + 0.5, y + 0.5))) { toast('Tem uma construção aí', 'warn'); return; }
+    if (!payAll(cost)) { actHeld = false; cooldown = 0.5; toast(`Precisa de ${costTxt(cost)}`, 'warn'); return; }
+    const k = `${gate ? 'portao' : 'muro'}:${m}`, chave = chaveXY(x, y);
+    S.tiles[i] = gate ? T.GATE : T.WALL; S.wmat[i] = m; hits.delete(i); sfx('construir');
+    TER.obraEm.set(chave, '?'); invDirty = true;
+    try {
+      const id = String(await NET.terrasConstruir(k, x, y, 0));
+      TER.obras.set(id, { id, cla: meuClaId(), k, x, y, rot: 0 }); TER.obraEm.set(chave, id);
+      NET.terrasEnviar('o', {});
+    } catch (e) {
+      if (TER.obraEm.get(chave) === '?') { TER.obraEm.delete(chave); if (isWallT(S.tiles[i])) { S.tiles[i] = T.GRASS; S.wmat[i] = 0; } }
+      giveAll(cost); invDirty = true; toast(e.message, 'warn', 3500);
+    }
+  }
+  async function terrasAjustar(mode, x, y, z, t, i) {
+    actHeld = false;
+    if (mode === 'mover') { toast('Nas Terras não dá para mover: remova e coloque de novo', 'warn'); return; }
+    if (!isWallT(t)) { toast('Fique de frente para um muro', 'warn'); return; }
+    const id = TER.obraEm.get(chaveXY(x, y)), o = id && TER.obras.get(id);
+    if (!o || o.cla !== meuClaId()) { toast('Esse muro não é do seu clã', 'warn'); return; }
+    if (mode === 'remover') {
+      try { await NET.terrasRemover(+id); } catch (e) { toast(e.message, 'warn', 3500); return; }
+      obraTirar(o); TER.obras.delete(id);
+      const mm = /^(muro|portao):(\d)$/.exec(o.k), back = wallCost(+mm[2], mm[1] === 'portao');
+      giveAll(back); sfx('desaba'); toast(`Removido: ${costTxt(back)} de volta`);
+      NET.terrasEnviar('o', {});
+    } else if (mode === 'girar') {
+      if (t === T.GATE) { toast('Portões ficam sempre de frente', 'warn'); return; }
+      const novo = ((S.wmat[i] >> 4) + 1) % 3;
+      try { await NET.terrasGirar(+id, novo); } catch (e) { toast(e.message, 'warn', 3500); return; }
+      S.wmat[i] = (S.wmat[i] & 15) | (novo << 4); o.rot = novo; sfx('toque');
+      toast(['Encaixe automático', 'Deitado (de lado a lado)', 'Em pé (para cima e para baixo)'][novo]);
+      NET.terrasEnviar('o', {});
+    }
+    invDirty = true;
+  }
+  // torre e estandarte do clã
+  async function terrasColocar(k) {
+    const d = BUILDS[k];
+    actHeld = false;
+    if (!d || !d.custo) { toast('Nas Terras dos Clãs só dá para construir muros, portões e as peças do clã', 'warn', 3500); return; }
+    const c = candidate(k); c.rot = S.sel.rot || 0;
+    const prob = placeProblem(c) || terrasProblema(c.x, c.y, d.w, d.h);
+    if (prob) { toast(prob, 'warn', 3500); cooldown = 0.5; return; }
+    if (!payAll(d.custo)) { toast(`Precisa de ${costTxt(d.custo)}`, 'warn'); cooldown = 0.5; return; }
+    cooldown = 1; invDirty = true;
+    try {
+      const id = String(await NET.terrasConstruir(k, c.x, c.y, c.rot));
+      const o = { id, cla: meuClaId(), k, x: c.x, y: c.y, rot: c.rot };
+      TER.obras.set(id, o); obraPor(o); sfx('construir'); toast(`${d.nome}: pronta`, 'gold');
+      NET.terrasEnviar('o', {});
+    } catch (e) { giveAll(d.custo); invDirty = true; toast(e.message, 'warn', 3500); }
+  }
+  async function terrasRemoverObra(id) {
+    const o = TER.obras.get(id);
+    if (!o) return;
+    try { await NET.terrasRemover(+id); } catch (e) { toast(e.message, 'warn', 3500); return; }
+    obraTirar(o); TER.obras.delete(id);
+    const d = BUILDS[o.k];
+    if (d && d.custo) { giveAll(d.custo); toast(`${d.nome} removida: ${costTxt(d.custo)} de volta`); }
+    sfx('desaba'); NET.terrasEnviar('o', {}); invDirty = true;
+  }
+  // tela Construir nas Terras
+  function terrasBuildHtml(row, cur, pick) {
+    const b = minhaBase(), E = chatEsc;
+    let h = '<div class="section-label">Base do clã</div>';
+    if (!online()) h += '<div class="empty">Construir nas Terras precisa da conta ligada (no site do jogo).</div>';
+    else if (!CLA.dados) h += '<div class="empty">Entre em um clã (Menu → Clã) para construir aqui.</div>';
+    else if (!b) h += `<div class="empty">Seu clã ainda não tem base. ${CLA.dados.papel !== 'membro' ? 'Vá até o lugar que quiser e toque em Menu → Clã → Marcar a base aqui.' : 'Peça ao líder ou a um oficial para marcar.'}</div>`;
+    else {
+      const dentro = Math.abs(S.p.x - b.x - 0.5) <= BASE_R + 0.5 && Math.abs(S.p.y - b.y - 0.5) <= BASE_R + 0.5;
+      h += `<p class="muted small-text">Base [${E(CLA.dados.tag)}]: até ${BASE_R} blocos da bandeira para cada lado (a linha na cor do clã). Você está <b>${dentro ? 'dentro' : 'fora'}</b> da base${dentro ? '' : ` (a bandeira fica a ${Math.round(Math.hypot(S.p.x - b.x, S.p.y - b.y))} blocos)`}. Árvores e pedras precisam ser derrubadas antes.</p>`;
+    }
+    const perto = S.builds.filter(q => q.obra && q.cla === meuClaId()).map(q => ({ q, dist: Math.hypot(q.x + BUILDS[q.k].w / 2 - S.p.x, q.y + BUILDS[q.k].h / 2 - S.p.y) }))
+      .filter(o => o.dist < 40).sort((a, c) => a.dist - c.dist).slice(0, 20);
+    if (perto.length) {
+      h += '<div class="section-label">Peças do clã por perto</div><div class="list">';
+      for (const { q, dist } of perto) { const d = BUILDS[q.k];
+        const dano = q.max && q.hp < q.max;
+        h += row(d.gira ? thumb2(imgDe(q)) : '', d.nome, `a ${Math.round(dist)} blocos${dano ? ` · vida ${q.hp}/${q.max}` : ''} · remover devolve ${costTxt(d.custo)}`, `${dano ? `<button type="button" class="btn btn-gold" data-tconserta="${q.obra}">Consertar</button>` : ''}<button type="button" class="btn btn-danger" data-tobra="${q.obra}">Remover</button>`); }
+      h += '</div>';
+    }
+    h += '<div class="section-label">Peças do clã</div><div class="list">';
+    for (const k of ['cla_torre', 'cla_transmissao', 'cla_estandarte']) { const d = BUILDS[k];
+      h += row(d.gira ? thumb2(imgDe({ k, rot: 0 })) : '', d.nome, `${costTxt(d.custo)} · ${d.desc}`, pick('kit:' + k, cur('kit', 0, k))); }
+    h += '</div><div class="section-label">Muros</div><div class="list">';
+    WALL_MATS.forEach((m, k) => { h += row(thumb2(`muro_${m.id}_h`), m.nome, `${costTxt(m.custo)} · ${m.golpes} golpes para derrubar`, pick('muro:' + k, cur('muro', k))); });
+    h += '</div><div class="section-label">Portões · abrem quando você chega perto</div><div class="list">';
+    WALL_MATS.forEach((m, k) => { h += row(thumb2(`muro_${m.id}_portao`), `Portão (${m.nome.toLowerCase()})`, costTxt(wallCost(k, true)), pick('portao:' + k, cur('portao', k))); });
+    h += '</div><div class="section-label">Ajustar muros e portões</div><div class="list">';
+    h += row('', 'Girar', 'Use num muro: encaixe automático → deitado → em pé', pick('girar:0', S.sel.k === 'girar'));
+    h += row('', 'Remover', 'Use num muro do clã: some na hora e devolve o material', pick('remover:0', S.sel.k === 'remover'));
+    h += '</div><p class="muted small-text">Muro do clã que apanhou: escolha o mesmo muro e use nele para consertar (paga o material de novo).</p><div class="list">';
+    h += '</div><p class="muted small-text">Os recursos vêm da sua terra ou do Mercado. O que o clã constrói aqui fica salvo no servidor e todos veem.</p>';
+    return h;
+  }
+  // bases: linha no chão na cor do clã e a bandeira no meio
+  function desenharBases(ents, camX, camY, W2, H2, now) {
+    for (const b of TER.bases) {
+      const x0 = (b.x - BASE_R) * tp - camX, y0 = (b.y - BASE_R) * tp - camY, L = (2 * BASE_R + 1) * tp;
+      if (x0 > W2 + tp || y0 > H2 + 3 * tp || x0 + L < -tp || y0 + L < -tp) continue;
+      const cor = corOk(b.cor) || '#c0392b';
+      ents.push({ y: -1e9, f: () => {
+        ctx.save(); ctx.strokeStyle = cor; ctx.globalAlpha = 0.6; ctx.lineWidth = Math.max(2, tp / 9); ctx.setLineDash([tp * 0.55, tp * 0.3]);
+        ctx.strokeRect(x0 + tp * 0.05, y0 + tp * 0.05, L - tp * 0.1, L - tp * 0.1); ctx.restore();
+      } });
+      const fx = (b.x + 0.5) * tp - camX, fy = (b.y + 0.85) * tp - camY;
+      if (fx > -3 * tp && fx < W2 + 3 * tp && fy > -tp && fy < H2 + 4 * tp) ents.push({ y: fy, f: () => desenharEstandarte(fx, fy, cor, b.brasao, 1.45, now, b.tag) });
+    }
+  }
+  function desenharEstandarte(cx, bottom, cor, brasao, esc, now, tag) {
+    cor = corOk(cor) || '#c0392b';
+    const q = tp * esc, Hm = 2.1 * q, pw = Math.max(2, 0.08 * q);
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(cx + 0.2 * q, bottom - 0.03 * q, 0.42 * q, 0.11 * q, 0, 0, 6.283); ctx.fill();
+    ctx.fillStyle = '#6b6258'; ctx.fillRect(cx - 0.2 * q, bottom - 0.17 * q, 0.4 * q, 0.17 * q);
+    ctx.fillStyle = '#958a7e'; ctx.fillRect(cx - 0.2 * q, bottom - 0.17 * q, 0.4 * q, 0.05 * q);
+    ctx.fillStyle = '#4a2e18'; ctx.fillRect(cx - pw / 2, bottom - Hm, pw, Hm - 0.12 * q);
+    ctx.fillStyle = '#86603a'; ctx.fillRect(cx - pw / 2, bottom - Hm, pw * 0.4, Hm - 0.12 * q);
+    ctx.fillStyle = '#d9b24c'; ctx.beginPath(); ctx.arc(cx, bottom - Hm, pw * 0.95, 0, 6.283); ctx.fill();
+    // pano com rabo de andorinha, balançando com o vento
+    const top = bottom - Hm + 0.1 * q, fw = 0.95 * q, fh = 0.6 * q, s1 = Math.sin(now / 430 + cx * 0.013) * 0.06 * q, s2 = Math.sin(now / 430 + 1.3 + cx * 0.013) * 0.06 * q;
+    ctx.beginPath(); ctx.moveTo(cx + pw / 2, top);
+    ctx.quadraticCurveTo(cx + fw * 0.5, top + s1 * 2, cx + fw, top + s2);
+    ctx.lineTo(cx + fw - 0.2 * q, top + fh / 2 + s2);
+    ctx.lineTo(cx + fw, top + fh + s2);
+    ctx.quadraticCurveTo(cx + fw * 0.5, top + fh + s1 * 2, cx + pw / 2, top + fh);
+    ctx.closePath(); ctx.fillStyle = cor; ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.fillRect(cx + pw / 2, top + fh * 0.82, fw * 0.75, fh * 0.12);
+    ctx.strokeStyle = 'rgba(25,15,8,0.55)'; ctx.lineWidth = Math.max(1, q * 0.03); ctx.stroke();
+    ctx.font = `${Math.round(0.32 * q)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(BRASOES[brasao] || BRASOES.escudo, cx + fw * 0.42, top + fh / 2 + s1);
+    if (tag) {
+      ctx.font = `600 ${Math.round(tp * 0.28)}px "Barlow", sans-serif`;
+      const tw = ctx.measureText(tag).width + 10, ty = bottom - Hm - 0.35 * tp;
+      ctx.fillStyle = cor; ctx.fillRect(cx - tw / 2, ty - 0.17 * tp, tw, 0.34 * tp);
+      ctx.strokeStyle = 'rgba(20,17,15,0.7)'; ctx.lineWidth = 1.5; ctx.strokeRect(cx - tw / 2, ty - 0.17 * tp, tw, 0.34 * tp);
+      ctx.fillStyle = '#fff'; ctx.fillText(tag, cx, ty + 1);
+    }
+    ctx.restore(); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+  // bandeira branca da torre pintada na cor do clã (máscara _m do mesmo tamanho do desenho)
+  const bandeiraCache = new Map();
+  function tintaBandeira(b, name, camX, camY) {
+    const r = ATLAS2[name + '_m'];
+    if (!r || !art2) return;
+    const cor = corOk(b.cor) || '#c0392b', key = name + cor;
+    let cv = bandeiraCache.get(key);
+    if (!cv) {
+      cv = document.createElement('canvas'); cv.width = r[2]; cv.height = r[3];
+      const c = cv.getContext('2d');
+      c.drawImage(art2, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
+      c.globalCompositeOperation = 'multiply'; c.fillStyle = cor; c.fillRect(0, 0, r[2], r[3]);
+      c.globalCompositeOperation = 'destination-in'; c.drawImage(art2, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
+      bandeiraCache.set(key, cv);
+    }
+    const [x, y, w, h] = buildRect(b, name, camX, camY);
+    ctx.drawImage(cv, x, y, w, h);
+  }
+  // Menu → Clã: marcar a base onde o jogador está
+  async function claMarcarBase() {
+    if (!modoClas) { toast('Vá para as Terras dos Clãs (barco no porto) e marque a base no lugar que quiser', 'warn', 4000); return false; }
+    const x = Math.floor(S.p.x), y = Math.floor(S.p.y);
+    if (S.porto && Math.hypot(x - S.porto.x, y - S.porto.y) < BASE_R + 12) { toast('Muito perto do porto: escolha outro lugar', 'warn'); return false; }
+    try { await NET.claBaseMarcar(x, y); } catch (e) { toast(e.message, 'warn', 4000); return false; }
+    TER.terreno.set(chaveXY(x, y), Date.now()); S.tiles[I(x, y, 0)] = T.GRASS; NET.terrasLimpar(x, y).catch(() => {});
+    toast('Base marcada! A bandeira do clã ficou aqui.', 'gold', 4000); sfx('construir');
+    NET.terrasEnviar('o', {}); await terrasCarregar(); return true;
+  }
+
+  // ---- saqueadores compartilhados nas Terras: o jogador com o menor código simula; os outros seguem
+  function terrasSouHost() {
+    if (!online() || !NET.profile) return true;
+    const eu = NET.profile.codigo, agora = performance.now();
+    if (TER.hostCod && TER.hostCod !== eu && agora - TER.hostVisto < 2500 && (NET.isAdmin || TER.hostCod < eu)) return false;
+    if (NET.isAdmin) return REMOTOS.size === 0;   // o administrador (invisível) só simula quando está sozinho
+    for (const c of REMOTOS.keys()) if (c < eu) return false;
+    return true;
+  }
+  function terrasJogadores() {
+    const l = [];
+    if (S.p.z === 0 && !interior) l.push({ x: S.p.x, y: S.p.y, eu: true });
+    for (const [cod, r] of REMOTOS) l.push({ x: r.x, y: r.y, cod });
+    if (!l.length) l.push({ x: S.p.x, y: S.p.y, eu: true });
+    return l;
+  }
+  function alvoMob(m, jogs) {
+    let best = null, bd = Infinity;
+    for (const j of jogs) {
+      if (j.eu ? S.hp <= 0 || !!insideOf(S.p.x, S.p.y, 'casa') : !!zonaEm(j.x, j.y)) continue;
+      const d = Math.hypot(m.x - j.x, m.y - j.y);
+      if (d < bd) { bd = d; best = j; }
+    }
+    return best || { x: S.p.x, y: S.p.y };
+  }
+  function seguirMob(m, dt) {
+    if (m.nx === undefined) return;
+    const dx = m.nx - m.x, dy = m.ny - m.y, L = Math.hypot(dx, dy);
+    if (L > 6) { m.x = m.nx; m.y = m.ny; }
+    else { const k = Math.min(1, dt * 10); m.x += dx * k; m.y += dy * k; }
+    m.moving = m.nmov || L > 0.05; if (m.moving) m.phase += dt * 10;
+  }
+  const MOB_K = ['saqueador', 'chefe'];
+  setInterval(() => {   // anfitrião: manda os saqueadores 5 vezes por segundo
+    if (!modoClas || !online() || !NET.profile || !NET.terrasEnviar || !terrasSouHost()) { TER.golpes.length = 0; TER.mortes.length = 0; return; }
+    const now = performance.now(), l = [];
+    for (const m of S.mobs) if (m.camp !== undefined && m.id && MOB_K.includes(m.kind))
+      l.push([m.id, MOB_K.indexOf(m.kind), m.camp, Math.round(m.x * 100), Math.round(m.y * 100), Math.max(0, Math.round(m.hp)), m.dir, m.moving ? 1 : 0, m.swing ? Math.min(9999, Math.round(now - m.swing)) : 9999, m.aggro ? 1 : 0]);
+    if (!l.length && !TER.golpes.length && !TER.mortes.length && now - (TER.vazioEnviado || 0) < 3000) return;
+    if (!l.length) TER.vazioEnviado = now;
+    NET.terrasEnviar('m', { h: NET.profile.codigo, l, g: TER.golpes.splice(0), k: TER.mortes.splice(0) });
+  }, 200);
+  function terrasMobs(d) {
+    if (!modoClas || !d || typeof d.h !== 'string' || !Array.isArray(d.l)) return;
+    const eu = NET.profile && NET.profile.codigo, now = performance.now();
+    if (d.h === eu) return;
+    if (TER.hostCod && TER.hostCod !== d.h && now - TER.hostVisto < 2500 && d.h > TER.hostCod) return;   // vale o de menor código
+    TER.hostCod = d.h; TER.hostVisto = now;
+    if (terrasSouHost()) return;
+    const porId = new Map(S.mobs.filter(m => m.camp !== undefined).map(m => [m.id, m]));
+    for (const [id, killer] of Array.isArray(d.k) ? d.k : []) {   // quem morreu (o corpo cai para todos)
+      const m = porId.get(id); if (!m) continue;
+      porId.delete(id); S.mobs.splice(S.mobs.indexOf(m), 1);
+      corpses.push({ kind: m.kind, x: m.x, y: m.y, z: m.z, flip: m.dir === 2, t0: now });
+      if (killer === eu) { sfx('inimigo'); if (m.minhaArma) addXp(m.minhaArma, MOB[m.kind].xp); toast(m.kind === 'chefe' ? 'Chefe dos saqueadores derrotado!' : 'Saqueador derrotado', 'gold'); }
+    }
+    const vivos = new Set();
+    for (const e of d.l) {
+      if (!Array.isArray(e) || e.length < 10) continue;
+      const [id, ki, camp, x100, y100, hp, dir, mov, sw, ag] = e, kind = MOB_K[ki];
+      if (!kind || !isFinite(x100) || !isFinite(y100)) continue;
+      const x = x100 / 100, y = y100 / 100;
+      if (x < 0 || y < 0 || x > W || y > H) continue;
+      vivos.add(id);
+      let m = porId.get(id);
+      if (!m) { const c = S.camps.find(q => q.id === camp); m = newMob(kind, x, y, 0, { camp, id, hx: c ? c.x + 0.5 : x, hy: c ? c.y + 0.5 : y }); S.mobs.push(m); }
+      if (hp < m.hp) m.flash = now + 120;
+      m.nx = x; m.ny = y; m.hp = Math.min(m.max, hp); m.dir = dir & 3; m.nmov = !!mov; m.aggro = !!ag;
+      if (sw < 400) { const t = now - sw; if (!m.swing || Math.abs(m.swing - t) > 300) m.swing = t; }
+    }
+    for (let k = S.mobs.length - 1; k >= 0; k--) { const m = S.mobs[k]; if (m.camp !== undefined && !vivos.has(m.id)) S.mobs.splice(k, 1); }
+    for (const g of Array.isArray(d.g) ? d.g : []) if (Array.isArray(g) && g[0] === eu && S.p.z === 0) hurt(Math.min(60, +g[1] || 0), S.mobs.find(m => m.id === g[2]));   // golpe em você
+  }
+  function terrasGolpeMob(d) {   // anfitrião: outro jogador acertou um saqueador
+    if (!modoClas || !d || !terrasSouHost()) return;
+    const k = S.mobs.findIndex(m => m.id === d.id && m.camp !== undefined);
+    if (k < 0) return;
+    const m = S.mobs[k], n = Math.max(0, Math.min(400, +d.n || 0)), now = performance.now();
+    m.hp -= n; m.flash = now + 120; m.hitT = now; m.aggro = true;
+    if (m.camp !== undefined) for (const o of S.mobs) if (o.camp === m.camp) o.aggro = true;
+    effects.push({ txt: String(Math.round(n)), x: m.x, y: m.y - 1.3, z: m.z, t0: now, dur: 650, cor: '#ffffff' });
+    if (m.hp <= 0) {
+      S.mobs.splice(k, 1);
+      corpses.push({ kind: m.kind, x: m.x, y: m.y, z: m.z, flip: m.dir === 2, t0: now });
+      const c = S.camps.find(q => q.id === m.camp), def = MOB[m.kind];
+      if (c) { c.mortos.push(S.time + def.volta); if (m.kind === 'chefe') c.chefeVolta = S.time + def.volta; }
+      TER.mortes.push([m.id, String(d.c || '')]);
+    }
+  }
+  // ================= Guerra nas Terras dos Clãs (supabase/guerra.sql) =================
+  // Construções de outros clãs levam golpes (o servidor conta a vida de cada uma); a torre de transmissão
+  // guarda petróleo e ferro e lança os robôs: o saqueador rouba moedas e leva para a base; o explosivo explode
+  // perto de um jogador ou das construções de uma base. Cada robô é simulado por quem lançou e os outros veem.
+  const robosCfg = () => { const r = MUNDO.robos || {};
+    return { scout: Object.assign({ petroleo: 15, ferro: 5, espera: 10, roubo: 10, roubomax: 300 }, r.scout), sentinela: Object.assign({ petroleo: 25, ferro: 15, espera: 20, dano: 30, danojog: 60 }, r.sentinela) }; };
+  const ROBO = { scout: { kind: 'robo_scout', nome: 'Robô saqueador', vida: 4 * 60000 }, sentinela: { kind: 'robo_sentinela', nome: 'Robô explosivo', vida: 5 * 60000 } };
+  const MADEIRA_K = ['muro:0', 'portao:0', 'cla_estandarte'];
+  function golpearObra(o, tool) {
+    if (!online() || !CLA.dados) { actHeld = false; toast('Entre em um clã para atacar', 'warn'); return; }
+    if (tool === 'machado' && !MADEIRA_K.includes(o.k)) { actHeld = false; toast('O machado só derruba madeira. Use a picareta.', 'warn'); return; }
+    cooldown = 0.35; wear(tool); sfx(MADEIRA_K.includes(o.k) ? 'corte' : 'pedra');
+    if (o.esperando) return;
+    o.esperando = true;
+    NET.terrasGolpear(+o.id, tool).then(hp => { o.esperando = false; obraHp(o.id, hp); NET.terrasEnviar('og', { id: String(o.id), hp }); })
+      .catch(e => { o.esperando = false; if (!/Devagar/.test(e.message)) { actHeld = false; toast(e.message, 'warn'); } });
+  }
+  function obraHp(id, hp) {
+    const o = TER.obras.get(String(id));
+    if (!o) return;
+    hp = Math.max(0, hp | 0);
+    if (hp <= 0) {
+      obraTirar(o); TER.obras.delete(String(id)); sfx('desaba');
+      const tam = BUILDS[o.k] ? BUILDS[o.k].w : 1;
+      fxAnim(['fx_poeira'], o.x + tam / 2, o.y + tam / 2, 0, 1.4 * tam, 600); fxAnim(['fx_impacto'], o.x + tam / 2, o.y + tam / 2, 0, 1.2, 380);
+      return;
+    }
+    o.hp = hp; marcarDano(o);
+  }
+  function marcarDano(o) {
+    const max = o.max || o.hp || 1, i = I(o.x, o.y, 0);
+    if (/^(muro|portao):/.test(o.k)) { if (o.hp < max) hits.set(i, { h: max - o.hp, need: max }); else hits.delete(i); }
+    else { const b = S.builds.find(q => q.obra === String(o.id)); if (b) { b.hp = o.hp; b.max = max; } }
+  }
+  async function consertarObra(o) {
+    const mm = /^(muro|portao):(\d)$/.exec(o.k), d = BUILDS[o.k];
+    const cost = mm ? wallCost(+mm[2], mm[1] === 'portao') : Object.fromEntries(Object.entries(d.custo).map(([k, v]) => [k, Math.ceil(v / 2)]));
+    if (!payAll(cost)) { toast(`Consertar precisa de ${costTxt(cost)}`, 'warn'); return; }
+    invDirty = true;
+    try { const hp = await NET.terrasConsertar(+o.id); obraHp(o.id, hp); NET.terrasEnviar('og', { id: String(o.id), hp }); toast(`Consertado: ${costTxt(cost)}`, 'leaf'); sfx('construir'); }
+    catch (e) { giveAll(cost); toast(e.message, 'warn'); }
+  }
+  // barra de vida das construções do clã que apanharam
+  function barraObra(b, cx, topo) {
+    if (!b.max || b.hp >= b.max) return;
+    const u = tp / 16, bw = 22 * u, k = clamp(b.hp / b.max, 0, 1);
+    ctx.fillStyle = 'rgba(20,17,15,0.85)'; ctx.fillRect(cx - bw / 2, topo, bw, 3 * u);
+    ctx.fillStyle = k > 0.5 ? '#7fd16a' : k > 0.25 ? '#efb941' : '#e0573f'; ctx.fillRect(cx - bw / 2, topo, bw * k, 3 * u);
+  }
+  // torre de transmissão: desenho próprio (treliça de ferro, antena e luz piscando; ondas na cor do clã)
+  function desenharTransmissao(b, camX, camY, alpha = 1) {
+    const now = performance.now(), u = tp / 16, cx = (b.x + 1) * tp - camX, base = (b.y + 1.85) * tp - camY, Ht = 4.2 * tp, cor = corOk(b.cor) || '#c0392b';
+    ctx.save(); ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(cx + 0.3 * tp, base, 1.0 * tp, 0.3 * tp, 0, 0, 6.283); ctx.fill();
+    ctx.fillStyle = '#6b6258'; ctx.fillRect(cx - 0.85 * tp, base - 0.22 * tp, 1.7 * tp, 0.22 * tp);
+    ctx.fillStyle = '#8f857a'; ctx.fillRect(cx - 0.85 * tp, base - 0.22 * tp, 1.7 * tp, 0.06 * tp);
+    const L = y => 0.7 * tp * (1 - y / Ht) + 0.08 * tp;   // meia largura da treliça na altura y
+    ctx.strokeStyle = '#3b3a3f'; ctx.lineWidth = Math.max(2, 1.6 * u);
+    ctx.beginPath(); ctx.moveTo(cx - L(0), base - 0.2 * tp); ctx.lineTo(cx - L(Ht * 0.82), base - Ht * 0.82); ctx.moveTo(cx + L(0), base - 0.2 * tp); ctx.lineTo(cx + L(Ht * 0.82), base - Ht * 0.82); ctx.stroke();
+    ctx.strokeStyle = '#6d6a70'; ctx.lineWidth = Math.max(1, 0.9 * u); ctx.beginPath();
+    for (let k = 0; k < 6; k++) { const y0 = 0.2 * tp + k * Ht * 0.13, y1 = y0 + Ht * 0.13; ctx.moveTo(cx - L(y0), base - y0); ctx.lineTo(cx + L(y1), base - y1); ctx.moveTo(cx + L(y0), base - y0); ctx.lineTo(cx - L(y1), base - y1); ctx.moveTo(cx - L(y1), base - y1); ctx.lineTo(cx + L(y1), base - y1); }
+    ctx.stroke();
+    const topo = base - Ht * 0.82;
+    ctx.fillStyle = '#4a4850'; ctx.fillRect(cx - 0.32 * tp, topo - 0.12 * tp, 0.64 * tp, 0.14 * tp);   // plataforma
+    ctx.fillStyle = '#2c2b30'; ctx.fillRect(cx - 0.04 * tp, base - Ht, 0.08 * tp, Ht * 0.18);       // antena
+    ctx.fillStyle = '#d8d4cc'; ctx.beginPath(); ctx.ellipse(cx + 0.28 * tp, topo - 0.32 * tp, 0.2 * tp, 0.26 * tp, -0.5, 0, 6.283); ctx.fill();   // prato
+    ctx.strokeStyle = '#7a776f'; ctx.lineWidth = Math.max(1, u * 0.8); ctx.stroke();
+    ctx.fillStyle = cor; ctx.fillRect(cx - 0.32 * tp, topo - 0.05 * tp, 0.64 * tp, 0.06 * tp);   // faixa do clã
+    const pisca = Math.floor(now / 600) % 2 === 0;
+    ctx.fillStyle = pisca ? '#ff3b30' : '#7a1f1a'; ctx.beginPath(); ctx.arc(cx, base - Ht, 0.07 * tp, 0, 6.283); ctx.fill();
+    if (pisca) { ctx.fillStyle = 'rgba(255,60,48,0.25)'; ctx.beginPath(); ctx.arc(cx, base - Ht, 0.22 * tp, 0, 6.283); ctx.fill(); }
+    ctx.strokeStyle = cor; ctx.lineWidth = Math.max(1.5, u);
+    for (let k = 0; k < 3; k++) { const f = ((now / 1400) + k / 3) % 1; ctx.globalAlpha = alpha * (1 - f) * 0.8; ctx.beginPath(); ctx.arc(cx, base - Ht, (0.3 + f * 1.1) * tp, -2.4, -0.74); ctx.stroke(); }
+    ctx.restore();
+    barraObra(b, cx, base - Ht - 0.45 * tp);
+  }
+  function txDoCla() { return S.builds.find(q => q.k === 'cla_transmissao' && q.cla === meuClaId() && meuClaId() != null) || null; }
+  function txNaFrente(x, y) {
+    if (!modoClas || S.p.z !== 0) return null;
+    return S.builds.find(b => b.k === 'cla_transmissao' && b.cla === meuClaId() && (shapeHit(b, x + 0.5, y + 0.5) || shapeHit(b, S.p.x, S.p.y - 0.6))) || null;
+  }
+  const RUMOS = ['leste', 'sudeste', 'sul', 'sudoeste', 'oeste', 'noroeste', 'norte', 'nordeste'];
+  const rumo = (dx, dy) => RUMOS[((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8];
+  const inimigos = () => [...REMOTOS.entries()].filter(([, r]) => !CLA.dados || r.tag !== CLA.dados.tag);
+  let txAberta = false;
+  function abrirTransmissao() { equipAberto = null; txAberta = true; $('equip-titulo').textContent = 'Torre de transmissão'; showSheet('sheet-equip'); renderTransmissao(); }
+  function renderTransmissao() {
+    const body = $('equip-body'), E = chatEsc, c = robosCfg(), tx = TER.tx || { petroleo: 0, ferro: 0 }, agora = Date.now() + TER.desvio;
+    let h = `<p class="muted">Combustível na torre: <b>${tx.petroleo || 0} petróleo</b> e <b>${tx.ferro || 0} ferro</b> (é do clã todo). Você tem ${S.inv.petroleo || 0} petróleo e ${S.inv.ferro || 0} ferro.</p>
+      <div class="cla-linha"><button type="button" class="btn" data-tx="por:petroleo:10">+10 petróleo</button><button type="button" class="btn" data-tx="por:petroleo:all">Todo o petróleo</button>
+      <button type="button" class="btn" data-tx="por:ferro:10">+10 ferro</button><button type="button" class="btn" data-tx="por:ferro:all">Todo o ferro</button></div>`;
+    const jogs = inimigos(), bases = TER.bases.filter(b => b.cla !== meuClaId());
+    for (const tipo of ['scout', 'sentinela']) {
+      const cf = c[tipo], ult = tx[tipo] || 0, falta = Math.max(0, ult + cf.espera * 60000 - agora);
+      h += `<div class="cla-sec">${ROBO[tipo].nome}</div><p class="muted small-text">${tipo === 'scout' ? `Corre até o jogador escolhido, rouba ${cf.roubo}% das moedas dele (até ${cf.roubomax}) e traz para a base. Se for destruído no caminho, perde tudo.` : `Anda até o alvo e explode: tira ${cf.dano} de vida das construções de outros clãs em volta e ${cf.danojog} de vida de quem estiver perto.`} Custa ${cf.petroleo} petróleo e ${cf.ferro} ferro. Espera ${cf.espera} min entre um e outro.</p>`;
+      const ops = jogs.map(([cod, r]) => `<option value="j:${cod}">${E(r.nome)}${r.tag ? ` [${E(r.tag)}]` : ''} · ${Math.round(Math.hypot(r.x - S.p.x, r.y - S.p.y))} blocos</option>`)
+        .concat(tipo === 'sentinela' ? bases.map(b => `<option value="b:${b.cla}">Base [${E(b.tag)}] ${E(b.nome)}</option>`) : []);
+      h += ops.length ? `<label class="field">Alvo<select id="tx-alvo-${tipo}">${ops.join('')}</select></label>` : `<div class="empty">${tipo === 'scout' ? 'Nenhum jogador de outro clã nas Terras agora.' : 'Nenhum alvo: ninguém de outro clã por aqui e nenhuma outra base.'}</div>`;
+      h += falta ? `<p class="muted small-text">Recarregando: falta ${Math.ceil(falta / 60000)} min.</p>` : ops.length ? `<button type="button" class="btn btn-gold" data-tx="lancar:${tipo}">Lançar</button>` : '';
+    }
+    h += '<div class="cla-sec">Localização</div><div class="list">';
+    const loc = bases.map(b => ({ n: `Base [${E(b.tag)}] ${E(b.nome)}`, x: b.x, y: b.y })).concat(jogs.map(([, r]) => ({ n: `${E(r.nome)}${r.tag ? ` [${E(r.tag)}]` : ''}`, x: r.x, y: r.y })));
+    h += loc.length ? loc.map(o => `<div class="row shop"><span class="name"><b>${o.n}</b><small>a ${Math.round(Math.hypot(o.x - S.p.x, o.y - S.p.y))} blocos, para o ${rumo(o.x - S.p.x, o.y - S.p.y)}</small></span></div>`).join('') : '<div class="empty">Nenhuma outra base nem jogador de outro clã.</div>';
+    h += '</div><p class="muted small-text">Com a torre, as setas na borda da tela também mostram as bases dos outros clãs.</p>';
+    if (TER.meusRobos.length) h += '<div class="cla-sec">Seus robôs</div><div class="list">' + TER.meusRobos.map(m => `<div class="row shop"><span class="name"><b>${ROBO[m.robo].nome}</b><small>${m.estado === 'voltar' ? `voltando${m.carga ? ` com ${m.carga} moedas` : ''}` : 'indo até o alvo'} · vida ${Math.round(m.hp)}/${m.max}</small></span></div>`).join('') + '</div>';
+    body.innerHTML = h;
+  }
+  $('equip-body').addEventListener('click', async e => {
+    const b = e.target.closest('[data-tx]');
+    if (!b || !txAberta) return;
+    const [a, x, y] = b.dataset.tx.split(':');
+    if (a === 'por') {
+      const n = y === 'all' ? (S.inv[x] || 0) : Math.min(10, S.inv[x] || 0);
+      if (n <= 0) { toast(`Você não tem ${ITEMS[x].nome.toLowerCase()}`, 'warn'); return; }
+      if (!take(x, n)) return;
+      b.disabled = true; invDirty = true;
+      try { const t = await NET.txAbastecer(x === 'petroleo' ? n : 0, x === 'ferro' ? n : 0); TER.tx = Object.assign(TER.tx || {}, t); toast(`+${n} ${ITEMS[x].nome.toLowerCase()} na torre`, 'leaf'); save(); }
+      catch (err) { give(x, n); toast(err.message, 'warn'); }
+    }
+    if (a === 'lancar') {
+      const sel = $('tx-alvo-' + x);
+      if (!sel || !sel.value) return;
+      const [t, v] = sel.value.split(':');
+      b.disabled = true;
+      await lancarRobo(x, t === 'j' ? { tipo: 'j', cod: v } : { tipo: 'b', cla: +v });
+      await terrasCarregar();
+    }
+    if (openSheet && openSheet.id === 'sheet-equip' && txAberta) renderTransmissao();
+  });
+  // ---- robôs
+  async function lancarRobo(tipo, alvo) {
+    const torre = txDoCla();
+    if (!torre) { toast('Seu clã precisa de uma torre de transmissão', 'warn'); return; }
+    let sid;
+    try { sid = await NET.roboLancar(tipo); } catch (e) { toast(e.message, 'warn', 4000); return; }
+    const m = newMob(ROBO[tipo].kind, torre.x + 1, torre.y + 2.4, 0, { robo: tipo, id: 'r' + sid, sid: +sid, dono: NET.profile.codigo, cla: meuClaId(), cor: CLA.dados.cor, tag: CLA.dados.tag, alvo, meu: true, nasceu: Date.now(), carga: 0, estado: 'ir' });
+    S.mobs.push(m); TER.meusRobos.push(m);
+    sfx('magia'); toast(`${ROBO[tipo].nome} lançado!`, 'gold');
+  }
+  function tirarRobo(m) { const k = S.mobs.indexOf(m); if (k >= 0) S.mobs.splice(k, 1); const j = TER.meusRobos.indexOf(m); if (j >= 0) TER.meusRobos.splice(j, 1); }
+  function roboAlvo(m) {
+    if (m.estado === 'voltar') { const b = minhaBase(); return b ? { x: b.x + 0.5, y: b.y + 1.2, raio: 1.3 } : null; }
+    if (m.alvo.tipo === 'j') { const r = REMOTOS.get(m.alvo.cod); return r ? { x: r.x, y: r.y, raio: 1.0 } : null; }
+    const b = TER.bases.find(q => q.cla === m.alvo.cla);
+    if (!b) return null;
+    let best = null, bd = Infinity;
+    for (const o of TER.obras.values()) {
+      if (o.cla !== m.alvo.cla) continue;
+      const t = BUILDS[o.k] ? BUILDS[o.k].w : 1, ox = o.x + t / 2, oy = o.y + t / 2, d = Math.hypot(ox - m.x, oy - m.y);
+      if (d < bd) { bd = d; best = { x: ox, y: oy, raio: 0.9 + t / 2 }; }
+    }
+    return best || { x: b.x + 0.5, y: b.y + 0.5, raio: 1.2 };
+  }
+  // portão de outro clã: fechado para você e para os seus robôs
+  function portaoFechado(x, y) {
+    if (S.tiles[I(x, y, 0)] !== T.GATE) return false;
+    const o = TER.obras.get(TER.obraEm.get(chaveXY(x, y)));
+    return !!o && o.cla !== meuClaId();
+  }
+  // caminho em blocos (busca em largura numa caixa em volta do robô e do alvo); sem caminho → null
+  function roboRota(m, a) {
+    const sx = Math.floor(m.x), sy = Math.floor(m.y), tx = Math.floor(a.x), ty = Math.floor(a.y), M = 24;
+    const x0 = Math.max(1, Math.min(sx, tx) - M), y0 = Math.max(1, Math.min(sy, ty) - M), x1 = Math.min(W - 2, Math.max(sx, tx) + M), y1 = Math.min(H - 2, Math.max(sy, ty) + M);
+    const bw = x1 - x0 + 1, N = bw * (y1 - y0 + 1);
+    if (N > 160000 || sx < x0 || sy < y0) return null;
+    const bloq = new Uint8Array(N);
+    for (const b of S.builds) { const d = BUILDS[b.k]; if (d.tipo === 'armadilha') continue;
+      for (let yy = Math.max(b.y, y0); yy < Math.min(b.y + d.h, y1 + 1); yy++) for (let xx = Math.max(b.x, x0); xx < Math.min(b.x + d.w, x1 + 1); xx++) bloq[(yy - y0) * bw + xx - x0] = 1; }
+    const prev = new Int32Array(N).fill(-1), fila = new Int32Array(N), raio = Math.max(1, Math.floor(a.raio));
+    const ok = (x, y, k) => !bloq[k] && walkable(S.tiles[I(x, y, 0)], 0) && !portaoFechado(x, y) && !zonaEm(x + 0.5, y + 0.5);
+    const s0 = (sy - y0) * bw + sx - x0; let h = 0, t = 0, fim = -1;
+    prev[s0] = s0; fila[t++] = s0;
+    while (h < t) {
+      const k = fila[h++], x = k % bw + x0, y = ((k / bw) | 0) + y0;
+      if (Math.abs(x - tx) <= raio && Math.abs(y - ty) <= raio) { fim = k; break; }
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < x0 || ny < y0 || nx > x1 || ny > y1) continue;
+        const nk = (ny - y0) * bw + nx - x0;
+        if (prev[nk] >= 0 || !ok(nx, ny, nk)) continue;
+        prev[nk] = k; fila[t++] = nk;
+      }
+    }
+    if (fim < 0) return null;
+    const rota = [];
+    for (let k = fim; k !== s0; k = prev[k]) rota.push([k % bw + x0 + 0.5, ((k / bw) | 0) + y0 + 0.5]);
+    return rota.reverse();
+  }
+  function roboAndar(m, ux, uy, st, now) {
+    const pode = (nx, ny) => canStand(nx, ny, 0, 0.28, 'robo') && !zonaEm(nx, ny) && !buildBlocks(nx, ny);
+    let dx = ux, dy = uy;
+    if (m.desvioAte > now) { dx = m.dvx; dy = m.dvy; }
+    let nx = m.x + dx * st, ny = m.y + dy * st;
+    if (!pode(nx, ny)) {
+      let ok = false;
+      for (const [ax, ay] of [[Math.sign(ux), 0], [0, Math.sign(uy)], [-uy, ux], [uy, -ux]]) {
+        if (!ax && !ay) continue;
+        const tx = m.x + ax * st, ty = m.y + ay * st;
+        if (pode(tx, ty)) { nx = tx; ny = ty; dx = ax; dy = ay; ok = true; break; }
+      }
+      if (!ok) { const a = Math.random() * 6.28; m.dvx = Math.cos(a); m.dvy = Math.sin(a); m.desvioAte = now + 700; m.moving = false; return; }
+      m.dvx = dx; m.dvy = dy; m.desvioAte = now + 350;
+    }
+    m.x = nx; m.y = ny; m.moving = true; m.phase += st / MOB[m.kind].vel * 10;
+    m.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 2 : 3) : (dy < 0 ? 1 : 0);
+  }
+  function robosTick(dt, now) {
+    for (const m of [...TER.meusRobos]) {
+      if (!S.mobs.includes(m)) { tirarRobo(m); continue; }
+      if (Date.now() - m.nasceu > ROBO[m.robo].vida) { tirarRobo(m); NET.terrasEnviar('rb', { e: 'morto', id: m.id }); toast(`${ROBO[m.robo].nome}: acabou a bateria`, 'warn'); continue; }
+      if (m.estado === 'esperando') { m.moving = false; if (now > m.esperaAte) m.estado = 'voltar'; continue; }
+      const a = roboAlvo(m);
+      if (!a) {
+        if (m.robo === 'scout' && m.estado === 'ir') { m.estado = 'voltar'; toast('O alvo do robô saqueador sumiu: voltando', 'warn'); continue; }
+        tirarRobo(m); NET.terrasEnviar('rb', { e: 'morto', id: m.id }); toast(`${ROBO[m.robo].nome}: alvo sumiu`, 'warn'); continue;
+      }
+      const dx = a.x - m.x, dy = a.y - m.y, L = Math.hypot(dx, dy);
+      if (L < a.raio) { roboChegou(m, now); continue; }
+      if (!m.rota || now > m.rotaAte || Math.hypot(a.x - m.rotaAlvo[0], a.y - m.rotaAlvo[1]) > 3) { m.rota = roboRota(m, a) || []; m.rotaAte = now + 2000; m.rotaAlvo = [a.x, a.y]; }
+      while (m.rota.length && Math.hypot(m.rota[0][0] - m.x, m.rota[0][1] - m.y) < 0.3) m.rota.shift();
+      const wx = m.rota.length ? m.rota[0][0] : a.x, wy = m.rota.length ? m.rota[0][1] : a.y, Lw = Math.hypot(wx - m.x, wy - m.y) || 1;
+      roboAndar(m, (wx - m.x) / Lw, (wy - m.y) / Lw, Math.min(Lw, MOB[m.kind].vel * dt), now);
+    }
+    for (let k = S.mobs.length - 1; k >= 0; k--) {
+      const m = S.mobs[k];
+      if (!m.robo || m.meu) continue;
+      if (now - m.visto > 2500) S.mobs.splice(k, 1); else seguirMob(m, dt);
+    }
+  }
+  function roboChegou(m, now) {
+    if (m.robo === 'scout') {
+      if (m.estado === 'ir') {
+        const c = robosCfg().scout;
+        NET.terrasEnviar('rb', { e: 'roubo', id: m.id, a: m.alvo.cod, pct: c.roubo, max: c.roubomax, tag: m.tag });
+        m.estado = 'esperando'; m.esperaAte = now + 2500; m.swing = now;
+      } else {
+        tirarRobo(m); NET.terrasEnviar('rb', { e: 'morto', id: m.id, chegou: 1 });
+        if (m.carga) { S.coins += m.carga; invDirty = true; save(); sfx('moeda'); toast(`Robô saqueador voltou com ${m.carga} moedas!`, 'gold', 4000); }
+        else toast('Robô saqueador voltou sem nada', 'warn');
+      }
+      return;
+    }
+    // explosivo
+    const x = m.x, y = m.y;
+    tirarRobo(m);
+    NET.terrasEnviar('rb', { e: 'boom', id: m.id, x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100, cla: m.cla, dj: robosCfg().sentinela.danojog });
+    boomEfeito(x, y, m.cla, robosCfg().sentinela.danojog);
+    NET.roboExplodir(m.sid, Math.floor(x), Math.floor(y)).then(n => { toast(n ? `Explosão: ${n} ${n === 1 ? 'construção atingida' : 'construções atingidas'}` : 'Explodiu sem construções inimigas por perto', n ? 'gold' : 'warn'); NET.terrasEnviar('o', {}); terrasCarregar(); })
+      .catch(e => toast(e.message, 'warn'));
+  }
+  function boomEfeito(x, y, cla, danoJog) {
+    const now = performance.now();
+    effects.push({ ring: 2.2, x, y, z: 0, t0: now, dur: 450, cor: '#ff8a3a' });
+    fxAnim(['fx_fogo_0', 'fx_fogo_1', 'fx_fogo_2'], x, y - 0.3, 0, 2.6, 520); fxAnim(['fx_poeira'], x, y, 0, 3, 800); fxAnim(['fx_impacto'], x, y - 0.2, 0, 2.2, 380);
+    const d = Math.hypot(S.p.x - x, S.p.y - y);
+    if (d < 14) { shake(380, tp * 0.12 * Math.max(0.3, 1 - d / 14)); sfx('desaba'); }
+    if (d < 2.4 && S.p.z === 0 && cla !== meuClaId()) hurt(Math.min(200, +danoJog || 60), null);
+  }
+  // notícias dos robôs (canal das Terras)
+  function terrasRobo(d) {
+    if (!modoClas || !d || typeof d.e !== 'string') return;
+    const eu = NET.profile && NET.profile.codigo, now = performance.now();
+    if (d.e === 'p') {
+      if (d.c === eu || !Array.isArray(d.l)) return;
+      for (const e of d.l) {
+        if (!Array.isArray(e) || e.length < 9) continue;
+        const [id, ti, cla, x100, y100, dir, mov, hp, carga] = e, tipo = ti ? 'sentinela' : 'scout', x = x100 / 100, y = y100 / 100;
+        if (typeof id !== 'string' || !isFinite(x) || !isFinite(y) || x < 0 || y < 0 || x > W || y > H) continue;
+        let m = S.mobs.find(q => q.robo && q.id === id);
+        if (!m) { m = newMob(ROBO[tipo].kind, x, y, 0, { robo: tipo, id, cla, dono: d.c, cor: corOk(d.cor) || '#888888', tag: d.tag }); S.mobs.push(m); }
+        if (hp < m.hp) m.flash = now + 120;
+        Object.assign(m, { nx: x, ny: y, dir: dir & 3, nmov: !!mov, hp: Math.min(m.max, +hp || 0), carga: carga | 0, visto: now });
+      }
+      return;
+    }
+    const m = S.mobs.find(q => q.robo && q.id === d.id);
+    if (d.e === 'roubo' && d.a === eu) {
+      const n = Math.max(0, Math.min(Math.floor((S.coins || 0) * Math.min(50, +d.pct || 10) / 100), Math.min(5000, +d.max || 300)));
+      if (n > 0) { S.coins -= n; invDirty = true; save(); toast(`Um robô saqueador${d.tag ? ` [${d.tag}]` : ''} roubou ${n} moedas! Destrua ele antes que chegue na base.`, 'warn', 5000); sfx('acerto'); }
+      NET.terrasEnviar('rb', { e: 'pago', id: d.id, n, c: eu });
+      if (m) m.swing = now;
+      return;
+    }
+    if (d.e === 'pago') {
+      const r = TER.meusRobos.find(q => q.id === d.id);
+      if (r && r.estado !== 'voltar') { r.carga = Math.max(0, Math.min(5000, d.n | 0)); r.estado = 'voltar'; toast(r.carga ? `Robô saqueador pegou ${r.carga} moedas: voltando para a base` : 'O alvo não tinha moedas: robô voltando', r.carga ? 'gold' : 'warn'); }
+      return;
+    }
+    if (d.e === 'boom') { if (m) S.mobs.splice(S.mobs.indexOf(m), 1); if (isFinite(d.x) && isFinite(d.y)) boomEfeito(+d.x, +d.y, d.cla, d.dj); return; }
+    if (d.e === 'morto') { if (m && !m.meu) { S.mobs.splice(S.mobs.indexOf(m), 1); if (!d.chegou) fxAnim(['fx_faisca_0', 'fx_faisca_1', 'fx_faisca_2'], m.x, m.y - 0.6, 0, 1.4, 400); } return; }
+    if (d.e === 'hit') {
+      const r = TER.meusRobos.find(q => q.id === d.id);
+      if (!r) return;
+      r.hp -= Math.max(0, Math.min(400, +d.n || 0)); r.flash = now + 120;
+      if (r.hp <= 0) {
+        tirarRobo(r); NET.terrasEnviar('rb', { e: 'morto', id: r.id });
+        fxAnim(['fx_faisca_0', 'fx_faisca_1', 'fx_faisca_2'], r.x, r.y - 0.6, 0, 1.4, 400);
+        toast(`Seu ${ROBO[r.robo].nome.toLowerCase()} foi destruído${r.carga ? ` (as ${r.carga} moedas se perderam)` : ''}`, 'warn', 4000);
+      }
+    }
+  }
+  setInterval(() => {   // quem lançou manda a posição dos seus robôs
+    if (!modoClas || !online() || !NET.profile || !TER.meusRobos.length) return;
+    NET.terrasEnviar('rb', { e: 'p', c: NET.profile.codigo, cor: CLA.dados ? CLA.dados.cor : undefined, tag: CLA.dados ? CLA.dados.tag : undefined,
+      l: TER.meusRobos.map(m => [m.id, m.robo === 'scout' ? 0 : 1, m.cla, Math.round(m.x * 100), Math.round(m.y * 100), m.dir, m.moving ? 1 : 0, Math.max(0, Math.round(m.hp)), m.carga | 0]) });
+  }, 200);
+  // setas na borda: sua base sempre; com a torre de transmissão, as bases dos outros clãs também
+  function terrasMarcadores() {
+    if (!modoClas || S.p.z !== 0) return [];
+    const l = [], mb = minhaBase(), tem = !!txDoCla();
+    if (mb) l.push({ x: mb.x + 0.5, y: mb.y + 0.5, cor: corOk(mb.cor) || '#c0392b', letra: '⚑' });
+    if (tem) for (const b of TER.bases) if (b !== mb) l.push({ x: b.x + 0.5, y: b.y + 0.5, cor: corOk(b.cor) || '#888888', letra: (b.tag || '?')[0] });
+    return l;
+  }
+  // administrador: custo, espera e força dos robôs
+  function adminRobosHtml() {
+    const c = robosCfg(), inp = (id, v, rot) => `<label class="field">${rot}<input id="${id}" type="number" min="0" value="${v}"></label>`;
+    return '<div class="section-label">Robôs dos clãs (torre de transmissão)</div>'
+      + '<p class="muted small-text"><b>Robô saqueador</b></p>'
+      + `<div class="cla-linha">${inp('rb-s-pet', c.scout.petroleo, 'Petróleo')}${inp('rb-s-fer', c.scout.ferro, 'Ferro')}${inp('rb-s-esp', c.scout.espera, 'Espera (min)')}</div>`
+      + `<div class="cla-linha">${inp('rb-s-roubo', c.scout.roubo, 'Rouba (% das moedas)')}${inp('rb-s-max', c.scout.roubomax, 'Máximo (moedas)')}</div>`
+      + '<p class="muted small-text"><b>Robô explosivo</b></p>'
+      + `<div class="cla-linha">${inp('rb-e-pet', c.sentinela.petroleo, 'Petróleo')}${inp('rb-e-fer', c.sentinela.ferro, 'Ferro')}${inp('rb-e-esp', c.sentinela.espera, 'Espera (min)')}</div>`
+      + `<div class="cla-linha">${inp('rb-e-dano', c.sentinela.dano, 'Dano nas construções')}${inp('rb-e-dj', c.sentinela.danojog, 'Dano nos jogadores')}</div>`
+      + '<p class="muted small-text">Vida das construções nas Terras: paliçada 10, pedra 20, tijolo 25, reforçado 35, ferro 45, muralha do clã 60 (portão +5), torre 150, transmissão 100. Cada golpe tira 1.</p>'
+      + '<div class="confirm-row"><button type="button" class="btn btn-gold" data-st="robos">Salvar robôs</button></div>';
+  }
+  function adminRobosSalvar() {
+    const v = id => Math.max(0, Math.floor(+$(id).value || 0));
+    MUNDO.robos = { scout: { petroleo: v('rb-s-pet'), ferro: v('rb-s-fer'), espera: v('rb-s-esp'), roubo: Math.min(50, v('rb-s-roubo')), roubomax: v('rb-s-max') },
+      sentinela: { petroleo: v('rb-e-pet'), ferro: v('rb-e-fer'), espera: v('rb-e-esp'), dano: v('rb-e-dano'), danojog: Math.min(200, v('rb-e-dj')) } };
+    mundoSalvar('robos'); toast('Robôs salvos: vale para todos os clãs', 'leaf');
+  }
+
   // ---- Mercado entre jogadores (as duas terras): anunciar tira da mochila; o servidor guarda até alguém comprar
-  const MERC = { aba: 'comprar', item: '', lista: [], meu: { saldo: 0, ofertas: [] }, vender: { item: '', qtd: 1, preco: 10 } };
+  const MERC = { aba: 'comprar', item: '', lista: [], meu: { saldo: 0, ofertas: [] }, vender: { item: '', qtd: 1, un: 10 }, compra: {} };
   const itemNome = k => (ITEMS[k] ? ITEMS[k].nome : k);
   async function renderMercado() {
     const body = $('mercado-body');
@@ -9328,8 +10346,9 @@
     if (MERC.aba === 'comprar') {
       const itens = [...new Set(MERC.lista.map(o => o.item))];
       h += `<label class="field">Filtrar<select id="merc-filtro"><option value="">Todos os itens</option>${Object.keys(ITEMS).map(k => `<option value="${k}" ${MERC.item === k ? 'selected' : ''}>${E(itemNome(k))}</option>`).join('')}</select></label><div class="list">`;
-      h += MERC.lista.length ? MERC.lista.map(o => `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${o.preco} moedas · ${(o.preco / o.qtd).toFixed(1)} cada · ${o.loja ? '🏪 ' + E(o.loja) : 'vendedor ' + E(o.vendedor_nome || '—')}</small></span>
-        ${o.minha ? '<span class="owned">Sua oferta</span>' : `<button type="button" class="btn ${S.coins >= o.preco ? 'btn-gold' : ''}" data-merc="comprar" data-id="${o.id}" data-preco="${o.preco}" ${S.coins >= o.preco ? '' : 'disabled'}>Comprar</button>`}</div>`).join('')
+      h += MERC.lista.length ? MERC.lista.map(o => { const n = Math.min(o.qtd, Math.max(1, MERC.compra[o.id] || o.qtd)), custo = mercCusto(o, n);
+        return `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${mercUn(o)} cada · ${o.preco} moedas tudo · ${o.loja ? '🏪 ' + E(o.loja) : 'vendedor ' + E(o.vendedor_nome || '—')}</small></span>
+        ${o.minha ? '<span class="owned">Sua oferta</span>' : `<span class="admin-btns">${o.qtd > 1 ? `<input class="merc-n" type="number" min="1" max="${o.qtd}" value="${n}" data-of="${o.id}" aria-label="Quantos comprar" style="width:4.5em">` : ''}<button type="button" class="btn ${S.coins >= custo ? 'btn-gold' : ''}" data-merc="comprar" data-id="${o.id}" ${S.coins >= custo ? '' : 'disabled'}>Comprar ${n > 1 ? n + ' ' : ''}por ${custo}</button></span>`}</div>`; }).join('')
         : `<div class="empty">Nenhuma oferta${MERC.item ? ' de ' + E(itemNome(MERC.item)) : ''} agora.</div>`;
       h += '</div>';
     } else if (MERC.aba === 'vender') {
@@ -9338,10 +10357,11 @@
       if (!tem.length) h += '<div class="empty">Sua mochila está vazia. Colete recursos na sua terra para vender aqui.</div>';
       else h += `<label class="field">Item<select id="merc-item">${tem.map(k => `<option value="${k}" ${v.item === k ? 'selected' : ''}>${E(itemNome(k))} (você tem ${S.inv[k]})</option>`).join('')}</select></label>
         <div class="cla-linha"><label class="field">Quantidade<input id="merc-qtd" type="number" min="1" max="${S.inv[v.item] || 1}" value="${Math.min(v.qtd, S.inv[v.item] || 1)}"></label>
-        <label class="field">Preço total (moedas)<input id="merc-preco" type="number" min="1" max="10000000" value="${v.preco}"></label></div>
-        <p class="muted small-text">Os itens saem da sua mochila e ficam no Mercado até alguém comprar. Você pode cancelar e pegar de volta. Venda de referência na loja: ${ITEMS[v.item] ? ITEMS[v.item].valor : '?'} moedas cada.</p>
+        <label class="field">Preço por unidade<input id="merc-un" type="number" min="1" max="1000000" value="${v.un}"></label></div>
+        <p id="merc-total"><b>Total: ${coinsTxt(Math.min(v.qtd, S.inv[v.item] || 1) * v.un)}</b></p>
+        <p class="muted small-text">Os itens saem da sua mochila e ficam no Mercado até alguém comprar. Você pode cancelar e pegar de volta. Quem compra pode levar só uma parte, pagando o preço por unidade. Venda de referência na loja: ${ITEMS[v.item] ? ITEMS[v.item].valor : '?'} moedas cada.</p>
         <button type="button" class="btn btn-gold" data-merc="anunciar">Anunciar</button>`;
-      h += '<div class="cla-sec">Suas ofertas</div><div class="list">' + (MERC.meu.ofertas.length ? MERC.meu.ofertas.map(o => `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${o.preco} moedas${o.loja ? ' · ' + E(o.loja) : ''}</small></span><button type="button" class="btn" data-merc="cancelar" data-id="${o.id}">Cancelar</button></div>`).join('') : '<div class="empty">Nenhuma oferta sua no Mercado.</div>') + '</div>';
+      h += '<div class="cla-sec">Suas ofertas</div><div class="list">' + (MERC.meu.ofertas.length ? MERC.meu.ofertas.map(o => `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${mercUn(o)} cada · ${o.preco} moedas tudo${o.loja ? ' · ' + E(o.loja) : ''}</small></span><button type="button" class="btn" data-merc="cancelar" data-id="${o.id}">Cancelar</button></div>`).join('') : '<div class="empty">Nenhuma oferta sua no Mercado.</div>') + '</div>';
     } else {
       h += MERC.meu.saldo > 0 ? `<p>Você vendeu no Mercado e tem <b>${coinsTxt(MERC.meu.saldo)}</b> para retirar.</p><button type="button" class="btn btn-gold" data-merc="retirar">Retirar ${coinsTxt(MERC.meu.saldo)}</button>`
         : '<div class="empty">Nada para retirar. Quando alguém comprar uma oferta sua, as moedas aparecem aqui.</div>';
@@ -9349,10 +10369,26 @@
     body.innerHTML = h;
   }
   function mercLer() {
-    if ($('merc-item')) { MERC.vender.item = $('merc-item').value; MERC.vender.qtd = Math.max(1, Math.floor(+$('merc-qtd').value || 1)); MERC.vender.preco = Math.max(1, Math.floor(+$('merc-preco').value || 1)); }
+    if ($('merc-item')) { MERC.vender.item = $('merc-item').value; MERC.vender.qtd = Math.max(1, Math.floor(+$('merc-qtd').value || 1)); MERC.vender.un = Math.max(1, Math.floor(+$('merc-un').value || 1)); }
+    for (const el of document.querySelectorAll('#mercado-body .merc-n')) MERC.compra[el.dataset.of] = Math.max(1, Math.floor(+el.value || 1));
   }
   $('btn-mercado').addEventListener('click', () => { showSheet('sheet-mercado'); renderMercado(); });
   $('mercado-body').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') closeSheet(); });
+  const mercUn = o => { const u = o.preco / o.qtd; return Number.isInteger(u) ? u : u.toFixed(1); };
+  const mercCusto = (o, n) => (n >= o.qtd ? o.preco : Math.ceil(o.preco * n / o.qtd));
+  // contas na hora: total da venda e preço da compra parcial
+  $('mercado-body').addEventListener('input', e => {
+    if (e.target.id === 'merc-qtd' || e.target.id === 'merc-un') {
+      const q = Math.max(1, Math.floor(+$('merc-qtd').value || 1)), u = Math.max(1, Math.floor(+$('merc-un').value || 1));
+      $('merc-total').innerHTML = `<b>Total: ${coinsTxt(q * u)}</b>`;
+    }
+    if (e.target.classList.contains('merc-n')) {
+      const o = MERC.lista.find(q => String(q.id) === e.target.dataset.of), bt = e.target.parentElement.querySelector('[data-merc="comprar"]');
+      if (!o || !bt) return;
+      const n = Math.min(o.qtd, Math.max(1, Math.floor(+e.target.value || 1))), custo = mercCusto(o, n);
+      MERC.compra[o.id] = n; bt.textContent = `Comprar ${n > 1 ? n + ' ' : ''}por ${custo}`; bt.disabled = S.coins < custo; bt.classList.toggle('btn-gold', S.coins >= custo);
+    }
+  });
   $('mercado-body').addEventListener('change', e => {
     if (e.target.id === 'merc-filtro') { MERC.item = e.target.value; renderMercado(); }
     if (e.target.id === 'merc-item') { mercLer(); MERC.vender.qtd = 1; renderMercado(); }
@@ -9365,18 +10401,27 @@
     const vale = async fn => { b.disabled = true; try { return await fn(); } catch (err) { toast(err.message, 'warn', 3500); return null; } finally { b.disabled = false; } };
     if (a === 'aba') { MERC.aba = b.dataset.v; renderMercado(); return; }
     if (a === 'comprar') {
-      const preco = +b.dataset.preco;
+      const o = MERC.lista.find(q => String(q.id) === b.dataset.id);
+      if (!o) return;
+      const n = Math.min(o.qtd, Math.max(1, MERC.compra[o.id] || o.qtd)), preco = mercCusto(o, n);
       if (S.coins < preco) { toast('Moedas insuficientes', 'warn'); return; }
-      const r = await vale(() => NET.mercadoComprar(+b.dataset.id));
+      const r = await vale(async () => {
+        if (n >= o.qtd || !NET.mercadoComprarQtd) return NET.mercadoComprar(o.id);
+        try { return await NET.mercadoComprarQtd(o.id, n); }
+        catch (err) { if (/mercado_comprar_qtd|function|schema cache/i.test(err.message)) throw new Error('Comprar só uma parte ainda não está ligado no servidor (falta o mercado3.sql). Compre tudo.'); throw err; }
+      });
+      delete MERC.compra[o.id];
       if (r) { S.coins -= r.preco; give(r.item, r.qtd); sfx('moeda'); toast(`Comprou ${r.qtd} ${itemNome(r.item).toLowerCase()} por ${r.preco} moedas`, 'gold'); save(true); }
     }
     if (a === 'anunciar') {
       const v = MERC.vender;
       if (!ITEMS[v.item] || (S.inv[v.item] || 0) < v.qtd) { toast('Você não tem essa quantidade', 'warn'); return; }
       if (!take(v.item, v.qtd)) return;
-      const r = await vale(() => NET.mercadoAnunciar(v.item, v.qtd, v.preco));
+      const total = v.qtd * v.un;
+      if (total > 10000000) { give(v.item, v.qtd); toast('Total alto demais (máximo 10.000.000 moedas)', 'warn'); return; }
+      const r = await vale(() => NET.mercadoAnunciar(v.item, v.qtd, total));
       if (r == null) give(v.item, v.qtd);   // não anunciou: devolve
-      else { toast(`${v.qtd} ${itemNome(v.item).toLowerCase()} à venda por ${v.preco} moedas`, 'leaf'); save(true); }
+      else { toast(`${v.qtd} ${itemNome(v.item).toLowerCase()} à venda: ${v.un} cada (${total} moedas tudo)`, 'leaf'); save(true); }
     }
     if (a === 'cancelar') {
       const r = await vale(() => NET.mercadoCancelar(+b.dataset.id));
@@ -9431,7 +10476,7 @@
     return S.builds.find(b => { const t = BUILDS[b.k].tipo; return (t === 'maquina' || t === 'banca') && (shapeHit(b, x + 0.5, y + 0.5) || shapeHit(b, S.p.x, S.p.y - 0.6)); }) || null;
   }
   let equipAberto = null;
-  function abrirEquip(b) { equipAberto = b; $('equip-titulo').textContent = BUILDS[b.k].nome; showSheet('sheet-equip'); renderEquip(); }
+  function abrirEquip(b) { txAberta = false; equipAberto = b; $('equip-titulo').textContent = BUILDS[b.k].nome; showSheet('sheet-equip'); renderEquip(); }
   const estTxt = est => Object.entries(est || {}).filter(([, q]) => q > 0).map(([k, q]) => `${q} ${ITEMS[k] ? ITEMS[k].nome.toLowerCase() : k}`).join(', ');
   async function renderEquip() {
     const b = equipAberto, body = $('equip-body');
@@ -9462,11 +10507,12 @@
         try { meu = (await NET.mercadoMeu()) || meu; } catch (e) {}
         if (equipAberto !== b || !openSheet || openSheet.id !== 'sheet-equip') return;
         const minhas = meu.ofertas.filter(o => o.loja === b.nome);
-        h += `<div class="cla-sec">À venda nesta banca (${minhas.length}/5)</div><div class="list">` + (minhas.length ? minhas.map(o => `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${o.preco} moedas</small></span><button type="button" class="btn" data-eq="cancelar" data-id="${o.id}">Tirar</button></div>`).join('') : '<div class="empty">Nada à venda ainda.</div>') + '</div>';
+        h += `<div class="cla-sec">À venda nesta banca (${minhas.length}/5)</div><div class="list">` + (minhas.length ? minhas.map(o => `<div class="row shop"><span class="name"><b>${o.qtd} ${E(itemNome(o.item))}</b><small>${mercUn(o)} cada · ${o.preco} moedas tudo</small></span><button type="button" class="btn" data-eq="cancelar" data-id="${o.id}">Tirar</button></div>`).join('') : '<div class="empty">Nada à venda ainda.</div>') + '</div>';
         const tem = Object.keys(ITEMS).filter(k => (S.inv[k] || 0) > 0);
         if (minhas.length < 5 && tem.length) {
           h += `<div class="cla-sec">Pôr à venda</div><label class="field">Item<select id="banca-item">${tem.map(k => `<option value="${k}">${E(itemNome(k))} (você tem ${S.inv[k]})</option>`).join('')}</select></label>
-            <div class="cla-linha"><label class="field">Quantidade<input id="banca-qtd" type="number" min="1" value="1"></label><label class="field">Preço total<input id="banca-preco" type="number" min="1" value="${ITEMS[tem[0]] ? ITEMS[tem[0]].valor : 10}"></label></div>
+            <div class="cla-linha"><label class="field">Quantidade<input id="banca-qtd" type="number" min="1" value="1"></label><label class="field">Preço por unidade<input id="banca-preco" type="number" min="1" value="${ITEMS[tem[0]] ? ITEMS[tem[0]].valor : 10}"></label></div>
+            <p id="banca-total"><b>Total: ${coinsTxt(ITEMS[tem[0]] ? ITEMS[tem[0]].valor : 10)}</b></p>
             <div class="list-actions"><button type="button" class="btn btn-gold" data-eq="vender">Pôr na banca</button></div>`;
         }
         h += `<p class="muted small-text">Quem compra paga pelo Mercado; as moedas ficam em Menu → Mercado → Vendas para você retirar.${meu.saldo ? ` Você tem ${coinsTxt(meu.saldo)} para retirar.` : ''}</p>`;
@@ -9475,6 +10521,10 @@
     body.innerHTML = h;
   }
   $('equip-body').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') closeSheet(); });
+  $('equip-body').addEventListener('input', e => {
+    if ((e.target.id === 'banca-qtd' || e.target.id === 'banca-preco') && $('banca-total'))
+      $('banca-total').innerHTML = `<b>Total: ${coinsTxt(Math.max(1, Math.floor(+$('banca-qtd').value || 1)) * Math.max(1, Math.floor(+$('banca-preco').value || 1)))}</b>`;
+  });
   $('equip-body').addEventListener('click', async e => {
     const bt = e.target.closest('[data-eq]'), b = equipAberto;
     if (!bt || !b) return;
@@ -9498,8 +10548,9 @@
     }
     const vale = async fn => { bt.disabled = true; try { return await fn(); } catch (err) { toast(err.message, 'warn', 3500); return null; } finally { bt.disabled = false; } };
     if (a === 'vender') {
-      const item = $('banca-item').value, qtd = Math.max(1, Math.floor(+$('banca-qtd').value || 1)), preco = Math.max(1, Math.floor(+$('banca-preco').value || 1));
+      const item = $('banca-item').value, qtd = Math.max(1, Math.floor(+$('banca-qtd').value || 1)), preco = qtd * Math.max(1, Math.floor(+$('banca-preco').value || 1));
       if ((S.inv[item] || 0) < qtd) { toast('Você não tem essa quantidade', 'warn'); return; }
+      if (preco > 10000000) { toast('Total alto demais (máximo 10.000.000 moedas)', 'warn'); return; }
       if (!take(item, qtd)) return;
       const r = await vale(() => NET.mercadoAnunciar(item, qtd, preco, b.nome));
       if (r == null) give(item, qtd); else { toast(`${qtd} ${itemNome(item).toLowerCase()} à venda na ${b.nome}`, 'leaf'); save(true); }
@@ -9595,7 +10646,7 @@
   $('btn-staff').addEventListener('click', () => { closeSheet(); openStaff(); });
 
   // ?teste na URL: expõe o estado para testes automáticos
-  if (/[?&]teste\b/.test(location.search)) window.TerraDebug = { get S() { return S; }, get RP() { return RP; }, roomFrontTile, get interior() { return interior; }, get fx() { return effects; }, get pushT() { return pushT; }, doorAction, catapultInFront, useTool, target, placeKit, pickUp, candidate, placeProblem, showSheet, botMine, save, get MUNDO() { return MUNDO; }, evNpcs, vilasTick, fugitivoTick, darPremio, renderAdmin, killMob, enterHouse, get sons() { return Object.keys(somBuf).length; }, newMob, get NPCS() { return S.npcs; } };
+  if (/[?&]teste\b/.test(location.search)) window.TerraDebug = { get S() { return S; }, get RP() { return RP; }, roomFrontTile, get interior() { return interior; }, get fx() { return effects; }, get pushT() { return pushT; }, doorAction, catapultInFront, useTool, target, placeKit, pickUp, candidate, placeProblem, showSheet, botMine, save, get MUNDO() { return MUNDO; }, evNpcs, vilasTick, fugitivoTick, darPremio, renderAdmin, killMob, enterHouse, get sons() { return Object.keys(somBuf).length; }, newMob, get NPCS() { return S.npcs; }, viajar, TER, claMarcarBase, get MUNDO2() { return MUNDO; }, terrasCarregar, terrasRegen, get modoClas() { return modoClas; }, terrasSouHost, get REMOTOS() { return REMOTOS; }, get CLA() { return CLA; } };
 
   async function boot() {
     buildSprites();
